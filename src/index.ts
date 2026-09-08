@@ -38,8 +38,9 @@ import { mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { isRecord } from '@godcreator02/gwb-plugin-api'
 import type { GwbContext } from '@godcreator02/gwb-plugin-api'
-// 只为激活 commands / settings / data / shell / status 五个件给 cordis Context 加的名字；
-// 全是 type import，产物里一个字节都不剩
+// 只为激活 commands / settings / data / shell / status 五个件与官方 timer 件给 cordis
+// Context 加的名字；全是 type import，产物里一个字节都不剩
+import type {} from '@cordisjs/plugin-timer'
 import type { GwbCommands } from '@godcreator02/gwb-commands'
 import type { GwbDataApi } from '@godcreator02/gwb-data'
 import type { GwbSettingsApi } from '@godcreator02/gwb-settings'
@@ -58,7 +59,7 @@ import { BACKUP_TIMEOUT_MS } from './process.js'
 import type { RunProcess } from './process.js'
 import { ossRepoUrl, resticEnv, runRestic } from './restic.js'
 import { readState, writeState } from './state.js'
-import { backupIntervalMsOf, createTimers, intervalMsOf, shouldCatchUp } from './timers.js'
+import { backupIntervalMsOf, intervalMsOf, shouldCatchUp } from './timers.js'
 
 /**
  * 模块被重新 import 的时刻。**必须挂在入口模块的顶层**：这个值如实反映「运行中的代码
@@ -70,11 +71,13 @@ const MODULE_LOADED_AT = new Date().toISOString()
 export const name = 'gwb-windows-backup'
 
 /**
- * 整插件级 `inject` 是**等待语义**——列了却缺席，整个插件静默 pending。所以只列真正
- * 必需的三件：命令总线（写面全在它上面）、设置（配置 SSOT）、数据（状态与凭据落盘）。
+ * 整插件级 `inject` 是**等待语义**——列了却缺席，整个插件挂起等它（日志里明说在等谁）。
+ * 所以只列真正必需的：命令总线（写面全在它上面）、设置（配置 SSOT）、数据（状态与凭据
+ * 落盘）、timer（官方 @cordisjs/plugin-timer，`ctx.interval` / `ctx.timeout` 的访问闸；
+ * home 的 cordis.yml 没这条条目时备份件整个挂起——宁挂起不静默空转）。
  * 外壳与状态格走局部注入（见文末两段），缺席只是没有界面，备份本体照跑。
  */
-export const inject = ['gwbCommands', 'gwbSettings', 'gwbData']
+export const inject = ['gwbCommands', 'gwbSettings', 'gwbData', 'timer']
 
 /** 设置件里的键（kebab-case，设置件只收这个形状）→ 平铺配置的字段（camelCase，跟老仓一致）。 */
 const SETTING_KEYS: ReadonlyArray<{
@@ -120,6 +123,9 @@ export interface HostContext {
    */
   effect(setup: () => () => void): void
   inject<T extends Record<string, unknown>>(deps: readonly string[], callback: (scoped: HostContext & T) => void): void
+  /** 官方 timer 件混进 ctx 的那两个（服务名 `timer`，inject 列了才许碰）。 */
+  interval(callback: () => void, ms: number): () => void
+  timeout(callback: () => void, ms: number): void
   logger: {
     debug(...args: unknown[]): void
     info(...args: unknown[]): void
@@ -191,7 +197,6 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
   const appliedAt = new Date().toISOString()
   const version = pluginVersion()
   const log = ctx.logger
-  const timers = createTimers(ctx)
 
   // ── 数据目录与格内布局（gwbData 是硬 inject，挂上时它必在）──────────────────
   const dataDir = ctx.gwbData.dir
@@ -248,7 +253,7 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
     const ms = intervalMsOf(hours)
     state.intervalHours = hours
     state.nextCheckAt = new Date(Date.now() + ms).toISOString()
-    stopCheckTimer = timers.interval(() => {
+    stopCheckTimer = ctx.interval(() => {
       // 每响一次把「下次」往后推，状态里才不会一直显示一个已经过去的时刻
       state.nextCheckAt = new Date(Date.now() + ms).toISOString()
       void runCheck()
@@ -272,7 +277,7 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
     const ms = backupIntervalMsOf(minutes)
     state.frequencyMinutes = minutes
     state.nextRunAt = new Date(Date.now() + ms).toISOString()
-    stopBackupTimer = timers.interval(() => {
+    stopBackupTimer = ctx.interval(() => {
       // 每响一次就把「下一轮」往后推——只在起计时器时算一次的话，跑过一轮后状态回旧值
       state.nextRunAt = new Date(Date.now() + ms).toISOString()
       void runBackup('定时')
@@ -543,13 +548,13 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
 
   // 30 秒后：先跑一次自检；上一轮备份太旧（或从没跑过）就顺带补跑一轮
   state.nextCheckAt = new Date(Date.now() + FIRST_DELAY_MS).toISOString()
-  timers.timeout(() => {
+  ctx.timeout(() => {
     void runCheck()
   }, FIRST_DELAY_MS)
 
   const lastRunAt = readState(paths.stateFile).lastRunAt
   if (shouldCatchUp(lastRunAt, flat.frequencyMinutes, new Date())) {
-    timers.timeout(() => {
+    ctx.timeout(() => {
       void runBackup('补跑')
     }, FIRST_DELAY_MS)
     log.info(`上次备份是 ${lastRunAt ?? '（从没跑过）'}，${String(FIRST_DELAY_MS / 1000)}s 后补跑一轮`)

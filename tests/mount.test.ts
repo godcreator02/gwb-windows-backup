@@ -59,6 +59,14 @@ function fakeHost(services: { gwbShell?: unknown; gwbStatus?: unknown } = {}) {
         callback({ ...base, ...(services as Record<string, unknown>) })
       }
     },
+    // 官方 timer 件那两个的假身：真件是 fiber 感知的，测试里 vi 的假钟拦得住这对裸定时器
+    interval(callback: () => void, ms: number): () => void {
+      const id = setInterval(callback, ms)
+      return () => clearInterval(id)
+    },
+    timeout(callback: () => void, ms: number): void {
+      setTimeout(callback, ms)
+    },
     logger: {
       debug: () => {},
       info: (...args: unknown[]) => logs.push(String(args[0])),
