@@ -70,6 +70,14 @@ const MODULE_LOADED_AT = new Date().toISOString()
 export const name = 'gwb-windows-backup'
 
 /**
+ * 浏览器半与样式表的地址，注册窗格时报给外壳。**内核不再替件取货**——没有 `gwb://`、
+ * 没有 exports 解析，谁的界面谁自报 `file://` 地址。产物里 `dist/` 下三个文件是邻居，
+ * 从本模块算。
+ */
+const CLIENT_URL = new URL('./client.js', import.meta.url).href
+const STYLE_URL = new URL('./style.css', import.meta.url).href
+
+/**
  * 整插件级 `inject` 是**等待语义**——列了却缺席，整个插件挂起等它（日志里明说在等谁）。
  * 所以只列真正必需的：命令总线（写面全在它上面）、设置（配置 SSOT）、数据（状态与凭据
  * 落盘）、timer（官方 @cordisjs/plugin-timer，`ctx.interval` / `ctx.timeout` 的访问闸；
@@ -563,7 +571,13 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
 
   ctx.inject<{ gwbShell: Pick<GwbShellApi, 'registerPane' | 'describeSelf'> }>(['gwbShell'], (scoped) => {
     scoped.effect(() => {
-      const offPane = scoped.gwbShell.registerPane({ id: 'main', title: '备份', icon: 'shield-check' })
+      const offPane = scoped.gwbShell.registerPane({
+        id: 'main',
+        title: '备份',
+        icon: 'shield-check',
+        client: CLIENT_URL,
+        style: STYLE_URL,
+      })
       const offSelf = scoped.gwbShell.describeSelf({ title: 'Windows 备份', icon: 'shield-check' })
       return () => {
         offSelf()

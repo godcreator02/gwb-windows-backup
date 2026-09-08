@@ -1,7 +1,7 @@
 {
   "name": "@godcreator02/gwb-windows-backup",
-  "version": "0.0.1",
-  "description": "Windows 备份：restic 打快照 + Veeam 整机镜像 + OSS 异地库，跑在 gwb-kernel 线上",
+  "version": "0.1.0",
+  "description": "Windows 备份：restic 打快照 + Veeam 整机镜像 + OSS 异地库，跑在 gwb-kernel 线上。0.1 对应单进程内核：注册窗格时自报浏览器半与样式表的 file:// 地址",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,8 +10,6 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./client": "./dist/client.js",
-    "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },
   "files": [
@@ -19,7 +17,7 @@
     "src",
     "config"
   ],
-  "//exports": "style.css 必须列在这儿——内核的 gwb:// 只认 exports 表，不在表里的文件一概解析不到；config 装着默认 exclude 表，files 漏了它就是「装得上、跑起来找不到表」",
+  "//exports": "只剩主入口。**内核不再读 exports 表**：浏览器半与样式表的地址由 node 半从 import.meta.url 算成 file://，注册窗格时报给外壳。config 装着默认 exclude 表，files 漏了它就是「装得上、跑起来找不到表」",
   "scripts": {
     "build": "tsc -p tsconfig.build.json && node build.ts && node tools/build-styles.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/client/tsconfig.json",
@@ -36,11 +34,11 @@
   },
   "//peer": "硬 peer 四条：commands（写面全在总线上）、settings（配置 SSOT）、data（状态与凭据落盘）是备份的命根，缺哪个这个件都没有意义；plugin-api 的类型出现在 dist/index.d.ts 的导出面;定时器走官方 @cordisjs/plugin-timer(内核 AGENTS 认定的开件),由 home 的 yml 条目提供——跟 cordis 一样是宿主环境给的,只进 dev 不进 peershell / shared-react 是**浏览器半的前提**，走可选 peer——headless home（没外壳）里备份照跑，那三个缺了只是没有界面。写 >= 不写 ^：caret 在 0.0.x 上锁死 patch",
   "peerDependencies": {
-    "@godcreator02/gwb-plugin-api": ">=0.0.4",
-    "@godcreator02/gwb-commands": ">=0.0.2",
-    "@godcreator02/gwb-settings": ">=0.0.6",
-    "@godcreator02/gwb-data": ">=0.0.3",
-    "@godcreator02/gwb-shell": ">=0.0.4",
+    "@godcreator02/gwb-plugin-api": ">=0.1.0",
+    "@godcreator02/gwb-commands": ">=0.1.0",
+    "@godcreator02/gwb-settings": ">=0.1.0",
+    "@godcreator02/gwb-data": ">=0.1.0",
+    "@godcreator02/gwb-shell": ">=0.1.0",
     "@godcreator02/gwb-shared-react": ">=0.0.2"
   },
   "peerDependenciesMeta": {
@@ -54,12 +52,12 @@
   "//devdeps": "cordis 只进 dev（apply 的参数类型经 GwbContext 进导出面，但运行时值由宿主给，装进 home 就是第二份实例）；tokens 只在构建期吃 theme.reference.css，页面上的令牌值运行时取页面那张表——都不占运行时。react 系给 client 半 typecheck 用，esbuild/tailwind 给 build，真实消费都在构建期",
   "devDependencies": {
     "@cordisjs/plugin-timer": "1.1.3",
-    "@godcreator02/gwb-commands": "0.0.2",
-    "@godcreator02/gwb-data": "0.0.3",
-    "@godcreator02/gwb-plugin-api": "0.0.4",
-    "@godcreator02/gwb-settings": "0.0.6",
+    "@godcreator02/gwb-commands": "0.1.0",
+    "@godcreator02/gwb-data": "0.1.0",
+    "@godcreator02/gwb-plugin-api": "0.1.0",
+    "@godcreator02/gwb-settings": "0.1.0",
     "@godcreator02/gwb-shared-react": "0.0.2",
-    "@godcreator02/gwb-shell": "0.0.16",
+    "@godcreator02/gwb-shell": "0.1.0",
     "@godcreator02/gwb-tokens": "0.0.5",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^24.0.0",
