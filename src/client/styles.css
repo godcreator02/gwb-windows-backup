@@ -1,0 +1,16 @@
+/* 件自己的规则（工具类由构建管线生成，这儿只放 tailwind 表达不了的） */
+
+/* 「正在跑」的呼吸动画：颜色守住上次结论，动画只说「活着」 */
+.gwb-wb-pulse {
+  animation: gwb-wb-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes gwb-wb-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
