@@ -159,12 +159,16 @@ const realBackup: BackupRunner = async (paths, config) => {
   return { ok: result.ok, skipped: null, summary: result.notification.body }
 }
 
-const require = createRequire(import.meta.url)
-
-/** 包根的 package.json 里读版本——`main` 是 dist/index.js，`./package.json` 就在旁边。 */
+/**
+ * 包根的 package.json 里读版本。本模块住 `dist/index.js`，包根在**上一层**——相对引用
+ * 是 `'../package.json'`（`'./'` 会落到 dist/ 里去）。loader 可能带查询串 import 本模块
+ * （缓存击穿的写法），`createRequire` 拿那种 URL 解析相对路径会炸，先剥掉 `?` 后面那段。
+ */
 function pluginVersion(): string {
   try {
-    const manifest = require('./package.json') as { version?: unknown }
+    const clean = import.meta.url.split('?')[0] ?? import.meta.url
+    const require = createRequire(clean)
+    const manifest = require('../package.json') as { version?: unknown }
     return typeof manifest.version === 'string' ? manifest.version : 'unknown'
   } catch {
     return 'unknown'
