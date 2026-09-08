@@ -15,13 +15,13 @@
  * 5. **命令面**——六条 `windows-backup.*` 命令挂在命令总线上（run / check / status /
  *    paths / restic / mark）。**没有 HTTP 路由**——新线的观察面走命令总线与事件，MCP
  *    件会把总线自动开给 agent。
- * 6. **界面占位**——gwb-shell 的窗格与 gwb-status 的状态格，都走**局部注入**：headless
- *    home（没装外壳）里备份照跑，缺的只是看得见的那层皮。
+ * 6. **界面占位**——gwb-shell 的备份窗格，走**局部注入**：headless home（没装外壳）里
+ *    备份照跑，缺的只是看得见的那层皮。
  *
  * ── 抄的人最容易踩错的几条 ──────────────────────────────────────────────────
  *
  * - **顶层 `inject` 只列命令 / 设置 / 数据三件**——那是备份的命根，缺哪个这个件都没有
- *   存在的意义，cordis 的等待语义会把它明明白白挂起。外壳与状态格**绝不**进顶层
+ *   存在的意义，cordis 的等待语义会把它明明白白挂起。外壳**绝不**进顶层
  *   inject：列了却缺席，整个件（连同备份本体）静默 pending。
  * - **两层并发保护，缺一不可**：闭包里的 `backing` 挡的是这一个进程里的重复触发；数据
  *   目录里的 `backup.lock`（`lock.ts`）挡的是跨进程的那轮。
@@ -38,14 +38,13 @@ import { mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { isRecord } from '@godcreator02/gwb-plugin-api'
 import type { GwbContext } from '@godcreator02/gwb-plugin-api'
-// 只为激活 commands / settings / data / shell / status 五个件与官方 timer 件给 cordis
+// 只为激活 commands / settings / data / shell 四个件与官方 timer 件给 cordis
 // Context 加的名字；全是 type import，产物里一个字节都不剩
 import type {} from '@cordisjs/plugin-timer'
 import type { GwbCommands } from '@godcreator02/gwb-commands'
 import type { GwbDataApi } from '@godcreator02/gwb-data'
 import type { GwbSettingsApi } from '@godcreator02/gwb-settings'
 import type { GwbShellApi } from '@godcreator02/gwb-shell'
-import type { GwbStatusApi } from '@godcreator02/gwb-status'
 import { refuseReason, runFullBackup } from './backup.js'
 import type { BackupConfig, FlatConfig } from './config.js'
 import { DEFAULT_FLAT, flatToConfig, pickFlat, resolveSlotPath } from './config.js'
@@ -75,7 +74,7 @@ export const name = 'gwb-windows-backup'
  * 所以只列真正必需的：命令总线（写面全在它上面）、设置（配置 SSOT）、数据（状态与凭据
  * 落盘）、timer（官方 @cordisjs/plugin-timer，`ctx.interval` / `ctx.timeout` 的访问闸；
  * home 的 cordis.yml 没这条条目时备份件整个挂起——宁挂起不静默空转）。
- * 外壳与状态格走局部注入（见文末两段），缺席只是没有界面，备份本体照跑。
+ * 外壳走局部注入（见文末），缺席只是没有界面，备份本体照跑。
  */
 export const inject = ['gwbCommands', 'gwbSettings', 'gwbData', 'timer']
 
@@ -366,7 +365,7 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
     return 'done'
   }
 
-  // ── 状态快照（status 命令的回包；状态格与窗格轮的就是它）─────────────────────
+  // ── 状态快照（status 命令的回包；窗格轮的就是它）─────────────────────
 
   /** 备份那一段的状态。`status` 的 `backup` 格与 `run` 命令的回包都用它。 */
   const backupInfo = (): Record<string, unknown> => {
@@ -452,7 +451,7 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
 
   ctx.effect(() => {
     const off = ctx.gwbCommands.register(
-      { name: 'windows-backup.status', description: '回全量状态：上次备份、自检结论、定时器节奏。状态格与窗格轮的就是它', plugin: name },
+      { name: 'windows-backup.status', description: '回全量状态：上次备份、自检结论、定时器节奏。窗格轮的就是它', plugin: name },
       () => ({ ok: true, data: snapshot() }),
     )
     return off
@@ -571,10 +570,6 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
         offPane()
       }
     })
-  })
-
-  ctx.inject<{ gwbStatus: Pick<GwbStatusApi, 'registerCell'> }>(['gwbStatus'], (scoped) => {
-    scoped.effect(() => scoped.gwbStatus.registerCell({ id: 'backup', title: '备份', size: 'md' }))
   })
 
   log.info(

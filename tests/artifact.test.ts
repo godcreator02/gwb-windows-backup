@@ -58,9 +58,8 @@ describe.skipIf(!built)('产物：client 半', () => {
     expect(bare.length).toBeGreaterThan(0)
   })
 
-  it('mountPane 与 mountCell 两个导出都在', () => {
+  it('mountPane 导出在', () => {
     expect(text).toContain('mountPane')
-    expect(text).toContain('mountCell')
   })
 
   it('轮询的那条命令名在', () => {

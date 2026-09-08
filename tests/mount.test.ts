@@ -38,10 +38,10 @@ type Registered = {
 }
 
 /**
- * 假宿主：effect 只登记 disposer；局部注入按「服务在场才回调」；设置 / 命令 / 外壳 /
- * 状态格全是内存表。`services` 里放局部注入可用的那几个（缺谁谁那路不跑）。
+ * 假宿主：effect 只登记 disposer；局部注入按「服务在场才回调」；设置 / 命令 / 外壳
+ * 全是内存表。`services` 里放局部注入可用的那几个（缺谁谁那路不跑）。
  */
-function fakeHost(services: { gwbShell?: unknown; gwbStatus?: unknown } = {}) {
+function fakeHost(services: { gwbShell?: unknown } = {}) {
   const registered: Registered = {
     settingsDefs: new Map(),
     settingsValues: new Map(),
@@ -321,16 +321,13 @@ describe('定时器与补跑', () => {
 })
 
 describe('界面占位（局部注入）', () => {
-  it('外壳与状态格在场 → 注册；缺席 → 一切照常', () => {
+  it('外壳在场 → 注册；缺席 → 一切照常', () => {
     const withUi = fakeHost({
       gwbShell: {
         registerPane: (_spec: { id: string }) => {
           return () => {}
         },
         describeSelf: () => () => {},
-      },
-      gwbStatus: {
-        registerCell: (_spec: { id: string; size?: string }) => () => {},
       },
     })
     mount(withUi.ctx, fakeDeps())

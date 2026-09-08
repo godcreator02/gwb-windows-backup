@@ -1,6 +1,6 @@
 /**
  * 健康检查 —— 观察面的**权威判据**。定时器周期自检与 `windows-backup.check` 命令调的是
- * 同一个 `runHealthCheck`，状态格与窗格只是它的皮。
+ * 同一个 `runHealthCheck`，窗格只是它的皮。
  *
  * 输出是纯 JSON（`HealthReport`），不打印、不弹窗、不写日志——怎么呈现由调用方决定。
  *

@@ -231,7 +231,7 @@ async function runLocked(ctx: BackupContext): Promise<CompletedBackupResult> {
   const ok = local.ok && (!ossEnabled || (oss?.ok ?? false))
 
   // 「这台机器上次备份是什么时候、成没成」——健康检查的「上次备份」那一项、开机补跑的
-  // 判定、状态格里那行时间，读的都是这三格。**成败都记**：只在成功时记的话，连着失败
+  // 判定、窗格里那行时间，读的都是这三格。**成败都记**：只在成功时记的话，连着失败
   // 三天看起来会像「三天前刚备过」。
   writeState(paths.stateFile, {
     lastRunAt: localTimestamp(now()),

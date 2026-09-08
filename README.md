@@ -6,7 +6,7 @@ Veeam 整机镜像在老仓里就 100% 归手册、代码零涉及，等手册�
 
 自 DSH 原生件重做（老仓 `D:\dshfiles\26082800ktb\god-windows-backup` 只作参考）：域逻辑
 （锁、备份管线、五项健康判据、restic 参数表、日志契约句、凭据纪律）语义照搬、代码重写；
-宿主层整个换新线契约——命令总线、设置件、数据件、外壳窗格、状态墙。
+宿主层整个换新线契约——命令总线、设置件、数据件、外壳窗格。
 
 ## 现在有什么
 
@@ -16,7 +16,7 @@ Veeam 整机镜像在老仓里就 100% 归手册、代码零涉及，等手册�
   - 跨进程锁（`backup.lock`，6h 陈旧接管）、凭据永不进日志（`--password-file`）
 - **命令面**（`windows-backup.*`，MCP 件会自动开给 agent）：
   `run` / `check` / `status` / `paths` / `restic`（直通，密钥不出现在参数里）/ `mark`
-- **client 半**：状态墙一格（`mountCell`）+ 备份窗格（`mountPane`）——灯、五项、按钮、30s 轮询
+- **client 半**：备份窗格（`mountPane`）——灯、五项、按钮、30s 轮询
 - **设置**：15 个键经 gwb-settings 声明（kebab-case，如 `frequency-minutes`、`local-repo`）
 
 ## 怎么跑

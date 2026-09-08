@@ -1,8 +1,6 @@
 /**
- * 备份窗格：状态格那份的完整版——五项逐项、问题清单、最近结果、路径与节奏。
- *
- * 与状态格同一条数据源（`windows-backup.status` → 见 view.ts 的收窄），
- * 多出来的只是版面：这里放得下五项的每一项与自检出错那句话。
+ * 备份窗格：五项逐项、问题清单、最近结果、路径与节奏——本件唯一的界面。
+ * 数据源是 `windows-backup.status`（收窄见 view.ts），30 秒一轮。
  */
 
 import { useState, type ReactElement } from 'react'

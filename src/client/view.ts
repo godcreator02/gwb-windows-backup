@@ -1,5 +1,5 @@
 /**
- * `windows-backup.status` 回包的收窄与展示口径——窗格与状态格共用。
+ * `windows-backup.status` 回包的收窄与展示口径——窗格用。
  *
  * 命令总线回的是整份 `GwbResult`（`{ ok, data, error }`），这儿拆包收窄；形状的正本在
  * node 半 `src/index.ts` 的 `snapshot()`，这一头只按「用得上」收窄，不照抄全量字段。
