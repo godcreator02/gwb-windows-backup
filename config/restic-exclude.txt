@@ -1,0 +1,55 @@
+# Restic exclude 规则
+#
+# 用户栈：Windows + VS Code + C++(CMake) + Python + Node/Next.js + Obsidian + Git
+# 有其他工具链需求时，复制本文件到 <home>/data/<条目 id>/restic-exclude.txt 追加个人规则
+# ——数据目录里那份存在就用它、不存在才用本文件（见 src/paths.ts）
+
+
+# ===== OS / 办公临时文件 =====
+
+# Office 临时锁文件
+~$**
+
+# Windows 临时 / 缩略图 / 快捷方式
+*.tmp
+*.temp
+*.lnk
+desktop.ini
+thumbs.db
+Thumbs.db
+
+# 通用回收站
+.trash
+
+
+# ===== 编辑器 / IDE =====
+
+# VS Code 项目缓存（保留 settings.json / launch.json / tasks.json 等有价值配置）
+.vscode/.cache
+
+# C++ clangd IntelliSense 索引
+.cache/clangd
+
+# Obsidian 工作区临时状态
+.obsidian/workspace*.json
+
+
+# ===== 构建产物 =====
+
+# CMake / C++
+**/build*/**
+cmake-build**
+
+# Node.js
+node_modules
+.next
+.nuxt
+dist
+
+# Python
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache

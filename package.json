@@ -1,27 +1,83 @@
 {
   "name": "@godcreator02/gwb-windows-backup",
   "version": "0.0.1",
-  "description": "Windows 备份：一个 gwb 件",
+  "description": "Windows 备份：restic 打快照 + Veeam 整机镜像 + OSS 异地库，跑在 gwb-kernel 线上",
   "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./client": "./dist/client.js",
+    "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },
-  "files": ["dist", "src"],
-  "gwb": { "title": "Windows 备份" },
+  "files": [
+    "dist",
+    "src",
+    "config"
+  ],
+  "//exports": "style.css 必须列在这儿——内核的 gwb:// 只认 exports 表，不在表里的文件一概解析不到；config 装着默认 exclude 表，files 漏了它就是「装得上、跑起来找不到表」",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "prepublishOnly": "pnpm build"
+    "build": "tsc -p tsconfig.build.json && node build.ts && node tools/build-styles.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/client/tsconfig.json",
+    "lint": "oxlint . --deny-warnings",
+    "test": "vitest run --passWithNoTests --tags-filter=!slow",
+    "test:all": "vitest run --passWithNoTests",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run test",
+    "prepublishOnly": "pnpm build",
+    "publish:dev": "node scripts/publish.ts",
+    "publish:release": "node scripts/publish.ts --release"
   },
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
+  "//peer": "硬 peer 四条：commands（写面全在总线上）、settings（配置 SSOT）、data（状态与凭据落盘）是备份的命根，缺哪个这个件都没有意义；plugin-api 的类型出现在 dist/index.d.ts 的导出面。shell / status / shared-react 是**浏览器半的前提**，走可选 peer——headless home（没外壳）里备份照跑，那三个缺了只是没有界面。写 >= 不写 ^：caret 在 0.0.x 上锁死 patch",
   "peerDependencies": {
-    "@godcreator02/gwb-plugin-api": ">=0.0.4"
+    "@godcreator02/gwb-plugin-api": ">=0.0.4",
+    "@godcreator02/gwb-commands": ">=0.0.2",
+    "@godcreator02/gwb-settings": ">=0.0.6",
+    "@godcreator02/gwb-data": ">=0.0.3",
+    "@godcreator02/gwb-shell": ">=0.0.4",
+    "@godcreator02/gwb-status": ">=0.0.1",
+    "@godcreator02/gwb-shared-react": ">=0.0.2"
   },
+  "peerDependenciesMeta": {
+    "@godcreator02/gwb-shell": {
+      "optional": true
+    },
+    "@godcreator02/gwb-status": {
+      "optional": true
+    },
+    "@godcreator02/gwb-shared-react": {
+      "optional": true
+    }
+  },
+  "//devdeps": "cordis 只进 dev（apply 的参数类型经 GwbContext 进导出面，但运行时值由宿主给，装进 home 就是第二份实例）；tokens 只在构建期吃 theme.reference.css，页面上的令牌值运行时取页面那张表——都不占运行时。react 系给 client 半 typecheck 用，esbuild/tailwind 给 build，真实消费都在构建期",
   "devDependencies": {
     "@godcreator02/gwb-plugin-api": "0.0.4",
+    "@godcreator02/gwb-commands": "0.0.2",
+    "@godcreator02/gwb-settings": "0.0.6",
+    "@godcreator02/gwb-data": "0.0.3",
+    "@godcreator02/gwb-shell": "0.0.16",
+    "@godcreator02/gwb-status": "0.0.4",
+    "@godcreator02/gwb-shared-react": "0.0.2",
+    "@godcreator02/gwb-tokens": "0.0.5",
     "@types/node": "^24.0.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "@tailwindcss/postcss": "^4.0.0",
     "cordis": "4.0.0-rc.9",
-    "typescript": "^7.0.2"
+    "esbuild": "^0.27.0",
+    "oxlint": "1.76.0",
+    "oxlint-tsgolint": "7.0.2001",
+    "postcss": "^8.5.28",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   }
 }
