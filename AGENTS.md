@@ -1,0 +1,37 @@
+# gwb-windows-backup
+
+gwb 内核线的 Windows 备份件（restic 快照 + OSS 异地 + 周期自检 + 备份窗格）。包名
+`@godcreator02/gwb-windows-backup`，发本机 Verdaccio（127.0.0.1:4873），装进 home 走手动
+`pnpm add` + cordis.yml 条目。文档站 `docs-site/`，六区，dev 口 4318。
+
+## 门禁与跑法
+
+```powershell
+pnpm check      # typecheck ×2 + oxlint --deny-warnings + vitest(!slow)——提交前必绿
+pnpm build      # tsc + esbuild + tailwind；tests/artifact.test.ts 守产物
+pnpm publish:dev / publish:release   # 发版（同一个版本号永不重发）
+cd docs-site && pnpm exec docfirst check   # 文档门禁，单独跑
+```
+
+## 硬约束
+
+* **`src/` 域库零第三方依赖**，node 内建 only；宿主层只认 `HostContext`，不 import 内核运行时
+* **凭据纪律**：密码只交路径（`--password-file`）、OSS key 只进子进程 env；永不进设置、
+  永不进日志、永不进异常消息
+* **日志契约行只在 `src/messages.ts` 一处拼**——健康检查靠 grep 那几串英文，改一个词就把
+  断备份读成一切正常
+* **顶层 `inject` 只列 gwbCommands / gwbSettings / gwbData / timer**；外壳走局部注入，
+  列顶层就等于 headless home 里备份整个挂起
+* 所有 async 链自己 catch 并打日志——静默 reject 在日志里一根毛都不剩
+* 两层并发保护缺一不可：闭包 `backing`（同进程）+ `backup.lock`（跨进程）
+
+## 文档与知识
+
+* README / AGENTS 是生成物：改 `content/outputs/` 的 mdx 正本，`docfirst render --target ai`
+  重摆，同提交；`docfirst check` 只扫 docs 与 outputs 两区，钉码只在现状区
+* 需求边界、写文档、落卡读 `@godcreator02/gwb-docfirst-workflow` 件的 skills（连着 MCP 读
+  `skill://gwb/<名>/SKILL.md`，没连着就 Read 包内 `skills/`）；选型问人，宿主 skill
+  `gwb-decide` 在总控台
+* 实验与测量的材料落仓根 `probes/<时间戳>_<目的>/`：一次实验一个目录、自包含（自己的
+  package.json 或零依赖）、进 git、不进 pnpm workspace、不进文档门禁；evidence 卡用相对
+  仓根的路径指过去

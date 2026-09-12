@@ -1,0 +1,70 @@
+---
+title: 系统地图
+description: 域库、宿主层、窗格三截，一轮备份的完整路线，盘上的数据目录——一页看全
+---
+
+# 系统地图
+
+**本页回答**：这个件由哪几截组成、一轮备份从头到尾经过哪些函数与文件、用户的哪些数据住在盘上哪个目录里。
+
+## 三截
+
+| 截 | 是什么 | 在哪 |
+| --- | --- | --- |
+| **域库** | 零第三方依赖、node 内建 only 的纯逻辑：锁、备份管线、五项健康、restic 封装、凭据解析、日志契约、配置收窄。可独立单测，不认识宿主 | `src/`（除 `src/client/` 与 `src/index.ts`） |
+| **宿主层** | 把域库挂上 gwb 内核的那层：设置 15 键、命令六条、两根计时器、30 秒首检与补跑、窗格注册 | `src/index.ts` |
+| **窗格** | 备份窗格（本件唯一的界面）：灯、五项、按钮、30 秒轮询。headless home 里整截缺席，备份照跑 | `src/client/` |
+
+判据一句话：**代码只装「没 AI 也在」的事**——定时备份、周期自检、观察面；一次性操作
+（装 restic、换盘、USB 离机副本）归手册，不归代码。
+
+{/* ref file="../src/index.ts" lines="4-6" */}
+
+## 一轮备份的路线
+
+两条触发路（定时器到点、`windows-backup.run` 命令）汇进宿主层的同一个入口，再落进域库
+的 `runFullBackup`——锁开在那里，别的路进不来：
+
+```text
+宿主层 runBackup（busy 挡同进程重入 → 现读配置 → refuseReason 拒跑判定）
+  └→ runFullBackup（占 backup.lock，跨进程）
+       ├→ doLocalBackup   restic backup → 本地仓
+       ├→ doPrune         forget+prune（每日一次，成了才记 lastPrune）
+       ├→ doOssPush       第二次独立 restic backup，直打 s3: 仓（ossEnabled 时）
+       ├→ doPrune(OSS)    OSS prune（本轮该 prune 且 OSS 推送成功才跑）
+       ├→ logger.rotate   日志超阈值轮转
+       ├→ writeState      lastRunAt / lastRunOk / lastRunSummary（成败都记）
+       └→ sendToast       Windows 通知（toast 设置开着时）
+```
+
+本地备份失败就整条停在第一步——本地都没成，OSS 推的是同一批源，多半也是同样的失败。
+每段在日志里落一行契约句（`Backup started` / `Prune FAILED with exit code N` 那一族），
+健康检查的日志尾判定靠 grep 它们，见[日志契约与通知](/docs/modules/log)。
+
+## 盘上有什么
+
+全部用户私有数据住数据目录（宿主的 `gwbData.dir`，即 `<home>/data/<条目 id>`），代码树里
+一个字节的用户数据都没有；隔离 home 有自己的数据目录，开发时碰不到真凭据。
+
+{/* ref file="../src/paths.ts" lines="36-52" */}
+
+| 路径 | 是什么 |
+| --- | --- |
+| `state.json` | 动作时间戳：上次备份、上次 prune、USB 副本、exclude 审计。坏了解析不了就当空，最坏多跑一次 prune |
+| `backup.lock` | 进行中的备份那把锁（`{ pid, startedAt }`），跑完即删。见[锁](/docs/modules/lock) |
+| `credentials/restic-password.txt` | 仓库密码。**内容永不读进本进程**，只把路径交给 restic |
+| `credentials/oss-credentials.txt` | OSS AccessKey（KEY=VALUE 格式）。解析结果只进子进程 env |
+| `restic-exclude.txt` | 用户覆盖版 exclude；不存在时用插件自带的 `config/restic-exclude.txt` |
+| `bin/restic.exe` | restic 本体（`restic-exe` 设置指向它，相对路径按数据目录解析） |
+| `logs/restic-backup.log` | 备份日志，超 10 MB 只留末 1000 行 |
+
+## 速查
+
+| 什么 | 值 |
+| --- | --- |
+| 包名 | `@godcreator02/gwb-windows-backup`，本机 registry（`http://127.0.0.1:4873`） |
+| 命令面 | `windows-backup.run / check / status / paths / restic / mark`，见[用法](/docs/usage) |
+| 设置面 | 15 键 kebab-case，经 gwb-settings 声明，每次现读不缓存 |
+| 定时器 | 官方 `@cordisjs/plugin-timer`（`inject: ['timer']`），home 的 cordis.yml 没这条条目本件整个挂起 |
+| 文档站 | `docs-site/`，dev 端口 4318 |
+| 门禁 | `pnpm check`（typecheck ×2 + oxlint + vitest）；`docfirst check` 在 docs-site 单独跑 |

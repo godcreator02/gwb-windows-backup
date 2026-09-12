@@ -1,0 +1,38 @@
+---
+title: 术语表
+description: 这个仓自造的、或有特定含义的词——每个词一句定义，指到详解页
+---
+
+# 术语表
+
+**本页回答**：文档里那个词到底指什么。收三类：仓自己造的词、通用词在这里有特定含义的、
+外来框架词；通用编程词不收。
+
+## 备份这一摊
+
+| 词 | 是什么 |
+| --- | --- |
+| **备份白名单** | 设置键 `sources`，分号分隔的目录串（如 `D:/Notes;D:/Projects`）。空则拒跑——不猜「整盘」这种默认 |
+| **一轮** | 一次全流程备份：本地备份 →（每日一次）prune → OSS 推送 →（条件）OSS prune。见[备份管线](/docs/modules/pipeline) |
+| **OSS 异地副本** | 第二次**独立的** `restic backup` 直打 `s3:` 仓——不是从本地仓拷快照，两条独立快照链 |
+| **保留窗口** | forget 的 retention 参数：72h 内全留、按日 14 天、周 8 份、月 12 份。见[restic 封装](/docs/modules/restic) |
+| **prune** | `restic forget --prune`：按保留窗口删旧快照并清数据。每日一次，**真成功才记时间戳** |
+| **补跑** | 挂载 30 秒后看 `state.lastRunAt`：为空或超过一个周期，先补一轮再等定时器 |
+| **陈旧接管** | 锁的 pid 已死或 `startedAt` 超 6 小时，视为无主锁，直接抢过来。见[锁](/docs/modules/lock) |
+| **五项健康** | 上次备份 / 日志尾 / 仓库盘余量 / 快照新鲜度 / 周期维护。见[五项健康](/docs/modules/health) |
+| **日志契约行** | `Backup completed successfully` 那一族英文行——写日志与读日志两头唯一认的串，只在 `messages.ts` 一处拼。见[日志契约与通知](/docs/modules/log) |
+| **凭据纪律** | 密码只交路径（`--password-file`）、AccessKey 只进子进程 env；永不进设置、永不进日志。见[凭据纪律](/docs/modules/credentials) |
+
+## 宿主这一摊
+
+| 词 | 是什么 |
+| --- | --- |
+| **件** | gwb 内核线上的插件：一个普通 npm 包，装进 home，由 cordis 挂载。本件就是一件 |
+| **home** | gwb 工作台的一份安装现场：普通的 npm 项目根，件住 `node_modules`、数据住 `data/` |
+| **headless home** | 没装外壳件的 home。本件走局部注入，headless 里备份照跑，缺的只是窗格 |
+| **格** | 数据件按条目 id 分给本件的目录（`<home>/data/windows-backup`）。全部用户私有数据住格里，代码树里一个字节都没有 |
+| **等待语义** | cordis 顶层 `inject` 的行为：列了却缺席，整个件挂起等它。所以顶层只列命根，外壳走局部注入 |
+| **局部注入** | `ctx.inject(['gwbShell'], …)`：服务在场才回调，缺席只是那一路不跑 |
+| **现读现用** | 设置每次跑时重新读、绝不缓存——设置件没有变更通知，缓存一份就会用旧值 |
+| **透传** | `windows-backup.restic` 命令：agent 给子命令与参数，本件补 `--repo` 与 `--password-file`，密钥不出现在参数里 |
+| **窗格** | 外壳井里的一格界面。本件导出 `mountPane`，注册时报 `client` 与 `style` 的 `file://` 地址。见[备份窗格](/docs/modules/client) |

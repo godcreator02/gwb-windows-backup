@@ -1,0 +1,5 @@
+{
+  "title": "生成正本",
+  "description": "README 与 AGENTS 的 mdx 正本——render 摆到仓根，改这里不改那边",
+  "pages": ["readme", "agents"]
+}

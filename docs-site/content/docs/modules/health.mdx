@@ -1,0 +1,67 @@
+---
+title: 五项健康
+description: runHealthCheck——观察面的权威判据；窗格与 check 命令都只是它的皮
+---
+
+# 五项健康
+
+**本页回答**：「备份还活着吗」由哪五项判据回答、每项的容忍口径是多少、判不了的时候怎么算。
+
+`src/health.ts`。定时自检（每 `health-check-interval-hours` 小时）与
+`windows-backup.check` 命令调的是同一个 `runHealthCheck`，输出纯 JSON（`HealthReport`），
+不打印不弹窗——怎么呈现由调用方决定。
+
+{/* ref file="../src/health.ts" lines="131-151" */}
+
+## 管什么
+
+五项：上次备份 / 日志尾 / 仓库盘余量 / 快照新鲜度 / 周期维护。**不知道什么**：不知道
+界面长什么样（那是窗格的事）；不判「备份内容对不对」——它只回答「这件事还在不在转」，
+数据可不可恢复归 restic 自己的校验，不在这五项里。
+
+四项的容忍口径是一处刻意的统一：**两个周期**（`frequencyMinutes × 2`）。写死一个周期的话，
+备份跑了 3 分钟、自检又晚到 1 分钟就误报；给两个周期，漏报的代价（晚一个周期发现）比
+天天误报小得多——误报比漏报更伤，天天喊狼来了，真出事那次一起被忽略。
+
+{/* ref file="../src/health.ts" lines="163-171" */}
+
+## 五项各判什么
+
+| 项 | 判据 | 判不了时 |
+| --- | --- | --- |
+| ① 上次备份 | `state.json` 三格：跑过 + 上次成了 + 距上次成功 ≤ 两周期 | 没跑过是 problem（「还没备份过」），不是 unknown |
+| ② 日志尾 | 最后一轮（从最后一条 `Backup started` 往后）有没有成功行 + 尾 30 行有没有失败关键词 | 上一轮还在跑记 unknown |
+| ③ 磁盘余量 | **`local-repo` 所在的那个盘**，`<20%` notice、`<10%` alert | 读不到盘记 unknown |
+| ④ 快照新鲜度 | `restic snapshots --latest 1 --json`，距最新快照 ≤ 两周期 | restic 不在 / 仓库锁着 / 盘没插，一律 unknown 不算失败 |
+| ⑤ 周期维护 | USB 离机副本 ≥ 7 天该做、exclude 误伤扫描 ≥ 30 天该扫 | 从没做过按「该做了」算 |
+
+`unknown` / `skipped` **不算失败**——判不了（缺件、仓库锁着）与「备份坏了」是两回事；
+要连 restic 一起起的第④项可以 `skipSnapshots` 跳过（慢），真身不跳：快照新鲜度正是这条
+观察面最想看的一格。
+
+## 日志尾为什么按轮判
+
+{/* ref file="../src/health.ts" lines="212-219" */}
+
+「末两行」式判定在真实日志里几乎永不成立：restic 自己的 stdout 夹在两条契约行中间，
+轮到 prune 的那轮末尾还是 prune 的行。所以从最后一条 `Backup started` 往后算作一轮，
+看这一轮里有没有成功行。失败关键词里 `error` 收窄了两道——整词匹配（不然
+`terror` 也算数）、先扣掉 `0 errors` 计数行（restic 每轮正常输出里就带着它）。
+
+## 提供的接口
+
+`runHealthCheck(paths, config, opts)`（不抛，判不了的项记 unknown 不影响其余四项）与几个
+纯解析函数（`parseLatestSnapshotTime`）。注入点：`run`（假 restic）、`diskFree`（假磁盘）、
+`state`（假状态）、`now`（拨钟）。
+
+## 怎么单独测
+
+`tests/health.test.ts`：注入假 restic / 假磁盘 / 假状态，逐项喂「成、败、判不了」三种输入，
+证明容忍口径与 unknown 分级。
+
+## 代码地图
+
+- **在哪**：`src/health.ts`
+- **先读**：`runHealthCheck` → 五个 `check*` 按序
+- **读序**：`messages.ts`（它 grep 的那串字在那儿定义）→ `state.ts`（第①项读的三格）→ 本页
+- **可跳过**：`parseLatestSnapshotTime` 的 JSON 收窄

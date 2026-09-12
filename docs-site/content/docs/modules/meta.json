@@ -1,0 +1,15 @@
+{
+  "title": "模块",
+  "description": "一模块一页：管什么、不知道什么、接口、依赖、怎么单独测——钉码只在这一区",
+  "pages": [
+    "pipeline",
+    "lock",
+    "health",
+    "restic",
+    "credentials",
+    "log",
+    "config-state",
+    "host",
+    "client"
+  ]
+}

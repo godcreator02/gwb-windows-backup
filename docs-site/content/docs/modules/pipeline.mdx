@@ -1,0 +1,72 @@
+---
+title: 备份管线
+description: runFullBackup——占锁、本地备份、每日 prune、OSS 推送、通知；本件唯一会改动仓库的路径
+---
+
+# 备份管线
+
+**本页回答**：一轮完整备份按什么顺序跑、每段的成败怎么影响后面的段、结果怎么记。
+
+`src/backup.ts`。域库的主体，定时器与命令两条触发路都从 `runFullBackup` 这一个函数进，
+所以锁开在这里而不是各调用方各来一把。
+
+{/* ref file="../src/backup.ts" lines="138-149" */}
+
+## 管什么
+
+全流程：占锁 → `restic backup`（本地仓）→ forget+prune（每日一次）→ OSS push → OSS prune
+→ 日志轮转 → 记 `state.lastRun*` → 可选 toast。顺序里有三条依赖判据：本地失败就整条停
+（本地都没成，OSS 推的是同一批源）；**prune 只有真成功才记时间戳**（失败下一轮再试）；
+OSS prune 跟本地同节奏**且 OSS 推送成功才跑**（往刚推失败的仓库上跑 forget，等于拿不完整
+的快照集算保留策略）。
+
+**不知道什么**：不知道是谁触发的（定时还是命令）；不知道 restic 二进制在哪、密码是什么
+（路径由 `paths.ts` 摊开，密码只经 `--password-file` 路径过手）；不知道 OSS 凭据内容
+（解析在 `credentials.ts`，这儿只拿到 env 表）。
+
+## 数据结构
+
+`FullBackupResult` 二选一：跑完了的 `CompletedBackupResult`（`ok`、`local`、`oss`、
+`prunedToday`、`notification`，`skipped: null`）；没跑成的 `SkippedBackupResult`
+（`skipped: 'locked'` + 占锁者的 `heldSince`）——**不写失败日志、不弹 toast、不动
+`state.lastRun*`**，「另一轮正在跑」不是故障，记成失败会让健康检查误报。
+
+## 提供的接口
+
+| 接口 | 干什么 |
+| --- | --- |
+| `runFullBackup(ctx)` | 全流程一次，**不抛**；占锁、失败全落日志与返回值 |
+| `refuseReason(config)` | 配置齐不齐，回一句人话或 `null`；两条触发路共用这一份判据 |
+| `pickExcludeFile(paths)` | 格内用户版 exclude 存在就用它，否则用插件自带默认版 |
+| `buildNotification(...)` | 通知三态：本地失败 FAILED / 全成 OK / 本地成 OSS 败 partial |
+| `doLocalBackup` / `doPrune` / `doOssPush` | 单段执行；成功路径必须落各自的契约句 |
+
+## 依赖的接口
+
+| 接口 | 用来做什么 | 生产实现 | 测试实现 |
+| --- | --- | --- | --- |
+| `RunProcess` | 起每一个 restic 子进程 | `process.ts` 的 `runProcess` | 按子命令前缀分发的假 restic |
+| `Logger` | 契约行与 restic 原始输出 | `log.ts` 的 `createLogger` | `nullLogger` |
+| `acquire` / `readLock` | 跨进程占锁 | `lock.ts` | 注入 `acquireLock` 造「别人占着」 |
+| `readState` / `writeState` | 读 prune 旗子、写 lastRun 三格 | `state.ts` | 临时目录真文件 |
+| `readOssEnv` | OSS 那几段的子进程 env | `credentials.ts` | 不注入，真读空目录 |
+| `sendToast` | 结束通知 | `toast.ts` | 注入 `notify` 或 `toast: false` |
+| `now` | 报时（prune 跨日、时长） | `new Date` | 注入拨钟 |
+
+## 怎么单独测
+
+`tests/backup.test.ts`：`fakeRestic` 造一个按 argv 前缀分发的假 restic，每个调用的参数都
+记进表——证明的是「顺序对不对」「该跳过的段跳没跳」「成败怎么落 state」。用临时目录当
+数据目录，跑完即删。
+
+## 代码地图
+
+- **在哪**：`src/backup.ts`
+- **先读**：`runLocked`（锁在手后的那一整条链路，顺序全在它身上）
+- **读序**：`config.ts`（配置形状）→ `restic.ts`（参数表）→ 本页 → `health.ts`（读日志契约行的那头）
+- **可跳过**：`formatDuration` / `buildNotification` 的文案细节
+
+成败都记是这里最容易被「优化」掉的一行——只在成功时记的话，连着失败三天看起来会像
+「三天前刚备过」：
+
+{/* ref file="../src/backup.ts" lines="236-240" */}

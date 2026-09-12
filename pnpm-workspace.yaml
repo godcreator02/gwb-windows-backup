@@ -1,2 +1,6 @@
+packages:
+  # 文档站:自己的依赖树与门禁,不进根 build/test(照 gwb-kernel 仓的接法)
+  - docs-site
+
 allowBuilds:
   esbuild: true

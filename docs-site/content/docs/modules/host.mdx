@@ -1,0 +1,81 @@
+---
+title: 宿主层
+description: 挂上 gwb 内核的那半——inject 等待语义、两根计时器、六条命令、局部注入的外壳
+---
+
+# 宿主层
+
+**本页回答**：域库怎么挂上 gwb 内核、哪些缺席会让备份停、哪些只是没有皮。
+
+`src/index.ts`。全部挂载动作在 `mount(ctx, deps)`，`apply` 只是它的一层壳、负责把真身递
+进来——拆两层是为了测试（`runHealthCheck` 与 `runFullBackup` 都会起子进程，测试换假的）。
+
+## 管什么
+
+六件事：定时备份（`frequency-minutes` 周期）、开机补跑、周期自检、设置 15 键声明、命令
+六条、窗格注册。**不知道什么**：不知道 restic 怎么跑（域库的事）、不知道界面怎么画
+（窗格的事）、不知道宿主是什么程序（只认 `HostContext` 那几个方法）。
+
+## inject 是等待语义
+
+顶层 `inject` 列了却缺席，整个件（连同备份本体）静默挂起。所以只列命根：命令总线、
+设置、数据、timer——**外壳绝不进顶层 inject**（见文末局部注入）。`timer`
+（`@cordisjs/plugin-timer`）缺席时本件整个挂起等它：宁挂起，不静默不备份。
+
+可变状态**只活在这一次 mount 的闭包里**——重挂清零（上一轮结论没了，30 秒后重新自检），
+这是知情认下的代价：结论本身是「此刻的观察」，真正要跨进程活着的那几格住 `state.json`。
+`backing` 布尔是第一层并发保护，第二层是数据目录的 `backup.lock`。
+
+{/* ref file="../src/index.ts" lines="232-249" */}
+
+## 计时器：每响一次把「下次」往后推
+
+{/* ref file="../src/index.ts" lines="282-292" */}
+
+只在起计时器时算一次 `nextRunAt` 的话，跑完不推，状态里显示的就永远是一个已经过去的
+时刻。设置改了频率就停旧的重开（下一轮生效）；间隔没变只推下次时刻，不变着重开——重开
+的代价是当前这一轮计时清零。
+
+版本号读包根清单要**上一层**（`'../package.json'`，不是 `'./'`——本模块住 `dist/`）；loader
+可能带查询串 import 本模块，`createRequire` 拿那种 URL 解析相对路径会炸，先剥 `?` 后面
+那段。
+
+{/* ref file="../src/index.ts" lines="174-189" */}
+
+## 提供的接口
+
+对宿主导出 `name` / `inject` / `apply` / `mount` 与 `MountDeps`（测试的注入口）。对 agent
+是命令六条与设置 15 键，见[用法](/docs/usage)。对人是窗格，见[备份窗格](/docs/modules/client)。
+
+每条命令一个 `effect` 注册——某条撞名不该把别的几条也带走。所有 async 链自己 catch 并打
+日志：「挂上了但什么都没发生」是实机验证四种假成之二，静默 reject 在日志里一根毛都不剩。
+
+## 依赖的接口
+
+| 接口 | 用来做什么 | 生产实现 | 测试实现 |
+| --- | --- | --- | --- |
+| `ctx.gwbSettings` | 声明与现读 15 键 | gwb-settings 件 | 内存表 |
+| `ctx.gwbCommands` | 注册命令六条 | gwb-commands 件 | 内存表 |
+| `ctx.gwbData.dir` | 数据目录 | gwb-data 件 | 临时目录 |
+| `ctx.interval` / `ctx.timeout` | 两根计时器 | `@cordisjs/plugin-timer` | 立即回调 |
+| `ctx.gwbShell` | 注册窗格（**局部注入**） | gwb-shell 件 | 缺席即不回调 |
+
+## 局部注入：外壳缺席只是没有皮
+
+{/* ref file="../src/index.ts" lines="570-587" */}
+
+`ctx.inject(['gwbShell'], ...)` 走局部注入：headless home（没装外壳）里备份照跑，缺的只是
+看得见的那层皮。列进顶层 inject 却缺席的话，整个件连同备份本体一起静默 pending——那才是
+事故。
+
+## 怎么单独测
+
+`tests/mount.test.ts`：假宿主（effect 只登记 disposer、设置/命令/外壳全是内存表）+ 假
+runner，证明首检与补跑的时机、命令回包的形状、设置现读、外壳缺席时挂载不坏。
+
+## 代码地图
+
+- **在哪**：`src/index.ts`
+- **先读**：文件头注释（抄的人最容易踩错的几条全在那儿）→ `mount`
+- **读序**：[配置与状态](/docs/modules/config-state) → 本页 → 各域库模块页
+- **可跳过**：`todayLocal` / `messageOf` 两个小工具
