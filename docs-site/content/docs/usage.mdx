@@ -5,7 +5,7 @@ description: 装进 home、配 15 个键、用六条命令——当前代码现�
 
 # 用法
 
-**本页回答**：这个件怎么装进一个 home、要配哪些设置、agent 与人分别从哪儿操作它、怎么确认备份真的在转。
+**本页回答**：这个插件怎么装进一个 home、要配哪些设置、agent 与人分别从哪儿操作它、怎么确认备份真的在转。
 
 ## 装进 home
 
@@ -15,32 +15,32 @@ pnpm add @godcreator02/gwb-windows-backup@<版本> @cordisjs/plugin-timer
 ```
 
 `cordis.yml` 手写两条条目：`id: windows-backup` 与 timer 条目（name
-`@cordisjs/plugin-timer`）。**timer 条目缺了本件整个挂起等它**——顶层 `inject` 是等待语义，
+`@cordisjs/plugin-timer`）。**timer 条目缺了本插件整个挂起等它**——顶层 `inject` 是等待语义，
 宁挂起，不静默不备份。
 
 {/* ref file="../src/index.ts" lines="87-87" */}
 
-数据目录由数据件按条目 id 给出（`<home>/data/windows-backup`），全部用户数据住那里。
+数据目录由数据插件按条目 id 给出（`<home>/data/windows-backup`），全部用户数据住那里。
 装完 restic 本体放进 `bin/restic.exe`（或用 `restic-exe` 设置指向别的位置）——装 restic
 是一次性手工活，代码不代办。
 
 ## 设置（15 键，kebab-case）
 
-设置经 gwb-settings 声明，**每次跑现读现用、绝不缓存**——设置件没有变更通知，缓存一份
+设置经 gwb-settings 声明，**每次跑现读现用、绝不缓存**——设置插件没有变更通知，缓存一份
 就会「设置改了、跑的还是旧值」。类型不对或缺字段的值吃默认，不报错。
 
 {/* ref file="../src/index.ts" lines="90-112" */}
 
-必填两格：`sources`（分号分隔的备份白名单）与 `local-repo`（本地 restic 仓库路径）。
-缺任何一格，定时那轮照转但每轮都拒跑，拒跑理由是一句指路的话。
+必填两项：`sources`（分号分隔的备份白名单）与 `local-repo`（本地 restic 仓库路径）。
+缺任何一项，定时那轮照转但每轮都拒跑，拒跑理由是一句指路的话。
 
 {/* ref file="../src/backup.ts" lines="114-130" */}
 
-OSS 三格（`oss-bucket` / `oss-endpoint` / `oss-repo-path`）只在 `oss-enabled` 开着时才被
+OSS 三项（`oss-bucket` / `oss-endpoint` / `oss-repo-path`）只在 `oss-enabled` 开着时才被
 要求；凭据不进设置——`credentials/oss-credentials.txt`（KEY=VALUE，支持 `export ` 前缀、
 引号、`#` 注释）。仓库密码放 `credentials/restic-password.txt`，内容任何时刻都不进本进程。
 
-## 命令（六条，MCP 件自动开给 agent）
+## 命令（六条，MCP 插件自动开给 agent）
 
 {/* ref file="../src/index.ts" lines="429-549" */}
 
@@ -66,4 +66,4 @@ OSS 三格（`oss-bucket` / `oss-endpoint` / `oss-repo-path`）只在 `oss-enabl
 {/* ref file="../src/index.ts" lines="551-568" */}
 
 **宿主不在就不备份**——定时器住在 gwb 工作台里，工作台关了备份就停，下次起来 30 秒后
-补。这是知情认下的代价；要机器级保底，等 roadmap 上的灾难 CLI 门。
+补。这是知情认下的代价；要机器级保底，等 roadmap 上的灾难 CLI 入口。

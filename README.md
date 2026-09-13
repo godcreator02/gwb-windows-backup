@@ -1,11 +1,7 @@
 # gwb-windows-backup
 
-gwb 内核线上的 Windows 备份件：restic 打快照 + 阿里云 OSS 异地副本（restic 的 S3 后端，
+gwb 内核线上的 Windows 备份插件：restic 打快照 + 阿里云 OSS 异地副本（restic 的 S3 后端，
 第二次独立 backup 直打 `s3:` 仓）+ 周期自检，跑在 gwb-kernel（单元 `26090705ymz`）上。
-
-自 DSH 原生件重做（老仓 `D:\dshfiles\26082800ktb\god-windows-backup` 只作参考）：域逻辑
-（锁、备份管线、五项健康判据、restic 参数表、日志契约句、凭据纪律）语义照搬、代码重写；
-宿主层整个换新线契约——命令总线、设置件、数据件、外壳窗格。
 
 ## 现在有什么
 
@@ -13,7 +9,7 @@ gwb 内核线上的 Windows 备份件：restic 打快照 + 阿里云 OSS 异地�
   * 定时备份（默认 30 分钟）+ 挂载 30 秒后补跑 + 每日一次 forget+prune + OSS 推送
   * 五项健康检查：上次备份 / 日志尾 / 仓库盘余量 / 快照新鲜度 / 周期维护提醒
   * 跨进程锁（`backup.lock`，6h 陈旧接管）、凭据永不进日志（`--password-file`）
-* **命令面**（`windows-backup.*`，MCP 件会自动开给 agent）：
+* **命令面**（`windows-backup.*`，MCP 插件会自动开给 agent）：
   `run` / `check` / `status` / `paths` / `restic`（直通，密钥不出现在参数里）/ `mark`
 * **client 半**：备份窗格（`mountPane`）——灯、五项、按钮、30s 轮询
 * **设置**：15 个键经 gwb-settings 声明（kebab-case，如 `frequency-minutes`、`local-repo`）
@@ -27,14 +23,14 @@ pnpm publish:dev   # 发本机 Verdaccio（127.0.0.1:4873），dev 标不动 lat
 ```
 
 装进隔离 home（正路）：`pnpm add @godcreator02/gwb-windows-backup@<版本>` **加
-`@cordisjs/plugin-timer`（公共 npm，本件的定时器走它——内核 AGENTS 认定的开件）**，
+`@cordisjs/plugin-timer`（公共 npm，本插件的定时器走它——内核 AGENTS 已认定可用）**，
 cordis.yml 手写两条条目：`id: windows-backup` 与 `id: timer`（name `@cordisjs/plugin-timer`）。
-timer 条目缺了本件整个挂起等它——宁挂起，不静默不备份。
+timer 条目缺了本插件整个挂起等它——宁挂起，不静默不备份。
 
 ## 还没搬的
 
 * 四份 AI 手册 + shared 材料（skills/ 局部注入口子已留好）
-* 宿主无关灾难 CLI 门（`node dist/cli.js --data-root`，连带 config.json 快照）与 gwbNodeCli
+* 宿主无关灾难 CLI 入口（`node dist/cli.js --data-root`，连带 config.json 快照）与 gwbNodeCli
 * 市场白名单（gwb-base-plugins 的 market catalog，等 release）
 * 真 OSS 推送的实机验证（单测已盖；真跑要专用 repoPath / 独立凭据）
 
