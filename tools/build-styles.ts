@@ -66,7 +66,7 @@ function packageName(pkgDir: string): string {
  *   也扫进来，凭空多出一堆没人用的类，而且不报错
  */
 function styleInput(pkgDir: string): string {
-  const reference = require.resolve('@team/gwb-tokens/theme.reference.css')
+  const reference = require.resolve('@godcreator/gwb-tokens/theme.reference.css')
   const lines = [
     `@import 'tailwindcss/theme' theme(reference);`,
     `@import '${slash(reference)}' theme(reference);`,
