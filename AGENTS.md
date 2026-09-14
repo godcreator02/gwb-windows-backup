@@ -1,7 +1,7 @@
 # gwb-windows-backup
 
 gwb 内核线的 Windows 备份插件（restic 快照 + OSS 异地 + 周期自检 + 备份窗格）。包名
-`@godcreator02/gwb-windows-backup`，发本机 Verdaccio（127.0.0.1:4873），装进 home 走手动
+`@team/gwb-windows-backup`，发本机 Verdaccio（127.0.0.1:4873），装进 home 走手动
 `pnpm add` + cordis.yml 条目。文档站 `docs-site/`，六区，dev 端口 4318。
 
 ## 门禁与跑法
@@ -29,7 +29,7 @@ cd docs-site && pnpm exec docfirst check   # 文档门禁，单独跑
 
 * README / AGENTS 是生成物：改 `content/outputs/` 的 mdx 正本，`docfirst render --target ai`
   重摆，同提交；`docfirst check` 只扫 docs 与 outputs 两区，钉码只在现状区
-* 需求边界、写文档、落卡读 `@godcreator02/gwb-docfirst-workflow` 插件的 skills（连着 MCP 读
+* 需求边界、写文档、落卡读 `@team/gwb-docfirst-workflow` 插件的 skills（连着 MCP 读
   `skill://gwb/<名>/SKILL.md`，没连着就 Read 包内 `skills/`）；选型问人，宿主 CLI 的 skill
   `gwb-decide` 在总控台
 * 实验与测量的材料落仓根 `probes/<时间戳>_<目的>/`：一次实验一个目录、自包含（自己的
