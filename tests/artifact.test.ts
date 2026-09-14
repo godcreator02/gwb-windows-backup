@@ -31,7 +31,7 @@ describe.skipIf(!built)('产物：node 半', () => {
   it('裸名 import 只许 node:* 与词汇表包（真运行时取值 isRecord，它是硬 peer）', () => {
     const specs = [...text.matchAll(/from\s*['"]([^'"]+)['"]/g)].map((m) => m[1] ?? '')
     const bare = specs.filter((spec) => !spec.startsWith('.') && !spec.startsWith('node:'))
-    expect(bare).toEqual(['@godcreator02/gwb-plugin-api'])
+    expect(bare).toEqual(['@team/gwb-plugin-api'])
   })
 
   it('相对 import 一律带 .js', () => {
@@ -71,6 +71,6 @@ describe.skipIf(!built)('产物：样式', () => {
   const text = readFileSync(`${dist}/style.css`, 'utf8')
 
   it('整张 scope 在完整包名之下', () => {
-    expect(text).toContain(':where([data-gwb-plugin="@godcreator02/gwb-windows-backup"])')
+    expect(text).toContain(':where([data-gwb-plugin="@team/gwb-windows-backup"])')
   })
 })
