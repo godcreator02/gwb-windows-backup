@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url'
  */
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const REGISTRY = process.env.GWB_DEV_REGISTRY ?? 'http://127.0.0.1:4873/'
+const REGISTRY = process.env.GWB_DEV_REGISTRY ?? 'https://git.tianshen02.online:28377/api/packages/team/npm/'
 const BUILD_TIMEOUT_MS = 300_000
 const PUBLISH_TIMEOUT_MS = 180_000
 const VIEW_TIMEOUT_MS = 60_000
