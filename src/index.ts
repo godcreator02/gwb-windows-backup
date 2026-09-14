@@ -36,15 +36,15 @@
 
 import { mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { isRecord } from '@team/gwb-plugin-api'
-import type { GwbContext } from '@team/gwb-plugin-api'
+import { isRecord } from '@godcreator/gwb-plugin-api'
+import type { GwbContext } from '@godcreator/gwb-plugin-api'
 // 只为激活 commands / settings / data / shell 四个件与官方 timer 件给 cordis
 // Context 加的名字；全是 type import，产物里一个字节都不剩
 import type {} from '@cordisjs/plugin-timer'
-import type { GwbCommands } from '@team/gwb-commands'
-import type { GwbDataApi } from '@team/gwb-data'
-import type { GwbSettingsApi } from '@team/gwb-settings'
-import type { GwbShellApi } from '@team/gwb-shell'
+import type { GwbCommands } from '@godcreator/gwb-commands'
+import type { GwbDataApi } from '@godcreator/gwb-data'
+import type { GwbSettingsApi } from '@godcreator/gwb-settings'
+import type { GwbShellApi } from '@godcreator/gwb-shell'
 import { refuseReason, runFullBackup } from './backup.js'
 import type { BackupConfig, FlatConfig } from './config.js'
 import { DEFAULT_FLAT, flatToConfig, pickFlat, resolveSlotPath } from './config.js'
