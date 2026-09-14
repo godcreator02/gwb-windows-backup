@@ -22,7 +22,7 @@ pnpm build     # tsc node 半 + esbuild client 半 + tailwind 样式
 pnpm publish:dev   # 发本机 Verdaccio（127.0.0.1:4873），dev 标不动 latest
 ```
 
-装进隔离 home（正路）：`pnpm add @team/gwb-windows-backup@<版本>` **加
+装进隔离 home（正路）：`pnpm add @godcreator/gwb-windows-backup@<版本>` **加
 `@cordisjs/plugin-timer`（公共 npm，本插件的定时器走它——内核 AGENTS 已认定可用）**，
 cordis.yml 手写两条条目：`id: windows-backup` 与 `id: timer`（name `@cordisjs/plugin-timer`）。
 timer 条目缺了本插件整个挂起等它——宁挂起，不静默不备份。
