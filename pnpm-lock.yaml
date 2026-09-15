@@ -12,26 +12,26 @@ importers:
         specifier: 1.1.3
         version: 1.1.3(cordis@4.0.0-rc.9)
       '@godcreator/gwb-commands':
-        specifier: 0.1.0
-        version: 0.1.0(@godcreator/gwb-plugin-api@0.1.0(cordis@4.0.0-rc.9))
+        specifier: 0.4.0
+        version: 0.4.0(@godcreator/gwb-plugin-api@0.1.1(cordis@4.0.0-rc.9))
       '@godcreator/gwb-data':
-        specifier: 0.1.0
-        version: 0.1.0(@godcreator/gwb-plugin-api@0.1.0(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)
+        specifier: 0.1.1
+        version: 0.1.1(@godcreator/gwb-plugin-api@0.1.1(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)
       '@godcreator/gwb-plugin-api':
-        specifier: 0.1.0
-        version: 0.1.0(cordis@4.0.0-rc.9)
+        specifier: 0.1.1
+        version: 0.1.1(cordis@4.0.0-rc.9)
       '@godcreator/gwb-settings':
-        specifier: 0.1.0
-        version: 0.1.0(@godcreator/gwb-plugin-api@0.1.0(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)
+        specifier: 0.2.0
+        version: 0.2.0(@godcreator/gwb-plugin-api@0.1.1(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)
       '@godcreator/gwb-shared-react':
-        specifier: 0.0.2
-        version: 0.0.2
+        specifier: 0.0.4
+        version: 0.0.4
       '@godcreator/gwb-shell':
-        specifier: 0.1.0
-        version: 0.1.0(@godcreator/gwb-commands@0.1.0(@godcreator/gwb-plugin-api@0.1.0(cordis@4.0.0-rc.9)))(@godcreator/gwb-data@0.1.0(@godcreator/gwb-plugin-api@0.1.0(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9))(@godcreator/gwb-plugin-api@0.1.0(cordis@4.0.0-rc.9))(@godcreator/gwb-shared-react@0.0.2)(@godcreator/gwb-tokens@0.0.5)(cordis@4.0.0-rc.9)
+        specifier: 0.7.0
+        version: 0.7.0(@godcreator/gwb-commands@0.4.0(@godcreator/gwb-plugin-api@0.1.1(cordis@4.0.0-rc.9)))(@godcreator/gwb-data@0.1.1(@godcreator/gwb-plugin-api@0.1.1(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9))(@godcreator/gwb-plugin-api@0.1.1(cordis@4.0.0-rc.9))(@godcreator/gwb-shared-react@0.0.4)(@godcreator/gwb-tokens@0.1.2)(cordis@4.0.0-rc.9)
       '@godcreator/gwb-tokens':
-        specifier: 0.0.5
-        version: 0.0.5
+        specifier: 0.1.2
+        version: 0.1.2
       '@tailwindcss/postcss':
         specifier: ^4.0.0
         version: 4.3.3
@@ -98,7 +98,7 @@ importers:
     devDependencies:
       '@godcreator/docfirst-trajectory':
         specifier: ^0.1.0
-        version: 0.1.0(react@19.2.8)
+        version: 0.1.1(react@19.2.8)
       '@godcreator/docfirst-workflow':
         specifier: ^0.2.0
         version: 0.2.0(9731d1d50e82d6769b496cb06cc97c8f)
@@ -540,8 +540,8 @@ packages:
   '@fumari/image-size@0.1.0':
     resolution: {integrity: sha512-x2o9u6P8uKUK15B8XgEoRhR3PgLoLSbQKK6FUCd14JzumEw+e8FXZPelij/dZ4VQVMp4r61VD3DcvSo3aEhLAA==}
 
-  '@godcreator/docfirst-trajectory@0.1.0':
-    resolution: {integrity: sha512-QHrJLaiYio+w52vNFbUW/vcnGFOwUn23OzUGBGtM9o999mxLXhiJWUmT8WSjkf7u9zi6TDhVaJnkl3kjPL+4CQ==}
+  '@godcreator/docfirst-trajectory@0.1.1':
+    resolution: {integrity: sha512-MQFtsZPTphmWGoCpDpMvzwJw+vMizivS8ejZb3TBIlT2b8WGQw08JKPVLEww4hXGWgToO+NtdIqe4tNJTt94mQ==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fdocfirst-trajectory/-/0.1.1/docfirst-trajectory-0.1.1.tgz}
     peerDependencies:
       react: '>=19'
     peerDependenciesMeta:
@@ -549,7 +549,7 @@ packages:
         optional: true
 
   '@godcreator/docfirst-workflow@0.2.0':
-    resolution: {integrity: sha512-WcWY4r+cDlJd1C5X9lKQhWnp2/TnWhpHO3BuX5ErlsBY1I++cf7N55Ozo6KnCTJSddT8uixJaTqasbXH6gNSqw==}
+    resolution: {integrity: sha512-iqeuv/SoZfbNIUR13rN8panB7F2Hdh13zBHAqemdjSSoJzwleEQDNrhrBiuLsK+nLdJlCJaL/ImgyDyCFBiSSg==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fdocfirst-workflow/-/0.2.0/docfirst-workflow-0.2.0.tgz}
     hasBin: true
     peerDependencies:
       fumadocs-core: '>=16'
@@ -566,33 +566,33 @@ packages:
       react:
         optional: true
 
-  '@godcreator/gwb-commands@0.1.0':
-    resolution: {integrity: sha512-qW7k/Y1UljiGGw2ig/BApNzk4LCfROhMrOWIHjsrQMmBsScm7by5zcvgMLj45whtOc/83x5tvSbnDsp8XN2aHw==}
+  '@godcreator/gwb-commands@0.4.0':
+    resolution: {integrity: sha512-qbl9r5tq0qBaOZklLr4BK6tPdSBQs5mzNfPNwbHYy813dcOqpv6rqwWTn0mIkRzRxgXUMS0ZWXIOOqOTBKzxuA==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-commands/-/0.4.0/gwb-commands-0.4.0.tgz}
     peerDependencies:
       '@godcreator/gwb-plugin-api': '>=0.1.0'
 
-  '@godcreator/gwb-data@0.1.0':
-    resolution: {integrity: sha512-DXbEJ/RmI0O1cmh5+iFyBxh1pZj7P1dh3uB32ka5Sy9wLOWIHaey9VAipHL6paPeKS7bz0gec/wVMQC+B1FBCg==}
-    peerDependencies:
-      '@godcreator/gwb-plugin-api': '>=0.1.0'
-      cordis: ^4.0.0-rc.9
-
-  '@godcreator/gwb-plugin-api@0.1.0':
-    resolution: {integrity: sha512-lHcK2jaE+dKjNcF7obgZUP3UKP6MWU9G6TJDLyRSSk8HrH4vaHldy9LX1PlL1Z7CAehPaJPlf55wXG/8YRIiyA==}
-    peerDependencies:
-      cordis: ^4.0.0-rc.9
-
-  '@godcreator/gwb-settings@0.1.0':
-    resolution: {integrity: sha512-mxMfOUOFFdJi0F3qpAcP1k/uaL4DLeB6GhaIhY+c8OnhFevowj4jHIaqyYkh4pKLaWGA21knf/tPHfrsyypI6w==}
+  '@godcreator/gwb-data@0.1.1':
+    resolution: {integrity: sha512-hU2DxkS8s3EygFYRghpvX8cKoANe5HCorO/+p+44IhpWfaVLZ5Ohjjm3XSRvPkXtme/TIRccLqoysGCd63LhFg==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-data/-/0.1.1/gwb-data-0.1.1.tgz}
     peerDependencies:
       '@godcreator/gwb-plugin-api': '>=0.1.0'
       cordis: ^4.0.0-rc.9
 
-  '@godcreator/gwb-shared-react@0.0.2':
-    resolution: {integrity: sha512-IkOG1AVzqCXxPqgi9JyQ4N+SA9Rcp89JkuRe+b32GfvRU7qkUU8D31PBEY+jXjgIkPidzUh4vI7u4HuOlEHupA==}
+  '@godcreator/gwb-plugin-api@0.1.1':
+    resolution: {integrity: sha512-t/erIAU2/yHgHP4X/xS23/+X4jrnMsI4Koj/QvW9zg8HK52zltS3RqIrciD7vGmBiFFFX8BEK+5BVf704xsE9Q==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-plugin-api/-/0.1.1/gwb-plugin-api-0.1.1.tgz}
+    peerDependencies:
+      cordis: ^4.0.0-rc.9
 
-  '@godcreator/gwb-shell@0.1.0':
-    resolution: {integrity: sha512-2BFe39giCSSQoEVqWeFIRSEi6PA9UMNF3okoFQ84h0QcZIhErC2wqyytV/7AbT4Hp6vK8p0HuLMAtQHKM2PUzA==}
+  '@godcreator/gwb-settings@0.2.0':
+    resolution: {integrity: sha512-Psm+xpgrPL1O8dLgZUCgZ6RFbITBiHk9lU41ZhkyIhwcC72degD1ULBvdXIxcP5tmwy9YLsxSn2OlffSsk1Zcg==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-settings/-/0.2.0/gwb-settings-0.2.0.tgz}
+    peerDependencies:
+      '@godcreator/gwb-plugin-api': '>=0.1.0'
+      cordis: ^4.0.0-rc.9
+
+  '@godcreator/gwb-shared-react@0.0.4':
+    resolution: {integrity: sha512-pwFR0Izf4kYpWeGr1mBY6+RJg4iCDEHMST5aTehNeVoaUq37Z3ZNODZuzt/dqJ+WXqRxh9VelkBTN54Lpl/ifw==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-shared-react/-/0.0.4/gwb-shared-react-0.0.4.tgz}
+
+  '@godcreator/gwb-shell@0.7.0':
+    resolution: {integrity: sha512-eBJpch1JUudRL8uzyhcgjfEItqU6soOFQ3EzCsV9mWBFrMVonVMjuq6WL2+1BxMdJTtVz/g45/wJcAjcUZuTEg==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-shell/-/0.7.0/gwb-shell-0.7.0.tgz}
     peerDependencies:
       '@godcreator/gwb-commands': '>=0.0.1'
       '@godcreator/gwb-data': '>=0.0.1'
@@ -601,8 +601,8 @@ packages:
       '@godcreator/gwb-tokens': '>=0.0.2'
       cordis: ^4.0.0-rc.9
 
-  '@godcreator/gwb-tokens@0.0.5':
-    resolution: {integrity: sha512-lOI7fIUKS8IEqRcLohiADwtmG4iiA6pBsh0hN9tSKKXyKIrieGVbyIQ+1qT/GA3/n7JQZUnN40+/XvlKmlj/kQ==}
+  '@godcreator/gwb-tokens@0.1.2':
+    resolution: {integrity: sha512-2i/tcdDbVCIXec1RuAddVkcWJV8pz/FHKz0Zf1DQouGMy4rJZS7y5Obb3BbimRFdBe1B4cR3vUjxIq7fRRQi7Q==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-tokens/-/0.1.2/gwb-tokens-0.1.2.tgz}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -2941,7 +2941,7 @@ snapshots:
 
   '@fumari/image-size@0.1.0': {}
 
-  '@godcreator/docfirst-trajectory@0.1.0(react@19.2.8)':
+  '@godcreator/docfirst-trajectory@0.1.1(react@19.2.8)':
     dependencies:
       unist-util-visit: 5.1.0
     optionalDependencies:
@@ -2949,7 +2949,7 @@ snapshots:
 
   '@godcreator/docfirst-workflow@0.2.0(9731d1d50e82d6769b496cb06cc97c8f)':
     dependencies:
-      '@godcreator/docfirst-trajectory': 0.1.0(react@19.2.8)
+      '@godcreator/docfirst-trajectory': 0.1.1(react@19.2.8)
       remark-frontmatter: 5.0.0
       remark-mdx: 3.1.1
       remark-parse: 11.0.0
@@ -2962,36 +2962,36 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@godcreator/gwb-commands@0.1.0(@godcreator/gwb-plugin-api@0.1.0(cordis@4.0.0-rc.9))':
+  '@godcreator/gwb-commands@0.4.0(@godcreator/gwb-plugin-api@0.1.1(cordis@4.0.0-rc.9))':
     dependencies:
-      '@godcreator/gwb-plugin-api': 0.1.0(cordis@4.0.0-rc.9)
+      '@godcreator/gwb-plugin-api': 0.1.1(cordis@4.0.0-rc.9)
 
-  '@godcreator/gwb-data@0.1.0(@godcreator/gwb-plugin-api@0.1.0(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)':
+  '@godcreator/gwb-data@0.1.1(@godcreator/gwb-plugin-api@0.1.1(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)':
     dependencies:
-      '@godcreator/gwb-plugin-api': 0.1.0(cordis@4.0.0-rc.9)
+      '@godcreator/gwb-plugin-api': 0.1.1(cordis@4.0.0-rc.9)
       cordis: 4.0.0-rc.9
 
-  '@godcreator/gwb-plugin-api@0.1.0(cordis@4.0.0-rc.9)':
+  '@godcreator/gwb-plugin-api@0.1.1(cordis@4.0.0-rc.9)':
     dependencies:
       cordis: 4.0.0-rc.9
 
-  '@godcreator/gwb-settings@0.1.0(@godcreator/gwb-plugin-api@0.1.0(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)':
+  '@godcreator/gwb-settings@0.2.0(@godcreator/gwb-plugin-api@0.1.1(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)':
     dependencies:
-      '@godcreator/gwb-plugin-api': 0.1.0(cordis@4.0.0-rc.9)
+      '@godcreator/gwb-plugin-api': 0.1.1(cordis@4.0.0-rc.9)
       cordis: 4.0.0-rc.9
 
-  '@godcreator/gwb-shared-react@0.0.2': {}
+  '@godcreator/gwb-shared-react@0.0.4': {}
 
-  '@godcreator/gwb-shell@0.1.0(@godcreator/gwb-commands@0.1.0(@godcreator/gwb-plugin-api@0.1.0(cordis@4.0.0-rc.9)))(@godcreator/gwb-data@0.1.0(@godcreator/gwb-plugin-api@0.1.0(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9))(@godcreator/gwb-plugin-api@0.1.0(cordis@4.0.0-rc.9))(@godcreator/gwb-shared-react@0.0.2)(@godcreator/gwb-tokens@0.0.5)(cordis@4.0.0-rc.9)':
+  '@godcreator/gwb-shell@0.7.0(@godcreator/gwb-commands@0.4.0(@godcreator/gwb-plugin-api@0.1.1(cordis@4.0.0-rc.9)))(@godcreator/gwb-data@0.1.1(@godcreator/gwb-plugin-api@0.1.1(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9))(@godcreator/gwb-plugin-api@0.1.1(cordis@4.0.0-rc.9))(@godcreator/gwb-shared-react@0.0.4)(@godcreator/gwb-tokens@0.1.2)(cordis@4.0.0-rc.9)':
     dependencies:
-      '@godcreator/gwb-commands': 0.1.0(@godcreator/gwb-plugin-api@0.1.0(cordis@4.0.0-rc.9))
-      '@godcreator/gwb-data': 0.1.0(@godcreator/gwb-plugin-api@0.1.0(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)
-      '@godcreator/gwb-plugin-api': 0.1.0(cordis@4.0.0-rc.9)
-      '@godcreator/gwb-shared-react': 0.0.2
-      '@godcreator/gwb-tokens': 0.0.5
+      '@godcreator/gwb-commands': 0.4.0(@godcreator/gwb-plugin-api@0.1.1(cordis@4.0.0-rc.9))
+      '@godcreator/gwb-data': 0.1.1(@godcreator/gwb-plugin-api@0.1.1(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)
+      '@godcreator/gwb-plugin-api': 0.1.1(cordis@4.0.0-rc.9)
+      '@godcreator/gwb-shared-react': 0.0.4
+      '@godcreator/gwb-tokens': 0.1.2
       cordis: 4.0.0-rc.9
 
-  '@godcreator/gwb-tokens@0.0.5': {}
+  '@godcreator/gwb-tokens@0.1.2': {}
 
   '@img/colour@1.1.0':
     optional: true
