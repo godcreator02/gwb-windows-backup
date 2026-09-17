@@ -32,7 +32,7 @@ cd docs-site && pnpm exec docfirst check   # 文档门禁，单独跑
 
 ## 文档与知识
 
-- README / AGENTS 是生成物：改 `content/outputs/` 的 mdx 正本，`docfirst render --target ai`
+- README / AGENTS 是生成物：改 `content/outputs/` 的 mdx 正本，`docfirst render`
   重摆，同提交；`docfirst check` 只扫 docs 与 outputs 两区，钉码只在现状区
 - 需求边界、写文档、落卡读 `@godcreator/gwb-docfirst-workflow` 插件的 skills（连着 MCP 读
   `skill://gwb/<名>/SKILL.md`，没连着就 Read 包内 `skills/`）；选型问人，宿主 CLI 的 skill
