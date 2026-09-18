@@ -79,7 +79,5 @@
     "type": "git",
     "url": "https://git.tianshen02.online:28377/godcreator/gwb-windows-backup.git"
   },
-  "gwb": {
-    "plugin": true
-  }
+  "keywords": ["gwb", "gwb-plugin"]
 }
