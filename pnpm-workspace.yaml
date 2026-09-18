@@ -4,3 +4,6 @@ packages:
 
 allowBuilds:
   esbuild: true
+
+# peer 对不上时 install 当场报错退出，不只 WARN
+strictPeerDependencies: true
