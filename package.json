@@ -1,8 +1,8 @@
 {
   "name": "@godcreator/gwb-windows-backup",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {"name": "godcreator"},
-  "description": "Windows 备份：restic 打快照 + Veeam 整机镜像 + OSS 异地库，跑在 gwb-kernel 线上。0.1 对应单进程内核：注册窗格时自报浏览器半与样式表的 file:// 地址",
+  "description": "Windows 备份：restic 打快照 + Veeam 整机镜像 + OSS 异地库，跑在 gwb-kernel 线上。0.1 对应单进程内核：注册窗格时自报浏览器半与样式表的 file:// 地址。0.1.1：peer 迁 ^（含 shell 0.9.1——0.9 对插件无破坏）、dev 钉跟到 latest",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -33,14 +33,14 @@
   "engines": {
     "node": ">=24"
   },
-  "//peer": "硬 peer 四条：commands（写面全在总线上）、settings（配置 SSOT）、data（状态与凭据落盘）是备份的命根，缺哪个这个件都没有意义；plugin-api 的类型出现在 dist/index.d.ts 的导出面;定时器走官方 @cordisjs/plugin-timer(内核 AGENTS 认定的开件),由 home 的 yml 条目提供——跟 cordis 一样是宿主环境给的,只进 dev 不进 peershell / shared-react 是**浏览器半的前提**，走可选 peer——headless home（没外壳）里备份照跑，那三个缺了只是没有界面。写 >= 不写 ^：caret 在 0.0.x 上锁死 patch",
+  "//peer": "硬 peer 四条：commands（写面全在总线上）、settings（配置 SSOT）、data（状态与凭据落盘）是备份的命根，缺哪个这个件都没有意义；plugin-api 的类型出现在 dist/index.d.ts 的导出面;定时器走官方 @cordisjs/plugin-timer(内核 AGENTS 认定的开件),由 home 的 yml 条目提供——跟 cordis 一样是宿主环境给的,只进 dev 不进 peershell / shared-react 是**浏览器半的前提**，走可选 peer——headless home（没外壳）里备份照跑，那三个缺了只是没有界面。peer 范围怎么写：正本在 devkit 的 release skill「gwb-release」，本仓不复述",
   "peerDependencies": {
-    "@godcreator/gwb-plugin-api": ">=0.1.1",
-    "@godcreator/gwb-commands": ">=0.4.2",
-    "@godcreator/gwb-settings": ">=0.2.0",
-    "@godcreator/gwb-data": ">=0.1.1",
-    "@godcreator/gwb-shell": ">=0.8.0",
-    "@godcreator/gwb-shared-react": ">=0.0.4"
+    "@godcreator/gwb-plugin-api": "^0.1.2",
+    "@godcreator/gwb-commands": "^0.4.3",
+    "@godcreator/gwb-settings": "^0.2.1",
+    "@godcreator/gwb-data": "^0.1.2",
+    "@godcreator/gwb-shell": "^0.9.1",
+    "@godcreator/gwb-shared-react": "^0.1.0"
   },
   "peerDependenciesMeta": {
     "@godcreator/gwb-shell": {
@@ -53,12 +53,12 @@
   "//devdeps": "cordis 只进 dev（apply 的参数类型经 GwbContext 进导出面，但运行时值由宿主给，装进 home 就是第二份实例）；tokens 只在构建期吃 theme.reference.css，页面上的令牌值运行时取页面那张表——都不占运行时。react 系给 client 半 typecheck 用，esbuild/tailwind 给 build，真实消费都在构建期",
   "devDependencies": {
     "@cordisjs/plugin-timer": "1.1.3",
-    "@godcreator/gwb-commands": "0.4.2",
-    "@godcreator/gwb-data": "0.1.1",
-    "@godcreator/gwb-plugin-api": "0.1.1",
-    "@godcreator/gwb-settings": "0.2.0",
-    "@godcreator/gwb-shared-react": "0.0.4",
-    "@godcreator/gwb-shell": "0.8.0",
+    "@godcreator/gwb-commands": "0.4.3",
+    "@godcreator/gwb-data": "0.1.2",
+    "@godcreator/gwb-plugin-api": "0.1.2",
+    "@godcreator/gwb-settings": "0.2.1",
+    "@godcreator/gwb-shared-react": "0.1.0",
+    "@godcreator/gwb-shell": "0.9.1",
     "@godcreator/gwb-tokens": "0.1.3",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^24.0.0",
