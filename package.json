@@ -33,7 +33,7 @@
     "@godcreator/gwb-commands": "^0.4.4",
     "@godcreator/gwb-settings": "^0.2.4",
     "@godcreator/gwb-data": "^0.1.4",
-    "@godcreator/gwb-shell": "^0.13.0",
+    "@godcreator/gwb-shell": "^0.13.1",
     "@godcreator/gwb-shared-react": "^0.1.1",
     "@godcreator/gwb-tokens": "^0.1.4"
   },
@@ -53,7 +53,7 @@
     "@godcreator/gwb-repo-kit": "0.3.0",
     "@godcreator/gwb-settings": "0.2.4",
     "@godcreator/gwb-shared-react": "0.1.1",
-    "@godcreator/gwb-shell": "0.13.0",
+    "@godcreator/gwb-shell": "0.13.1",
     "@godcreator/gwb-tokens": "0.1.4",
     "@tailwindcss/cli": "^4.3.0",
     "@tailwindcss/node": "^4.3.0",
