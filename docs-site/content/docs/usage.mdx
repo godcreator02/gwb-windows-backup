@@ -29,7 +29,7 @@ pnpm add @godcreator/gwb-windows-backup@<版本> @cordisjs/plugin-timer
 设置经 gwb-settings 声明，**每次跑现读现用、绝不缓存**——设置插件没有变更通知，缓存一份
 就会「设置改了、跑的还是旧值」。类型不对或缺字段的值吃默认，不报错。
 
-{/* ref file="../src/index.ts" lines="93-116" */}
+{/* ref file="../src/index.ts" lines="93-117" */}
 
 必填两项：`sources`（备份白名单，设置件里一行一项；老版的分号串也认）与 `local-repo`
 （本地 restic 仓库路径）。缺任何一项，定时那轮照转但每轮都拒跑，拒跑理由是一句指路的话。
@@ -39,7 +39,7 @@ pnpm add @godcreator/gwb-windows-backup@<版本> @cordisjs/plugin-timer
 `#` 开头的行是注释）。0.2.0 起数据目录里的 `restic-exclude.txt` 不再被读——存量规则迁进
 `exclude` 设置键。
 
-{/* ref file="../src/backup.ts" lines="114-130" */}
+{/* ref file="../src/backup.ts" lines="113-129" */}
 
 OSS 三项（`oss-bucket` / `oss-endpoint` / `oss-repo-path`）只在 `oss-enabled` 开着时才被
 要求；凭据不进设置——`credentials/oss-credentials.txt`（KEY=VALUE，支持 `export ` 前缀、
@@ -47,7 +47,7 @@ OSS 三项（`oss-bucket` / `oss-endpoint` / `oss-repo-path`）只在 `oss-enabl
 
 ## 命令（六条，MCP 插件自动开给 agent）
 
-{/* ref file="../src/index.ts" lines="433-553" */}
+{/* ref file="../src/index.ts" lines="434-553" */}
 
 | 命令 | 干什么 |
 | --- | --- |
