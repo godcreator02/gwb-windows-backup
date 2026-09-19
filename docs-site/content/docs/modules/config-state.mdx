@@ -28,14 +28,14 @@ description: 设置那头平铺、程序这头嵌套，现读现用；state.json
 分号串切成路径数组时**去空白、去空项**——用户多打一个分号是常态，切出来的空项要是原样
 进 `restic backup` 的 argv，restic 会去备份「当前目录」。
 
-{/* ref file="../src/config.ts" lines="152-163" */}
+{/* ref file="../src/config.ts" lines="158-169" */}
 
 日志轮转的两个数字（10 MB / 1000 行）**不在设置表上**——它不是用户该操心的旋钮，改它的
 人是在改代码不是在改配置。
 
 ## state.json：动作时间戳
 
-{/* ref file="../src/state.ts" lines="15-34" */}
+{/* ref file="../src/state.ts" lines="15-36" */}
 
 不靠 mtime 判跨日（空文件那类存法）：mtime 这种「载重信息在元数据里」的存法，任何一次拷贝 /
 同步 / 解压都可能把它抹平，症状是 prune 每次都跑或永远不跑。**fail-safe**：解析失败当空
