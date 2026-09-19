@@ -31,6 +31,8 @@ export type BackupState = {
   lastUsbCopy?: string
   /** 上次 exclude 误伤扫描的本地日期，`YYYY-MM-DD`。 */
   lastExcludeAudit?: string
+  /** 上次人工复核备份的本地日期，`YYYY-MM-DD`。 */
+  lastReview?: string
 }
 
 /** 读；文件缺失 / 内容坏 / 不是对象一律当 `{}`。 */
@@ -98,7 +100,7 @@ export function minutesSince(value: string | undefined, now: Date = new Date()):
 
 function pick(raw: Record<string, unknown>): BackupState {
   const state: BackupState = {}
-  for (const key of ['lastRunAt', 'lastRunSummary', 'lastPrune', 'lastUsbCopy', 'lastExcludeAudit'] as const) {
+  for (const key of ['lastRunAt', 'lastRunSummary', 'lastPrune', 'lastUsbCopy', 'lastExcludeAudit', 'lastReview'] as const) {
     const value = raw[key]
     if (typeof value === 'string') state[key] = value
   }

@@ -20,10 +20,10 @@ import path from 'node:path'
 
 // ── 平铺形状（设置那张表）──────────────────────────────────────────────────────
 
-/** 15 个键的全集。**顺序即设置界面里的显示顺序**。 */
+/** 16 个键的全集。**顺序即设置界面里的显示顺序**。 */
 export type FlatConfig = {
-  /** 备份白名单，**分号分隔**；空则拒跑。 */
-  sources: string
+  /** 备份白名单（设置件 `string-list` 型，一行一项）；空则拒跑。legacy 的分号串也认。 */
+  sources: string[]
   /** 本地仓库路径；空则拒跑。 */
   localRepo: string
   ossEnabled: boolean
@@ -44,6 +44,8 @@ export type FlatConfig = {
   /** restic 可执行文件；相对路径按数据目录解析，绝对路径原样。 */
   resticExe: string
   gomaxprocs: number
+  /** 人工复核提醒间隔（天）：到期窗格挂横幅，`mark review` 销账。 */
+  reviewIntervalDays: number
 }
 
 /**
@@ -53,7 +55,7 @@ export type FlatConfig = {
  * 推送、通知报 partial——用户还没配 OSS，那不是故障。
  */
 export const DEFAULT_FLAT: FlatConfig = {
-  sources: '',
+  sources: [],
   localRepo: '',
   ossEnabled: false,
   ossBucket: '',
@@ -68,6 +70,7 @@ export const DEFAULT_FLAT: FlatConfig = {
   toast: true,
   resticExe: 'bin/restic.exe',
   gomaxprocs: 1,
+  reviewIntervalDays: 7,
 }
 
 // ── 嵌套形状（程序内部）────────────────────────────────────────────────────────
@@ -112,6 +115,8 @@ export type BackupConfig = {
   healthCheckIntervalHours: number
   /** 备份结束弹不弹 Windows 通知。 */
   toast: boolean
+  /** 人工复核提醒间隔（天）。 */
+  reviewIntervalDays: number
 }
 
 /** 日志轮转的固定值（不上设置表，见 `BackupConfig.logging` 的注释）。 */
@@ -128,7 +133,7 @@ export function pickFlat(value: unknown): FlatConfig {
   const raw = isPlainObject(value) ? value : {}
   const d = DEFAULT_FLAT
   return {
-    sources: str(raw.sources, d.sources),
+    sources: toSourceList(raw.sources),
     localRepo: str(raw.localRepo, d.localRepo),
     ossEnabled: bool(raw.ossEnabled, d.ossEnabled),
     ossBucket: str(raw.ossBucket, d.ossBucket),
@@ -146,6 +151,7 @@ export function pickFlat(value: unknown): FlatConfig {
     toast: bool(raw.toast, d.toast),
     resticExe: str(raw.resticExe, d.resticExe),
     gomaxprocs: positive(num(raw.gomaxprocs, d.gomaxprocs), d.gomaxprocs),
+    reviewIntervalDays: positive(num(raw.reviewIntervalDays, d.reviewIntervalDays), d.reviewIntervalDays),
   }
 }
 
@@ -162,12 +168,27 @@ export function splitSources(value: string): string[] {
     .filter((one) => one !== '')
 }
 
+/**
+ * 收 sources：数组逐条收字符串（trim、去空）；legacy 的分号串走 splitSources——
+ * 从旧版设置搬过来的值还没迁数组的那阵子，两头都得认。
+ */
+export function toSourceList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .filter((one): one is string => typeof one === 'string')
+      .map((one) => one.trim())
+      .filter((one) => one !== '')
+  }
+  if (typeof value === 'string') return splitSources(value)
+  return []
+}
+
 /** 平铺表 → 程序内部那份嵌套形状。 */
 export function flatToConfig(flat: unknown): BackupConfig {
   const f = pickFlat(flat)
   return {
     restic: { exe: f.resticExe, gomaxprocs: f.gomaxprocs },
-    sources: splitSources(f.sources),
+    sources: f.sources,
     repositories: {
       local: { repo: f.localRepo },
       oss: {
@@ -187,6 +208,7 @@ export function flatToConfig(flat: unknown): BackupConfig {
     logging: { ...DEFAULT_LOGGING },
     healthCheckIntervalHours: f.healthCheckIntervalHours,
     toast: f.toast,
+    reviewIntervalDays: f.reviewIntervalDays,
   }
 }
 

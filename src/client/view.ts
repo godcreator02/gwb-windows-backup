@@ -21,7 +21,7 @@ export interface ReportView {
     log: ReportItemView
     disk: ReportItemView
     snapshots: ReportItemView
-    periodic: ReportItemView
+    periodic: ReportItemView & { reviewDue: boolean }
   }
 }
 
@@ -35,6 +35,8 @@ export interface StatusView {
   nextCheckAt: string | null
   lastError: string | null
   report: ReportView | null
+  /** 该人工复核备份了（周期项的 reviewDue）——窗格据此挂横幅。 */
+  reviewDue: boolean
   backup: {
     frequencyMinutes: number | null
     running: boolean
@@ -74,7 +76,7 @@ function readReport(value: unknown): ReportView | null {
       log: readItem(items.log),
       disk: readItem(items.disk),
       snapshots: readItem(items.snapshots),
-      periodic: readItem(items.periodic),
+      periodic: { ...readItem(items.periodic), reviewDue: isRecord(items.periodic) ? items.periodic.reviewDue === true : false },
     },
   }
 }
@@ -84,6 +86,7 @@ export function readStatus(value: unknown): StatusView | undefined {
   if (!isRecord(value) || value.ok !== true) return undefined
   const data = isRecord(value.data) ? value.data : {}
   const backup = isRecord(data.backup) ? data.backup : {}
+  const report = data.report === null ? null : readReport(data.report)
   return {
     version: str(data.version) ?? '?',
     moduleLoadedAt: str(data.moduleLoadedAt) ?? '',
@@ -93,7 +96,8 @@ export function readStatus(value: unknown): StatusView | undefined {
     lastCheckedAt: str(data.lastCheckedAt),
     nextCheckAt: str(data.nextCheckAt),
     lastError: str(data.lastError),
-    report: data.report === null ? null : readReport(data.report),
+    report,
+    reviewDue: report?.items.periodic.reviewDue ?? false,
     backup: {
       frequencyMinutes: num(backup.frequencyMinutes),
       running: bool(backup.running) ?? false,

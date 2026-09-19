@@ -11,7 +11,7 @@
  *    30 秒后先补跑一次；不在挂载当场跑（挂载期整棵树都在起，起 restic 等于拿仓库 I/O
  *    堵启动）。
  * 3. **周期自检**——按 `health-check-interval-hours` 跑五项健康检查。
- * 4. **配置面**——在设置件里声明 15 个键（kebab-case），每次跑现读现用、绝不缓存。
+ * 4. **配置面**——在设置件里声明 16 个键（kebab-case），每次跑现读现用、绝不缓存。
  * 5. **命令面**——六条 `windows-backup.*` 命令挂在命令总线上（run / check / status /
  *    paths / restic / mark）。**没有 HTTP 路由**——新线的观察面走命令总线与事件，MCP
  *    件会把总线自动开给 agent。
@@ -94,10 +94,10 @@ const SETTING_KEYS: ReadonlyArray<{
   key: string
   field: keyof FlatConfig
   title: string
-  type: 'string' | 'number' | 'boolean'
+  type: 'string' | 'number' | 'boolean' | 'string-list'
   description: string
 }> = [
-  { key: 'sources', field: 'sources', type: 'string', title: '备份白名单', description: '分号分隔（如 D:/Notes;D:/Projects）。留空则不备份' },
+  { key: 'sources', field: 'sources', type: 'string-list', title: '备份白名单', description: '一行一项（如 D:/Notes）。空则不备份' },
   { key: 'local-repo', field: 'localRepo', type: 'string', title: '本地仓库', description: '本地 restic 仓库路径（如 D:/Backup/restic-repo）。留空则不备份' },
   { key: 'oss-enabled', field: 'ossEnabled', type: 'boolean', title: 'OSS 异地副本', description: '开启阿里云 OSS 异地副本。开着但 bucket / endpoint 没填会拒跑' },
   { key: 'oss-bucket', field: 'ossBucket', type: 'string', title: 'OSS bucket', description: 'OSS bucket 名字' },
@@ -112,6 +112,7 @@ const SETTING_KEYS: ReadonlyArray<{
   { key: 'toast', field: 'toast', type: 'boolean', title: '结束通知', description: '每轮备份结束弹一条 Windows 通知' },
   { key: 'restic-exe', field: 'resticExe', type: 'string', title: 'restic 位置', description: 'restic.exe 的位置：相对路径按数据目录解析（默认 bin/restic.exe），绝对路径原样用' },
   { key: 'gomaxprocs', field: 'gomaxprocs', type: 'number', title: 'restic 并行度', description: 'restic 的 GOMAXPROCS：调大更快也更吃 CPU' },
+  { key: 'review-interval-days', field: 'reviewIntervalDays', type: 'number', title: '复核提醒（天）', description: '多久没人工复核备份就在窗格挂横幅（跑 check、看快照）；复核完 mark review 销账' },
 ]
 
 /**
@@ -533,19 +534,19 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
     const off = ctx.gwbCommands.register(
       {
         name: 'windows-backup.mark',
-        description: '补记周期动作的时间戳：{ "what": "usb-copy" | "exclude-audit", "at": "YYYY-MM-DD" }。at 缺省今天',
+        description: '补记周期动作的时间戳：{ "what": "usb-copy" | "exclude-audit" | "review", "at": "YYYY-MM-DD" }。at 缺省今天',
         plugin: PKG,
       },
       (args: unknown) => {
         const body = isRecord(args) ? args : {}
         const what = body.what
-        if (what !== 'usb-copy' && what !== 'exclude-audit') {
-          return { ok: false, error: 'what 只认 usb-copy 或 exclude-audit' }
+        if (what !== 'usb-copy' && what !== 'exclude-audit' && what !== 'review') {
+          return { ok: false, error: 'what 只认 usb-copy、exclude-audit 或 review' }
         }
         const at = typeof body.at === 'string' && body.at.trim() !== '' ? body.at.trim() : todayLocal()
-        const patch = what === 'usb-copy' ? { lastUsbCopy: at } : { lastExcludeAudit: at }
+        const patch = what === 'usb-copy' ? { lastUsbCopy: at } : what === 'exclude-audit' ? { lastExcludeAudit: at } : { lastReview: at }
         const merged = writeState(paths.stateFile, patch)
-        return { ok: true, data: { what, at, lastUsbCopy: merged.lastUsbCopy ?? null, lastExcludeAudit: merged.lastExcludeAudit ?? null } }
+        return { ok: true, data: { what, at, lastUsbCopy: merged.lastUsbCopy ?? null, lastExcludeAudit: merged.lastExcludeAudit ?? null, lastReview: merged.lastReview ?? null } }
       },
     )
     return off

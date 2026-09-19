@@ -25,12 +25,12 @@ const greenReport: HealthReport = {
     log: { status: 'ok', exists: true, localOk: true, ossOk: null, errorLines: [], message: '' },
     disk: { status: 'ok', drive: 'D:', freeBytes: 1, totalBytes: 2, freeRatio: 0.5, level: 'ok', message: '' },
     snapshots: { status: 'ok', latestAt: 'x', ageMinutes: 1, toleranceMinutes: 60, message: '' },
-    periodic: { status: 'ok', usbCopyDays: 1, excludeAuditDays: 1, usbCopyDue: false, excludeAuditDue: false, message: '' },
+    periodic: { status: 'ok', usbCopyDays: 1, excludeAuditDays: 1, reviewDays: 1, usbCopyDue: false, excludeAuditDue: false, reviewDue: false, message: '' },
   },
 }
 
 type Registered = {
-  settingsDefs: Map<string, { default?: unknown }>
+  settingsDefs: Map<string, { type?: string; default?: unknown }>
   settingsValues: Map<string, unknown>
   commands: Map<string, (args?: unknown) => unknown>
   /** 命令名 → 登记的 plugin 字段——commands 0.4 起认完整包名，写运行时名要被 warn */
@@ -83,7 +83,7 @@ function fakeHost(services: { gwbShell?: unknown } = {}) {
       },
     },
     gwbSettings: {
-      define(def: { key: string; default?: unknown }) {
+      define(def: { key: string; type?: string; default?: unknown }) {
         registered.settingsDefs.set(def.key, def)
         return () => registered.settingsDefs.delete(def.key)
       },
@@ -119,13 +119,15 @@ function configure(host: ReturnType<typeof fakeHost>): void {
 }
 
 describe('设置声明', () => {
-  it('15 个键全定义、默认值来自 DEFAULT_FLAT', () => {
+  it('16 个键全定义、默认值来自 DEFAULT_FLAT', () => {
     const host = fakeHost()
     mount(host.ctx, fakeDeps())
-    expect(host.registered.settingsDefs.size).toBe(15)
+    expect(host.registered.settingsDefs.size).toBe(16)
     expect(host.registered.settingsDefs.get('frequency-minutes')?.default).toBe(DEFAULT_FLAT.frequencyMinutes)
-    expect(host.registered.settingsDefs.get('sources')?.default).toBe('')
+    expect(host.registered.settingsDefs.get('sources')?.default).toEqual([])
+    expect(host.registered.settingsDefs.get('sources')?.type).toBe('string-list')
     expect(host.registered.settingsDefs.get('oss-enabled')?.default).toBe(false)
+    expect(host.registered.settingsDefs.get('review-interval-days')?.default).toBe(DEFAULT_FLAT.reviewIntervalDays)
   })
 })
 
@@ -240,7 +242,7 @@ describe('命令面', () => {
     expect(seen[1]?.args[1]).toBe('s3:oss-cn-beijing.aliyuncs.com/bkt/restic-prod')
   })
 
-  it('mark 补记周期动作，缺省今天', async () => {
+  it('mark 补记周期动作（含 review），缺省今天', async () => {
     const host = fakeHost()
     mount(host.ctx, fakeDeps())
     const handler = host.registered.commands.get('windows-backup.mark')
@@ -250,6 +252,10 @@ describe('命令面', () => {
     expect(ok.ok).toBe(true)
     expect(ok.data.at).toMatch(/^\d{4}-\d{2}-\d{2}$/)
     expect(readState(path.join(host.dataDir, 'state.json')).lastUsbCopy).toBe(ok.data.at)
+    const review = (await handler?.({ what: 'review', at: '2026-09-01' })) as { ok: boolean; data: { lastReview: string | null } }
+    expect(review.ok).toBe(true)
+    expect(review.data.lastReview).toBe('2026-09-01')
+    expect(readState(path.join(host.dataDir, 'state.json')).lastReview).toBe('2026-09-01')
   })
 })
 
@@ -354,9 +360,9 @@ describe('界面占位（局部注入）', () => {
   })
 })
 
-/** 配置面的完整性哨兵：15 键谁也不许顺手删 */
+/** 配置面的完整性哨兵：16 键谁也不许顺手删 */
 describe('配置面', () => {
-  it('DEFAULT_FLAT 的 15 键齐全', () => {
-    expect(Object.keys(DEFAULT_FLAT).length).toBe(15)
+  it('DEFAULT_FLAT 的 16 键齐全', () => {
+    expect(Object.keys(DEFAULT_FLAT).length).toBe(16)
   })
 })

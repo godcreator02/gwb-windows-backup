@@ -28,7 +28,7 @@ const localDate = (d: Date): string => localTs(d).slice(0, 10)
 const REAL_EXE = process.execPath
 
 const config = (over: Record<string, unknown> = {}) =>
-  flatToConfig({ ...DEFAULT_FLAT, sources: 'D:/Notes', localRepo: 'D:/Backup/restic-repo', resticExe: REAL_EXE, ...over })
+  flatToConfig({ ...DEFAULT_FLAT, sources: ['D:/Notes'], localRepo: 'D:/Backup/restic-repo', resticExe: REAL_EXE, ...over })
 
 /** 一份正常的 state：40 分钟前成功跑过。 */
 const healthyState = (now: Date) => ({
@@ -37,6 +37,7 @@ const healthyState = (now: Date) => ({
   lastPrune: localDate(new Date(now.getTime() - 40 * 60_000)),
   lastUsbCopy: localDate(new Date(now.getTime() - 2 * 86_400_000)),
   lastExcludeAudit: localDate(new Date(now.getTime() - 3 * 86_400_000)),
+  lastReview: localDate(new Date(now.getTime() - 1 * 86_400_000)),
 })
 
 /** 一份全绿的假 restic（快照那项用）。 */
@@ -203,6 +204,29 @@ describe('⑤ periodic', () => {
     const fresh = healthyState(now)
     const fine = await runHealthCheck(tmpPaths(), config(), { now, run: okSnapshots, diskFree: diskOf(0.9), state: fresh })
     expect(fine.items.periodic.status).toBe('ok')
+  })
+
+  it('人工复核：从没做过或超过配置间隔 → reviewDue；间隔跟着配置走', async () => {
+    const now = new Date()
+    const never = await runHealthCheck(tmpPaths(), config(), { now, run: okSnapshots, diskFree: diskOf(0.9), state: { ...healthyState(now), lastReview: undefined } })
+    expect(never.items.periodic.reviewDue).toBe(true)
+    expect(never.items.periodic.message).toContain('复核')
+
+    const stale = await runHealthCheck(tmpPaths(), config({ reviewIntervalDays: 3 }), {
+      now,
+      run: okSnapshots,
+      diskFree: diskOf(0.9),
+      state: { ...healthyState(now), lastReview: localDate(new Date(now.getTime() - 5 * 86_400_000)) },
+    })
+    expect(stale.items.periodic.reviewDue).toBe(true)
+
+    const fine = await runHealthCheck(tmpPaths(), config({ reviewIntervalDays: 3 }), {
+      now,
+      run: okSnapshots,
+      diskFree: diskOf(0.9),
+      state: { ...healthyState(now), lastReview: localDate(new Date(now.getTime() - 2 * 86_400_000)) },
+    })
+    expect(fine.items.periodic.reviewDue).toBe(false)
   })
 })
 

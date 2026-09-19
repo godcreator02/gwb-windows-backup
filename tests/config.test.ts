@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_FLAT, flatToConfig, pickFlat, resolveSlotPath, splitSources } from '../src/config.js'
+import { DEFAULT_FLAT, flatToConfig, pickFlat, resolveSlotPath, splitSources, toSourceList } from '../src/config.js'
 
 describe('pickFlat', () => {
   it('空值吃全套默认', () => {
@@ -10,7 +10,7 @@ describe('pickFlat', () => {
 
   it('类型不对的一律吃默认', () => {
     const flat = pickFlat({ sources: 123, ossEnabled: 'yes', frequencyMinutes: '30' })
-    expect(flat.sources).toBe('')
+    expect(flat.sources).toEqual([])
     expect(flat.ossEnabled).toBe(false)
     expect(flat.frequencyMinutes).toBe(30)
   })
@@ -21,32 +21,48 @@ describe('pickFlat', () => {
     expect(pickFlat({ healthCheckIntervalHours: 0 }).healthCheckIntervalHours).toBe(8)
     expect(pickFlat({ keepWeekly: 0 }).keepWeekly).toBe(8)
     expect(pickFlat({ gomaxprocs: 0 }).gomaxprocs).toBe(1)
+    expect(pickFlat({ reviewIntervalDays: 0 }).reviewIntervalDays).toBe(7)
   })
 
-  it('合法值原样过', () => {
-    const flat = pickFlat({ sources: 'D:/Notes;D:/Projects', localRepo: 'D:/Backup/restic-repo', frequencyMinutes: 15 })
-    expect(flat.sources).toBe('D:/Notes;D:/Projects')
+  it('合法值原样过（sources 是数组）', () => {
+    const flat = pickFlat({ sources: ['D:/Notes', ' D:/Projects '], localRepo: 'D:/Backup/restic-repo', frequencyMinutes: 15, reviewIntervalDays: 14 })
+    expect(flat.sources).toEqual(['D:/Notes', 'D:/Projects'])
     expect(flat.localRepo).toBe('D:/Backup/restic-repo')
     expect(flat.frequencyMinutes).toBe(15)
+    expect(flat.reviewIntervalDays).toBe(14)
   })
 })
 
-describe('splitSources', () => {
+describe('splitSources / toSourceList', () => {
   it('分号切开、去空白、去空项', () => {
     expect(splitSources('D:/Notes; ;D:/Projects ')).toEqual(['D:/Notes', 'D:/Projects'])
     expect(splitSources('')).toEqual([])
     expect(splitSources(';;;')).toEqual([])
   })
+
+  it('legacy 的分号串也收得下——旧版设置搬过来的值不用先迁', () => {
+    expect(toSourceList('D:/A; ;D:/B')).toEqual(['D:/A', 'D:/B'])
+  })
+
+  it('数组逐条 trim 去空，非字符串项丢弃；别的形状吃空表', () => {
+    expect(toSourceList([' D:/A ', '', 42, 'D:/B'])).toEqual(['D:/A', 'D:/B'])
+    expect(toSourceList(undefined)).toEqual([])
+    expect(toSourceList({})).toEqual([])
+  })
 })
 
 describe('flatToConfig', () => {
-  it('sources 进嵌套形状变数组，oss 四格归位', () => {
-    const config = flatToConfig({ sources: 'D:/A;D:/B', ossEnabled: true, ossBucket: 'b', ossEndpoint: 'e', ossRepoPath: 'p' })
+  it('sources（数组或 legacy 串）进嵌套形状都是数组，oss 四格归位', () => {
+    const config = flatToConfig({ sources: ['D:/A', 'D:/B'], ossEnabled: true, ossBucket: 'b', ossEndpoint: 'e', ossRepoPath: 'p' })
     expect(config.sources).toEqual(['D:/A', 'D:/B'])
     expect(config.repositories.oss).toEqual({ enabled: true, bucket: 'b', repoPath: 'p', endpoint: 'e' })
     expect(config.repositories.local.repo).toBe('')
     expect(config.schedule.frequencyMinutes).toBe(30)
     expect(config.retention).toEqual({ keepWithin: '72h', keepWithinDaily: '14d', keepWeekly: 8, keepMonthly: 12 })
+    expect(config.reviewIntervalDays).toBe(7)
+
+    const legacy = flatToConfig({ sources: 'D:/A;D:/B' })
+    expect(legacy.sources).toEqual(['D:/A', 'D:/B'])
   })
 
   it('日志轮转的固定值跟着走（不上设置表）', () => {

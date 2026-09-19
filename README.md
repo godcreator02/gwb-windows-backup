@@ -11,8 +11,8 @@ gwb 内核线上的 Windows 备份插件：restic 打快照 + 阿里云 OSS 异�
   * 跨进程锁（`backup.lock`，6h 陈旧接管）、凭据永不进日志（`--password-file`）
 * **命令面**（`windows-backup.*`，MCP 插件会自动开给 agent）：
   `run` / `check` / `status` / `paths` / `restic`（直通，密钥不出现在参数里）/ `mark`
-* **client 半**：备份窗格（`mountPane`）——灯、五项、按钮、30s 轮询
-* **设置**：15 个键经 gwb-settings 声明（kebab-case，如 `frequency-minutes`、`local-repo`）
+* **client 半**：备份窗格（`mountPane`）——灯、五项、按钮、30s 轮询；复核到期挂横幅 + 一键复制复核提示词
+* **设置**：16 个键经 gwb-settings 声明（kebab-case，如 `frequency-minutes`、`local-repo`、`review-interval-days`；`sources` 是 string-list 型一行一项）
 
 ## 怎么跑
 

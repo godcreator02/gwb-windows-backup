@@ -3,6 +3,9 @@ dist/
 *.tsbuildinfo
 *.log
 
+# 一次性取证脚本与读数（devkit skill 的约定落点）
+out/
+
 # 文档站的产物
 docs-site/.next/
 docs-site/.source/

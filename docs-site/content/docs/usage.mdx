@@ -24,15 +24,15 @@ pnpm add @godcreator/gwb-windows-backup@<版本> @cordisjs/plugin-timer
 装完 restic 本体放进 `bin/restic.exe`（或用 `restic-exe` 设置指向别的位置）——装 restic
 是一次性手工活，代码不代办。
 
-## 设置（15 键，kebab-case）
+## 设置（16 键，kebab-case）
 
 设置经 gwb-settings 声明，**每次跑现读现用、绝不缓存**——设置插件没有变更通知，缓存一份
 就会「设置改了、跑的还是旧值」。类型不对或缺字段的值吃默认，不报错。
 
 {/* ref file="../src/index.ts" lines="93-115" */}
 
-必填两项：`sources`（分号分隔的备份白名单）与 `local-repo`（本地 restic 仓库路径）。
-缺任何一项，定时那轮照转但每轮都拒跑，拒跑理由是一句指路的话。
+必填两项：`sources`（备份白名单，设置件里一行一项；老版的分号串也认）与 `local-repo`
+（本地 restic 仓库路径）。缺任何一项，定时那轮照转但每轮都拒跑，拒跑理由是一句指路的话。
 
 {/* ref file="../src/backup.ts" lines="114-130" */}
 
@@ -51,7 +51,7 @@ OSS 三项（`oss-bucket` / `oss-endpoint` / `oss-repo-path`）只在 `oss-enabl
 | `windows-backup.status` | 回全量状态（上次备份、自检结论、定时器节奏）——窗格轮的就是它 |
 | `windows-backup.paths` | 回数据目录全部路径——看凭据在不在、tail 日志，先调这条拿路径，别猜 |
 | `windows-backup.restic` | 透传一条 restic 命令（如 `{ "repo": "local", "args": ["snapshots"] }`），自动补 `--repo` 与 `--password-file`，密钥不出现在参数里。恢复快照也走它：`args: ["restore", <id>, "--target", <目录>]` |
-| `windows-backup.mark` | 补记周期动作时间戳：`{ "what": "usb-copy" \| "exclude-audit", "at": "YYYY-MM-DD" }` |
+| `windows-backup.mark` | 补记周期动作时间戳：`{ "what": "usb-copy" \| "exclude-audit" \| "review", "at": "YYYY-MM-DD" }` |
 
 ## 怎么确认备份在转
 

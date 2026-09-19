@@ -83,10 +83,13 @@ export type PeriodicItem = {
   status: CheckStatus
   usbCopyDays: number | null
   excludeAuditDays: number | null
+  reviewDays: number | null
   /** 该做 USB 离机副本了。 */
   usbCopyDue: boolean
   /** 该扫一遍 exclude 有没有误伤了。 */
   excludeAuditDue: boolean
+  /** 该人工复核备份了（跑自检、看快照；窗格据此挂横幅）。 */
+  reviewDue: boolean
   message: string
 }
 
@@ -143,7 +146,7 @@ export async function runHealthCheck(
   const snapshots = options.skipSnapshots
     ? skippedSnapshots(config)
     : await checkSnapshots(paths, config, run, now)
-  const periodic = checkPeriodic(state, now)
+  const periodic = checkPeriodic(state, config, now)
 
   const items = { lastRun, log, disk, snapshots, periodic }
   const problems = collectProblems(items)
@@ -357,23 +360,28 @@ function skippedSnapshots(config: BackupConfig): SnapshotsItem {
   }
 }
 
-/** ⑤ 周期提醒：USB 离机副本 ≥ 7 天、exclude 误伤扫描 ≥ 30 天。 */
-function checkPeriodic(state: BackupState, now: Date): PeriodicItem {
+/** ⑤ 周期提醒：USB 离机副本 ≥ 7 天、exclude 误伤扫描 ≥ 30 天、人工复核 ≥ 配置的间隔。 */
+function checkPeriodic(state: BackupState, config: BackupConfig, now: Date): PeriodicItem {
   const usbCopyDays = daysSince(state.lastUsbCopy, now)
   const excludeAuditDays = daysSince(state.lastExcludeAudit, now)
+  const reviewDays = daysSince(state.lastReview, now)
   const usbCopyDue = usbCopyDays === null || usbCopyDays >= USB_COPY_DUE_DAYS
   const excludeAuditDue = excludeAuditDays === null || excludeAuditDays >= EXCLUDE_AUDIT_DUE_DAYS
+  const reviewDue = reviewDays === null || reviewDays >= config.reviewIntervalDays
   const due: string[] = []
   if (usbCopyDue) due.push(usbCopyDays === null ? '还没做过 USB 离机副本' : `USB 离机副本已经 ${usbCopyDays} 天没做了`)
   if (excludeAuditDue) {
     due.push(excludeAuditDays === null ? '还没扫过 exclude 有没有误伤' : `exclude 误伤扫描已经 ${excludeAuditDays} 天没做了`)
   }
+  if (reviewDue) due.push(reviewDays === null ? '还没人工复核过备份' : `已经 ${reviewDays} 天没人工复核备份了`)
   return {
     status: due.length === 0 ? 'ok' : 'problem',
     usbCopyDays,
     excludeAuditDays,
+    reviewDays,
     usbCopyDue,
     excludeAuditDue,
+    reviewDue,
     message: due.length === 0 ? '周期性维护都在窗口内' : due.join('；'),
   }
 }
