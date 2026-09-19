@@ -29,7 +29,7 @@ pnpm add @godcreator/gwb-windows-backup@<版本> @cordisjs/plugin-timer
 设置经 gwb-settings 声明，**每次跑现读现用、绝不缓存**——设置插件没有变更通知，缓存一份
 就会「设置改了、跑的还是旧值」。类型不对或缺字段的值吃默认，不报错。
 
-{/* ref file="../src/index.ts" lines="93-115" */}
+{/* ref file="../src/index.ts" lines="93-116" */}
 
 必填两项：`sources`（备份白名单，设置件里一行一项；老版的分号串也认）与 `local-repo`
 （本地 restic 仓库路径）。缺任何一项，定时那轮照转但每轮都拒跑，拒跑理由是一句指路的话。
@@ -42,7 +42,7 @@ OSS 三项（`oss-bucket` / `oss-endpoint` / `oss-repo-path`）只在 `oss-enabl
 
 ## 命令（六条，MCP 插件自动开给 agent）
 
-{/* ref file="../src/index.ts" lines="432-552" */}
+{/* ref file="../src/index.ts" lines="433-553" */}
 
 | 命令 | 干什么 |
 | --- | --- |
@@ -63,7 +63,7 @@ OSS 三项（`oss-bucket` / `oss-endpoint` / `oss-repo-path`）只在 `oss-enabl
 挂载后 30 秒是第一轮：先自检，上一轮备份太旧（超过一个周期）就顺带补跑一轮。不在挂载
 当场跑——挂载期整棵树都在起，起 restic 等于拿仓库 I/O 堵启动。
 
-{/* ref file="../src/index.ts" lines="554-571" */}
+{/* ref file="../src/index.ts" lines="555-572" */}
 
 **宿主不在就不备份**——定时器住在 gwb 工作台里，工作台关了备份就停，下次起来 30 秒后
 补。这是知情认下的代价；要机器级保底，等 roadmap 上的灾难 CLI 入口。

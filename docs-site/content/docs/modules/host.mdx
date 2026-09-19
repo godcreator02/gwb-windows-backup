@@ -26,11 +26,11 @@ description: 挂上 gwb 内核的那半——inject 等待语义、两根计时�
 这是知情认下的代价：结论本身是「此刻的观察」，真正要跨进程活着的那几项住 `state.json`。
 `backing` 布尔是第一层并发保护，第二层是数据目录的 `backup.lock`。
 
-{/* ref file="../src/index.ts" lines="235-252" */}
+{/* ref file="../src/index.ts" lines="236-253" */}
 
 ## 计时器：每响一次把「下次」往后推
 
-{/* ref file="../src/index.ts" lines="285-295" */}
+{/* ref file="../src/index.ts" lines="286-296" */}
 
 只在起计时器时算一次 `nextRunAt` 的话，跑完不推，状态里显示的就永远是一个已经过去的
 时刻。设置改了频率就停旧的重开（下一轮生效）；间隔没变只推下次时刻，不变着重开——重开
@@ -40,7 +40,7 @@ description: 挂上 gwb 内核的那半——inject 等待语义、两根计时�
 可能带查询串 import 本模块，`createRequire` 拿那种 URL 解析相对路径会炸，先剥 `?` 后面
 那段。
 
-{/* ref file="../src/index.ts" lines="177-192" */}
+{/* ref file="../src/index.ts" lines="178-193" */}
 
 ## 提供的接口
 
@@ -62,7 +62,7 @@ description: 挂上 gwb 内核的那半——inject 等待语义、两根计时�
 
 ## 局部注入：外壳缺席只是没有界面
 
-{/* ref file="../src/index.ts" lines="573-590" */}
+{/* ref file="../src/index.ts" lines="574-591" */}
 
 `ctx.inject(['gwbShell'], ...)` 走局部注入：headless home（没装外壳）里备份照跑，缺的只是
 看得见的那层界面。列进顶层 inject 却缺席的话，整个插件连同备份本体一起静默 pending——那才是
