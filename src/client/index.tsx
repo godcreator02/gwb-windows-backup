@@ -3,8 +3,8 @@
  *
  * 契约要求**同步**返回 `{ dispose }`——async / 回函数都算违约。
  *
- * 外壳会先注本件的 `style.css` 再 import 这份模块；样式表整张 scope 在
- * `data-gwb-plugin` 之下，工具类（tailwind）只在自己那棵子树里生效。
+ * 外壳会先注本件的 `style.css` 再 import 这份模块；围栏靠类名前缀（`windowsbackup:`），
+ * 工具类只可能匹配本件画出来的元素，不依赖 DOM 祖先关系。
  */
 
 import { createRoot } from 'react-dom/client'

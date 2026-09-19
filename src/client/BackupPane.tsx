@@ -1,6 +1,9 @@
 /**
  * 备份窗格：五项逐项、问题清单、最近结果、路径与节奏——本件唯一的界面。
  * 数据源是 `windows-backup.status`（收窄见 view.ts），30 秒一轮。
+ *
+ * 类名一律带 `windowsbackup:` 前缀：围栏来自名字唯一，不靠 DOM 祖先关系。样式入口在
+ * `styles.css`，那几行 import 每一条都不能省，注释在那边。
  */
 
 import { useState, type ReactElement } from 'react'
@@ -24,7 +27,7 @@ export function BackupPane({ host }: { host: HostBridge }): ReactElement {
   }
 
   if (status === undefined) {
-    return <p className="text-muted-foreground m-0 text-sm">还拿不到备份状态——命令总线上没有 windows-backup.status？</p>
+    return <p className="windowsbackup:text-muted-foreground windowsbackup:m-0 windowsbackup:text-sm">还拿不到备份状态——命令总线上没有 windows-backup.status？</p>
   }
 
   const tone = toneOf(status).tone
@@ -33,28 +36,28 @@ export function BackupPane({ host }: { host: HostBridge }): ReactElement {
   const report = status.report
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="windowsbackup:flex windowsbackup:flex-col windowsbackup:gap-4 windowsbackup:p-4">
       {/* 总览 */}
-      <div className="flex items-center gap-2">
+      <div className="windowsbackup:flex windowsbackup:items-center windowsbackup:gap-2">
         <Dot tone={tone} pulse={busyNow} />
-        <span className="text-foreground text-base font-medium">{headlineOf(status)}</span>
+        <span className="windowsbackup:text-foreground windowsbackup:text-base windowsbackup:font-medium">{headlineOf(status)}</span>
         {busyNow && (
-          <span className="text-muted-foreground text-xs">{status.backup.running ? '备份中' : '检查中'}</span>
+          <span className="windowsbackup:text-muted-foreground windowsbackup:text-xs">{status.backup.running ? '备份中' : '检查中'}</span>
         )}
-        <span className="text-muted-foreground ml-auto text-xs">v{status.version}</span>
+        <span className="windowsbackup:text-muted-foreground windowsbackup:ml-auto windowsbackup:text-xs">v{status.version}</span>
       </div>
 
       {/* 上次备份与计划 */}
-      <div className="grid gap-1 text-sm">
+      <div className="windowsbackup:grid windowsbackup:gap-1 windowsbackup:text-sm">
         <p
-          className={`m-0 ${last.ok === false ? 'text-red-500' : last.ok === true ? 'text-emerald-600' : 'text-muted-foreground'}`}
+          className={`windowsbackup:m-0 ${last.ok === false ? 'windowsbackup:text-destructive' : last.ok === true ? 'windowsbackup:text-emerald-600' : 'windowsbackup:text-muted-foreground'}`}
         >
           上次备份：{last.text}
         </p>
         {status.backup.lastRunSummary !== null && status.backup.lastRunSummary !== '' && (
-          <p className="text-muted-foreground m-0 text-xs">{status.backup.lastRunSummary}</p>
+          <p className="windowsbackup:text-muted-foreground windowsbackup:m-0 windowsbackup:text-xs">{status.backup.lastRunSummary}</p>
         )}
-        <p className="text-muted-foreground m-0 text-xs">
+        <p className="windowsbackup:text-muted-foreground windowsbackup:m-0 windowsbackup:text-xs">
           {status.backup.frequencyMinutes === null
             ? '定时器没起'
             : `每 ${status.backup.frequencyMinutes} 分钟一轮 · 下次 ${clockOf(status.backup.nextRunAt)}`}
@@ -66,10 +69,10 @@ export function BackupPane({ host }: { host: HostBridge }): ReactElement {
       </div>
 
       {/* 两颗按钮 */}
-      <div className="flex gap-2">
+      <div className="windowsbackup:flex windowsbackup:gap-2">
         <button
           type="button"
-          className="bg-primary text-primary-foreground rounded-md px-3 py-1.5 text-sm disabled:opacity-50"
+          className="windowsbackup:bg-primary windowsbackup:text-primary-foreground windowsbackup:rounded-md windowsbackup:px-3 windowsbackup:py-1.5 windowsbackup:text-sm windowsbackup:disabled:opacity-50"
           disabled={busy !== null || status.backup.running}
           onClick={() => void trigger('run')}
         >
@@ -77,7 +80,7 @@ export function BackupPane({ host }: { host: HostBridge }): ReactElement {
         </button>
         <button
           type="button"
-          className="border-border text-foreground rounded-md border px-3 py-1.5 text-sm disabled:opacity-50"
+          className="windowsbackup:border-border windowsbackup:text-foreground windowsbackup:rounded-md windowsbackup:border windowsbackup:px-3 windowsbackup:py-1.5 windowsbackup:text-sm windowsbackup:disabled:opacity-50"
           disabled={busy !== null || status.checking}
           onClick={() => void trigger('check')}
         >
@@ -87,26 +90,26 @@ export function BackupPane({ host }: { host: HostBridge }): ReactElement {
 
       {/* 自检本身出错（不是「备份有问题」）单独说 */}
       {status.lastError !== null && (
-        <p className="m-0 rounded-md border border-red-500/40 px-3 py-2 text-xs text-red-500">自检没跑完：{status.lastError}</p>
+        <p className="windowsbackup:m-0 windowsbackup:rounded-md windowsbackup:border windowsbackup:border-destructive/40 windowsbackup:px-3 windowsbackup:py-2 windowsbackup:text-xs windowsbackup:text-destructive">自检没跑完：{status.lastError}</p>
       )}
 
       {/* 五项逐项 */}
       {report === null ? (
-        <p className="text-muted-foreground m-0 text-sm">还没跑过自检（挂上 30 秒后第一次）。</p>
+        <p className="windowsbackup:text-muted-foreground windowsbackup:m-0 windowsbackup:text-sm">还没跑过自检（挂上 30 秒后第一次）。</p>
       ) : (
-        <div className="flex flex-col gap-2">
-          <p className="text-muted-foreground m-0 text-xs">五项自检（{report.checkedAt.replace('T', ' ')}）</p>
-          <ul className="m-0 list-none space-y-1.5 pl-0 text-sm">
+        <div className="windowsbackup:flex windowsbackup:flex-col windowsbackup:gap-2">
+          <p className="windowsbackup:text-muted-foreground windowsbackup:m-0 windowsbackup:text-xs">五项自检（{report.checkedAt.replace('T', ' ')}）</p>
+          <ul className="windowsbackup:m-0 windowsbackup:list-none windowsbackup:space-y-1.5 windowsbackup:pl-0 windowsbackup:text-sm">
             {ITEM_LABELS.map(({ key, label }) => {
               const item = report.items[key]
               return (
-                <li key={key} className="flex items-start gap-2">
+                <li key={key} className="windowsbackup:flex windowsbackup:items-start windowsbackup:gap-2">
                   <Dot
                     tone={item.status === 'ok' ? 'ok' : item.status === 'problem' ? 'warn' : 'muted'}
                     pulse={false}
                   />
-                  <span className="text-foreground w-24 shrink-0">{label}</span>
-                  <span className={item.status === 'problem' ? 'text-amber-600' : 'text-muted-foreground'}>
+                  <span className="windowsbackup:text-foreground windowsbackup:w-24 windowsbackup:shrink-0">{label}</span>
+                  <span className={item.status === 'problem' ? 'windowsbackup:text-warning' : 'windowsbackup:text-muted-foreground'}>
                     {item.message}
                   </span>
                 </li>
@@ -117,7 +120,7 @@ export function BackupPane({ host }: { host: HostBridge }): ReactElement {
       )}
 
       {/* 数据目录 */}
-      <p className="text-muted-foreground m-0 font-mono text-xs break-all">
+      <p className="windowsbackup:text-muted-foreground windowsbackup:m-0 windowsbackup:font-mono windowsbackup:text-xs windowsbackup:break-all">
         数据目录：{status.dataDir ?? '—'}（凭据与日志都在这底下，路径细目调 windows-backup.paths）
       </p>
     </div>

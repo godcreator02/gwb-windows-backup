@@ -69,6 +69,9 @@ const MODULE_LOADED_AT = new Date().toISOString()
 /** 运行时名字 = cordis.yml 条目里的包名，与数据目录的归属（gwbData 按 fiber 定）对得上。 */
 export const name = 'gwb-windows-backup'
 
+/** 命令登记的 plugin 字段认完整包名（commands 0.4 起的规范）——跟运行时名字是两回事 */
+const PKG = '@godcreator/gwb-windows-backup'
+
 /**
  * 浏览器半与样式表的地址，注册窗格时报给外壳。**内核不再替件取货**——没有 `gwb://`、
  * 没有 exports 解析，谁的界面谁自报 `file://` 地址。产物里 `dist/` 下三个文件是邻居，
@@ -430,7 +433,7 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
 
   ctx.effect(() => {
     const off = ctx.gwbCommands.register(
-      { name: 'windows-backup.run', description: '立刻跑一轮完整备份（= 定时那轮干的事）。占不到锁会如实说；配置没填全回拒跑理由', plugin: name },
+      { name: 'windows-backup.run', description: '立刻跑一轮完整备份（= 定时那轮干的事）。占不到锁会如实说；配置没填全回拒跑理由', plugin: PKG },
       async () => {
         const outcome = await runBackup('手动')
         if (outcome === 'busy') return { ok: false, error: '这一轮已经有备份在跑（本进程）' }
@@ -446,7 +449,7 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
 
   ctx.effect(() => {
     const off = ctx.gwbCommands.register(
-      { name: 'windows-backup.check', description: '立刻跑一次五项健康检查，回全量状态（挂件看到的就是这份）', plugin: name },
+      { name: 'windows-backup.check', description: '立刻跑一次五项健康检查，回全量状态（挂件看到的就是这份）', plugin: PKG },
       async () => {
         // 立刻跑，不等下一个周期——人点了「立即检查」就该马上有反应。
         // 正在跑时不叠第二次（runCheck 内部的 checking 挡着），结论照旧在回包里
@@ -459,7 +462,7 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
 
   ctx.effect(() => {
     const off = ctx.gwbCommands.register(
-      { name: 'windows-backup.status', description: '回全量状态：上次备份、自检结论、定时器节奏。窗格轮的就是它', plugin: name },
+      { name: 'windows-backup.status', description: '回全量状态：上次备份、自检结论、定时器节奏。窗格轮的就是它', plugin: PKG },
       () => ({ ok: true, data: snapshot() }),
     )
     return off
@@ -470,7 +473,7 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
       {
         name: 'windows-backup.paths',
         description: '回数据目录的全部路径：state.json / backup.lock / credentials 目录 / 日志 / bin。凡是要看凭据在不在、tail 日志的，先调这条拿路径，别猜',
-        plugin: name,
+        plugin: PKG,
       },
       () => ({
         ok: true,
@@ -498,7 +501,7 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
         description:
           '透传一条 restic 命令，自动补 --repo 与 --password-file：{ "repo": "local|oss", "args": ["snapshots"] }。' +
           'repo 缺省 local；args 原样递给 restic。密钥永不出现在参数里',
-        plugin: name,
+        plugin: PKG,
       },
       async (args: unknown) => {
         const body = isRecord(args) ? args : {}
@@ -531,7 +534,7 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
       {
         name: 'windows-backup.mark',
         description: '补记周期动作的时间戳：{ "what": "usb-copy" | "exclude-audit", "at": "YYYY-MM-DD" }。at 缺省今天',
-        plugin: name,
+        plugin: PKG,
       },
       (args: unknown) => {
         const body = isRecord(args) ? args : {}

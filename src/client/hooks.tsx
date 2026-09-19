@@ -44,8 +44,8 @@ export function useStatus(host: HostBridge): { status: StatusView | undefined; r
 
 /** 状态灯。tone 三档；`pulse` 是「正在跑」的呼吸动画——动画归动画，颜色守住上次结论。 */
 export function Dot({ tone, pulse }: { tone: 'ok' | 'warn' | 'muted'; pulse: boolean }): ReactElement {
-  const color = tone === 'ok' ? 'bg-emerald-500' : tone === 'warn' ? 'bg-amber-500' : 'bg-muted-foreground'
-  return <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${color} ${pulse ? 'gwb-wb-pulse' : ''}`} aria-hidden />
+  const color = tone === 'ok' ? 'windowsbackup:bg-emerald-500' : tone === 'warn' ? 'windowsbackup:bg-warning' : 'windowsbackup:bg-muted-foreground'
+  return <span className={`windowsbackup:inline-block windowsbackup:h-2.5 windowsbackup:w-2.5 windowsbackup:shrink-0 windowsbackup:rounded-full ${color} ${pulse ? 'windowsbackup:pulse' : ''}`} aria-hidden />
 }
 
 /** 五项里每一项的小徽标。unknown / skipped 不是失败，画灰的。 */

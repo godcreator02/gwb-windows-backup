@@ -33,6 +33,8 @@ type Registered = {
   settingsDefs: Map<string, { default?: unknown }>
   settingsValues: Map<string, unknown>
   commands: Map<string, (args?: unknown) => unknown>
+  /** 命令名 → 登记的 plugin 字段——commands 0.4 起认完整包名，写运行时名要被 warn */
+  commandPlugins: Map<string, string>
   pane?: { id: string }
   cell?: { id: string }
 }
@@ -46,6 +48,7 @@ function fakeHost(services: { gwbShell?: unknown } = {}) {
     settingsDefs: new Map(),
     settingsValues: new Map(),
     commands: new Map(),
+    commandPlugins: new Map(),
   }
   const disposers: Array<() => void> = []
   const logs: string[] = []
@@ -73,8 +76,9 @@ function fakeHost(services: { gwbShell?: unknown } = {}) {
       warn: (...args: unknown[]) => logs.push(String(args[0])),
     },
     gwbCommands: {
-      register(def: { name: string }, handler: (args?: unknown) => unknown) {
+      register(def: { name: string; plugin: string }, handler: (args?: unknown) => unknown) {
         registered.commands.set(def.name, handler)
+        registered.commandPlugins.set(def.name, def.plugin)
         return () => registered.commands.delete(def.name)
       },
     },
@@ -132,6 +136,7 @@ describe('命令面', () => {
     expect([...host.registered.commands.keys()].sort()).toEqual(
       ['windows-backup.check', 'windows-backup.mark', 'windows-backup.paths', 'windows-backup.restic', 'windows-backup.run', 'windows-backup.status'].sort(),
     )
+    for (const [cmd, pkg] of host.registered.commandPlugins) expect(pkg, cmd).toBe('@godcreator/gwb-windows-backup')
   })
 
   it('status 的形状：三指纹、backup 节、report 默认 null（= 没结论不是健康）', async () => {

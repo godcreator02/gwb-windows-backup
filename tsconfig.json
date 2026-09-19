@@ -1,22 +1,18 @@
 {
-  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    // 本仓只有这一份 node 半 typecheck program：src 的 node 半、纯逻辑测试、构建脚本一起收。
-    // **emit 不走这份**——build 走 tsconfig.build.json（rootDir 才关得住 src）。
-    // client 的 .tsx 不进这份（lib 里没有 DOM）——它有自己的 src/client/tsconfig.json；
-    // "src/*.ts" 与 "src/client/**/*.ts" 都只匹配 .ts，恰好放进来的是 client 里的纯逻辑文件
-    "noEmit": true,
-    "paths": {
-      "@/*": ["./src/client/*"]
-    }
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    // 只能是 bundler，不能是 nodenext（cordis 的 .d.ts 不兼容）。见内核文档站
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "noEmit": true
   },
-  "include": [
-    "src/*.ts",
-    "src/client/**/*.ts",
-    "tests/**/*.test.ts",
-    "build.ts",
-    "tools/build-styles.ts",
-    "scripts/publish.ts",
-    "vitest.config.ts"
-  ]
+  // include 里每个 node 半文件都要是根文件：tsc 认 import 图，oxlint 的 type-aware
+  // 程序只认 include——漏列的文件全体变「error 类型」，no-unsafe-* 全线红
+  "include": ["src/*.ts", "build.ts", "tests/**/*.ts"]
 }

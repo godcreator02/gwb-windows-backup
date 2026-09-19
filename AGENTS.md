@@ -8,10 +8,12 @@ gwb 内核线的 Windows 备份插件（restic 快照 + OSS 异地 + 周期自�
 
 ```powershell
 pnpm check      # typecheck ×2 + oxlint --deny-warnings + vitest(!slow)——提交前必绿
-pnpm build      # tsc + esbuild + tailwind；tests/artifact.test.ts 守产物
-pnpm publish:dev / publish:release   # 发版（同一个版本号永不重发）
+pnpm build      # tsc + esbuild + tailwindcss；tests/artifact.test.ts 守产物
 cd docs-site && pnpm exec docfirst check   # 文档门禁，单独跑
 ```
+
+发版走 devkit（说明书 `gwb-release` / `gwb-devkit`）：开发版 `devkit.dev` 发进隔离 home，
+正式版 `devkit.release` 构建后自动上车检票——本仓没有自研发版脚本。
 
 ## 硬约束
 

@@ -23,9 +23,11 @@ gwb 内核线上的 Windows 备份插件：restic 打快照 + 阿里云 OSS 异�
 
 ```powershell
 pnpm check     # typecheck ×2 + oxlint + vitest（!slow）
-pnpm build     # tsc node 半 + esbuild client 半 + tailwind 样式
-pnpm publish:dev   # 发本机 Verdaccio（127.0.0.1:4873），dev 标不动 latest
+pnpm build     # tsc node 半 + esbuild client 半 + tailwindcss 前缀直出
 ```
+
+发版走 devkit：开发版 `devkit.dev` 发进隔离 home，正式版 `devkit.release`（构建后自动
+上车检票）——本仓没有自研发版脚本。
 
 装进隔离 home（正路）：`pnpm add @godcreator/gwb-windows-backup@<版本>` **加
 `@cordisjs/plugin-timer`（公共 npm，本插件的定时器走它——内核 AGENTS 已认定可用）**，

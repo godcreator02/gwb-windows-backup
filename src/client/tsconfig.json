@@ -1,15 +1,18 @@
 {
-  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "jsx": "react-jsx",
+    "target": "ES2023",
     "lib": ["ES2023", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
     // 浏览器半看不见 node 全局：不给空表的话 @types/node 会自动收进来，
     // 写一句 process.env 也不报错，而束里根本没有它
     "types": [],
-    "noEmit": true,
-    "paths": {
-      "@/*": ["./*"]
-    }
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "noEmit": true
   },
   "include": ["."]
 }
