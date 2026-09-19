@@ -12,26 +12,26 @@ importers:
         specifier: 1.1.3
         version: 1.1.3(cordis@4.0.0-rc.9)
       '@godcreator/gwb-commands':
-        specifier: 0.4.3
-        version: 0.4.3(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))
+        specifier: 0.4.4
+        version: 0.4.4(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))
       '@godcreator/gwb-data':
-        specifier: 0.1.3
-        version: 0.1.3(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)
+        specifier: 0.1.4
+        version: 0.1.4(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)
       '@godcreator/gwb-plugin-api':
         specifier: 0.1.2
         version: 0.1.2(cordis@4.0.0-rc.9)
       '@godcreator/gwb-repo-kit':
-        specifier: 0.2.3
-        version: 0.2.3
+        specifier: 0.3.0
+        version: 0.3.0
       '@godcreator/gwb-settings':
-        specifier: 0.2.3
-        version: 0.2.3(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)
+        specifier: 0.2.4
+        version: 0.2.4(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)
       '@godcreator/gwb-shared-react':
         specifier: 0.1.1
         version: 0.1.1
       '@godcreator/gwb-shell':
-        specifier: 0.11.0
-        version: 0.11.0(@godcreator/gwb-commands@0.4.3(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9)))(@godcreator/gwb-data@0.1.3(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9))(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(@godcreator/gwb-shared-react@0.1.1)(@godcreator/gwb-tokens@0.1.4)(cordis@4.0.0-rc.9)
+        specifier: 0.13.0
+        version: 0.13.0(@godcreator/gwb-commands@0.4.4(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9)))(@godcreator/gwb-data@0.1.4(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9))(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(@godcreator/gwb-shared-react@0.1.1)(@godcreator/gwb-tokens@0.1.4)(cordis@4.0.0-rc.9)
       '@godcreator/gwb-tokens':
         specifier: 0.1.4
         version: 0.1.4
@@ -563,13 +563,13 @@ packages:
       react:
         optional: true
 
-  '@godcreator/gwb-commands@0.4.3':
-    resolution: {integrity: sha512-YgdCTW2+RHclPk2dOjO3r/rI6uUKwFQsh8wpf1A3oyS3d38bdU3+YO9QYJd7oJaLZgNZH6dPDtGeCfcVLkghdw==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-commands/-/0.4.3/gwb-commands-0.4.3.tgz}
+  '@godcreator/gwb-commands@0.4.4':
+    resolution: {integrity: sha512-ULyeRif25H0kO8N8yo05IOMRWAjGcd871gj0rdLYqjA2H/gWDVklpkfTjyAP3iX3Zj1s7qil9QZg0L7WAWYpMw==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-commands/-/0.4.4/gwb-commands-0.4.4.tgz}
     peerDependencies:
       '@godcreator/gwb-plugin-api': ^0.1.2
 
-  '@godcreator/gwb-data@0.1.3':
-    resolution: {integrity: sha512-FvsHJROEVNC4sQoF9pGAl0nWWswY6umCyJdKv8KFrSByw8w31cQlcspkRuLgTu7B44EDF1wk/Z2vc5SFHQa/Ig==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-data/-/0.1.3/gwb-data-0.1.3.tgz}
+  '@godcreator/gwb-data@0.1.4':
+    resolution: {integrity: sha512-dtiIGT5eeRQaa8MIJmo8ZtnaXIPKf9VAy+5uCtOnsgXCiLbqKPo7oTK1Iyw3oO9g9cIl6ATSioVJPE8IdDozPQ==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-data/-/0.1.4/gwb-data-0.1.4.tgz}
     peerDependencies:
       '@godcreator/gwb-plugin-api': ^0.1.2
       cordis: ^4.0.0-rc.9
@@ -579,11 +579,11 @@ packages:
     peerDependencies:
       cordis: ^4.0.0-rc.9
 
-  '@godcreator/gwb-repo-kit@0.2.3':
-    resolution: {integrity: sha512-UziHpLP35E2xAHZHSgcFW+Wy/YamMgCZkCgsjf/5NZ6RVVz7RfWm3SUSQ6XJJcFc4EP+4Q+avaPYSmQwZYDXVQ==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-repo-kit/-/0.2.3/gwb-repo-kit-0.2.3.tgz}
+  '@godcreator/gwb-repo-kit@0.3.0':
+    resolution: {integrity: sha512-nyjr5TNr2OP66zk/2xkbwGgxR9HFwKJyV/ahbfhSt2VRY2MVH7GP/h+eJ6DMoGMxM1HJ4NxpYafGC6DwPWpPlQ==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-repo-kit/-/0.3.0/gwb-repo-kit-0.3.0.tgz}
 
-  '@godcreator/gwb-settings@0.2.3':
-    resolution: {integrity: sha512-MIhNU+yNJ/jWGbotBAtsh1pNxrC3E9Pxo+fbVSeGVxujXFEKxKoFrZwPwZvYm9phPUMWkCvGT6fjMrqq7Sidkg==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-settings/-/0.2.3/gwb-settings-0.2.3.tgz}
+  '@godcreator/gwb-settings@0.2.4':
+    resolution: {integrity: sha512-lXE4olJn0c1fBLCg7wdRT5cvL1mSmPGkVEcVDb8HUGmrBo7H6aRNg37GyQKGjx1SoroxpweRlI5ajsi3vEjhTQ==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-settings/-/0.2.4/gwb-settings-0.2.4.tgz}
     peerDependencies:
       '@godcreator/gwb-plugin-api': ^0.1.2
       cordis: ^4.0.0-rc.9
@@ -591,11 +591,11 @@ packages:
   '@godcreator/gwb-shared-react@0.1.1':
     resolution: {integrity: sha512-WSghqkEcSZ0kYd+EouW7FsGw0NhsuyU/XvqYgGjHFgmkg+lBCnH9TibEy/qID3md/zJxJA/ZUxYbkqCWr9/l1A==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-shared-react/-/0.1.1/gwb-shared-react-0.1.1.tgz}
 
-  '@godcreator/gwb-shell@0.11.0':
-    resolution: {integrity: sha512-2Y3sA/5uEpVIDSooV4reSbNrwkVK2tJX7kG6MmeAAd2659b5h7rR+rC0eikNHqg7Fc7QqYZhnLMIGXWXpa3OkA==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-shell/-/0.11.0/gwb-shell-0.11.0.tgz}
+  '@godcreator/gwb-shell@0.13.0':
+    resolution: {integrity: sha512-wGYy6XVoIADI0LXAIZDz/Jwjtrtxwk3I3ZOeVDQxtrfuglvVDLWfuZ5gU6pWsLy4wOtDn+F7Do+Y8FO+sXoykA==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-shell/-/0.13.0/gwb-shell-0.13.0.tgz}
     peerDependencies:
-      '@godcreator/gwb-commands': ^0.4.3
-      '@godcreator/gwb-data': ^0.1.3
+      '@godcreator/gwb-commands': ^0.4.4
+      '@godcreator/gwb-data': ^0.1.4
       '@godcreator/gwb-plugin-api': ^0.1.2
       '@godcreator/gwb-shared-react': ^0.1.1
       '@godcreator/gwb-tokens': ^0.1.4
@@ -3098,11 +3098,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@godcreator/gwb-commands@0.4.3(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))':
+  '@godcreator/gwb-commands@0.4.4(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))':
     dependencies:
       '@godcreator/gwb-plugin-api': 0.1.2(cordis@4.0.0-rc.9)
 
-  '@godcreator/gwb-data@0.1.3(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)':
+  '@godcreator/gwb-data@0.1.4(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)':
     dependencies:
       '@godcreator/gwb-plugin-api': 0.1.2(cordis@4.0.0-rc.9)
       cordis: 4.0.0-rc.9
@@ -3111,19 +3111,19 @@ snapshots:
     dependencies:
       cordis: 4.0.0-rc.9
 
-  '@godcreator/gwb-repo-kit@0.2.3': {}
+  '@godcreator/gwb-repo-kit@0.3.0': {}
 
-  '@godcreator/gwb-settings@0.2.3(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)':
+  '@godcreator/gwb-settings@0.2.4(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)':
     dependencies:
       '@godcreator/gwb-plugin-api': 0.1.2(cordis@4.0.0-rc.9)
       cordis: 4.0.0-rc.9
 
   '@godcreator/gwb-shared-react@0.1.1': {}
 
-  '@godcreator/gwb-shell@0.11.0(@godcreator/gwb-commands@0.4.3(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9)))(@godcreator/gwb-data@0.1.3(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9))(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(@godcreator/gwb-shared-react@0.1.1)(@godcreator/gwb-tokens@0.1.4)(cordis@4.0.0-rc.9)':
+  '@godcreator/gwb-shell@0.13.0(@godcreator/gwb-commands@0.4.4(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9)))(@godcreator/gwb-data@0.1.4(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9))(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(@godcreator/gwb-shared-react@0.1.1)(@godcreator/gwb-tokens@0.1.4)(cordis@4.0.0-rc.9)':
     dependencies:
-      '@godcreator/gwb-commands': 0.4.3(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))
-      '@godcreator/gwb-data': 0.1.3(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)
+      '@godcreator/gwb-commands': 0.4.4(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))
+      '@godcreator/gwb-data': 0.1.4(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)
       '@godcreator/gwb-plugin-api': 0.1.2(cordis@4.0.0-rc.9)
       '@godcreator/gwb-shared-react': 0.1.1
       '@godcreator/gwb-tokens': 0.1.4
