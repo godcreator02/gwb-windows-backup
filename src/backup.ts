@@ -18,7 +18,6 @@
  * 一个真进程。
  */
 
-import { existsSync } from 'node:fs'
 import type { BackupConfig } from './config.js'
 import { resolveSlotPath } from './config.js'
 import { readOssEnv } from './credentials.js'
@@ -113,7 +112,7 @@ export type BackupContext = {
  */
 export function refuseReason(config: BackupConfig): string | null {
   if (config.sources.length === 0) {
-    return '还没配备份白名单：用设置把本件的 `sources` 填上（多条用分号隔开，如 D:/Notes;D:/Projects）。'
+    return '还没配备份白名单：用设置把本件的 `sources` 填上（一行一项，如 D:/Notes）。'
   }
   if (config.repositories.local.repo.trim() === '') {
     return '还没配本地仓库：用设置把本件的 `local-repo` 填上（如 D:/Backup/restic-repo）。'
@@ -156,7 +155,8 @@ async function runLocked(ctx: BackupContext): Promise<CompletedBackupResult> {
   const exe = resolveSlotPath(config.restic.exe, paths.dir)
   const localRepo = config.repositories.local.repo
   const ossEnabled = config.repositories.oss.enabled
-  const excludeFile = pickExcludeFile(paths)
+  const excludeFile = paths.defaultExcludeFile
+  const excludeArgs = excludeArgv(config.exclude)
   const baseEnv = resticEnv(config.restic.gomaxprocs, {}, ctx.env ?? process.env)
 
   logger.line(BACKUP_STARTED)
@@ -165,6 +165,7 @@ async function runLocked(ctx: BackupContext): Promise<CompletedBackupResult> {
     repo: localRepo,
     sources: config.sources,
     excludeFile,
+    excludeArgs,
     passwordFile: paths.passwordFile,
     env: baseEnv,
     logger,
@@ -204,6 +205,7 @@ async function runLocked(ctx: BackupContext): Promise<CompletedBackupResult> {
         oss: config.repositories.oss,
         sources: config.sources,
         excludeFile,
+        excludeArgs,
         passwordFile: paths.passwordFile,
         env: ossEnv,
         logger,
@@ -253,16 +255,28 @@ function readLockStartedAt(file: string): string | null {
   return readLock(file)?.startedAt ?? null
 }
 
-/** 格内用户版 exclude 存在就用它，否则用插件自带的默认版。 */
-export function pickExcludeFile(paths: BackupPaths): string {
-  return existsSync(paths.userExcludeFile) ? paths.userExcludeFile : paths.defaultExcludeFile
+/**
+ * 设置键 `exclude` 的规则转成 restic 的 `--exclude` 参数对。**合并模型**：基线
+ * （`--exclude-file`，包内通用垃圾清单）总在生效，这里只追加；`#` 注释行不进 argv。
+ */
+export function excludeArgv(rules: readonly string[]): string[] {
+  const out: string[] = []
+  for (const rule of rules) {
+    const trimmed = rule.trim()
+    if (trimmed === '' || trimmed.startsWith('#')) continue
+    out.push('--exclude', trimmed)
+  }
+  return out
 }
 
 type LocalBackupArgs = {
   exe: string
   repo: string
   sources: string[]
+  /** 内置基线 exclude 文件（`--exclude-file`）。 */
   excludeFile: string
+  /** 设置键 `exclude` 的追加规则（逐条 `--exclude`）。 */
+  excludeArgs: string[]
   passwordFile: string
   env: NodeJS.ProcessEnv
   logger: Logger
@@ -281,7 +295,7 @@ export async function doLocalBackup(args: LocalBackupArgs): Promise<LocalOutcome
   const result = await runRestic(
     args.exe,
     args.repo,
-    ['backup', `--exclude-file=${args.excludeFile}`, ...args.sources],
+    ['backup', `--exclude-file=${args.excludeFile}`, ...args.excludeArgs, ...args.sources],
     { passwordFile: args.passwordFile, env: args.env, timeoutMs: BACKUP_TIMEOUT_MS, run: args.run },
   )
   args.logger.raw(result.stdout)
@@ -330,7 +344,10 @@ type OssPushArgs = {
   exe: string
   oss: BackupConfig['repositories']['oss']
   sources: string[]
+  /** 内置基线 exclude 文件（`--exclude-file`）。 */
   excludeFile: string
+  /** 设置键 `exclude` 的追加规则（逐条 `--exclude`）。 */
+  excludeArgs: string[]
   passwordFile: string
   env: NodeJS.ProcessEnv
   logger: Logger
@@ -346,7 +363,7 @@ export async function doOssPush(args: OssPushArgs): Promise<OssOutcome> {
   const result = await runRestic(
     args.exe,
     repo,
-    ['backup', `--exclude-file=${args.excludeFile}`, ...args.sources],
+    ['backup', `--exclude-file=${args.excludeFile}`, ...args.excludeArgs, ...args.sources],
     { passwordFile: args.passwordFile, env: args.env, timeoutMs: BACKUP_TIMEOUT_MS, run: args.run },
   )
   args.logger.raw(result.stdout)

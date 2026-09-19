@@ -24,7 +24,7 @@ pnpm add @godcreator/gwb-windows-backup@<版本> @cordisjs/plugin-timer
 装完 restic 本体放进 `bin/restic.exe`（或用 `restic-exe` 设置指向别的位置）——装 restic
 是一次性手工活，代码不代办。
 
-## 设置（16 键，kebab-case）
+## 设置（17 键，kebab-case）
 
 设置经 gwb-settings 声明，**每次跑现读现用、绝不缓存**——设置插件没有变更通知，缓存一份
 就会「设置改了、跑的还是旧值」。类型不对或缺字段的值吃默认，不报错。
@@ -33,6 +33,11 @@ pnpm add @godcreator/gwb-windows-backup@<版本> @cordisjs/plugin-timer
 
 必填两项：`sources`（备份白名单，设置件里一行一项；老版的分号串也认）与 `local-repo`
 （本地 restic 仓库路径）。缺任何一项，定时那轮照转但每轮都拒跑，拒跑理由是一句指路的话。
+
+排除规则是**两层合并**：内置基线（包内通用垃圾清单：node_modules、dist、构建产物、
+临时文件等，随版本走）总在生效；`exclude` 设置键追加自己的规则（一行一条 restic 模式，
+`#` 开头的行是注释）。0.2.0 起数据目录里的 `restic-exclude.txt` 不再被读——存量规则迁进
+`exclude` 设置键。
 
 {/* ref file="../src/backup.ts" lines="114-130" */}
 

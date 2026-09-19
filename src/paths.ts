@@ -23,9 +23,7 @@ export type BackupPaths = {
   /** restic `--password-file` 指的那份，内容任何时候都不读进本进程。 */
   passwordFile: string
   ossCredentialsFile: string
-  /** 用户覆盖版 exclude；不存在时回落 `defaultExcludeFile`。 */
-  userExcludeFile: string
-  /** 插件自带默认 exclude，住代码树 `config/` 里、跟着版本走。 */
+  /** 内置基线 exclude，住代码树 `config/` 里、跟着版本走；用户的追加规则走设置键 `exclude`。 */
   defaultExcludeFile: string
   binDir: string
   logsDir: string
@@ -43,7 +41,6 @@ export function layout(dir: string): BackupPaths {
     credentialsDir,
     passwordFile: path.join(credentialsDir, 'restic-password.txt'),
     ossCredentialsFile: path.join(credentialsDir, 'oss-credentials.txt'),
-    userExcludeFile: path.join(dir, 'restic-exclude.txt'),
     defaultExcludeFile: defaultExcludeFile(),
     binDir: path.join(dir, 'bin'),
     logsDir,

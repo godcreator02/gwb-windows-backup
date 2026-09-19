@@ -20,10 +20,12 @@ import path from 'node:path'
 
 // ── 平铺形状（设置那张表）──────────────────────────────────────────────────────
 
-/** 16 个键的全集。**顺序即设置界面里的显示顺序**。 */
+/** 17 个键的全集。**顺序即设置界面里的显示顺序**。 */
 export type FlatConfig = {
   /** 备份白名单（设置件 `string-list` 型，一行一项）；空则拒跑。legacy 的分号串也认。 */
   sources: string[]
+  /** 追加的排除规则（一行一条，追加在内置基线之上）；`#` 开头的行是注释。 */
+  exclude: string[]
   /** 本地仓库路径；空则拒跑。 */
   localRepo: string
   ossEnabled: boolean
@@ -56,6 +58,7 @@ export type FlatConfig = {
  */
 export const DEFAULT_FLAT: FlatConfig = {
   sources: [],
+  exclude: [],
   localRepo: '',
   ossEnabled: false,
   ossBucket: '',
@@ -99,6 +102,8 @@ export type BackupConfig = {
   restic: ResticSection
   /** 备份白名单，逐条由用户口述——默认空，备份会因此拒跑。 */
   sources: string[]
+  /** 追加的排除规则——**合并**在内置基线（包内 `config/restic-exclude.txt`）之上，不是整替。 */
+  exclude: string[]
   repositories: {
     local: { repo: string }
     oss: OssSection
@@ -134,6 +139,7 @@ export function pickFlat(value: unknown): FlatConfig {
   const d = DEFAULT_FLAT
   return {
     sources: toSourceList(raw.sources),
+    exclude: toExcludeList(raw.exclude),
     localRepo: str(raw.localRepo, d.localRepo),
     ossEnabled: bool(raw.ossEnabled, d.ossEnabled),
     ossBucket: str(raw.ossBucket, d.ossBucket),
@@ -183,12 +189,28 @@ export function toSourceList(value: unknown): string[] {
   return []
 }
 
+/**
+ * 收 exclude：数组逐条收字符串（trim、去空行），**`#` 开头的注释行留着**——它是设置值
+ * 的一部分（textarea 里分区用），进 argv 时再由 `excludeArgv` 滤掉。legacy 分号串也认。
+ */
+export function toExcludeList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .filter((one): one is string => typeof one === 'string')
+      .map((one) => one.trim())
+      .filter((one) => one !== '')
+  }
+  if (typeof value === 'string') return splitSources(value)
+  return []
+}
+
 /** 平铺表 → 程序内部那份嵌套形状。 */
 export function flatToConfig(flat: unknown): BackupConfig {
   const f = pickFlat(flat)
   return {
     restic: { exe: f.resticExe, gomaxprocs: f.gomaxprocs },
     sources: f.sources,
+    exclude: f.exclude,
     repositories: {
       local: { repo: f.localRepo },
       oss: {

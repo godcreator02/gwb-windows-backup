@@ -11,7 +11,7 @@
  *    30 秒后先补跑一次；不在挂载当场跑（挂载期整棵树都在起，起 restic 等于拿仓库 I/O
  *    堵启动）。
  * 3. **周期自检**——按 `health-check-interval-hours` 跑五项健康检查。
- * 4. **配置面**——在设置件里声明 16 个键（kebab-case），每次跑现读现用、绝不缓存。
+ * 4. **配置面**——在设置件里声明 17 个键（kebab-case），每次跑现读现用、绝不缓存。
  * 5. **命令面**——六条 `windows-backup.*` 命令挂在命令总线上（run / check / status /
  *    paths / restic / mark）。**没有 HTTP 路由**——新线的观察面走命令总线与事件，MCP
  *    件会把总线自动开给 agent。
@@ -98,6 +98,7 @@ const SETTING_KEYS: ReadonlyArray<{
   description: string
 }> = [
   { key: 'sources', field: 'sources', type: 'string-list', title: '备份白名单', description: '一行一项（如 D:/Notes）。空则不备份' },
+  { key: 'exclude', field: 'exclude', type: 'string-list', title: '追加排除规则', description: '一行一条 restic 模式，追加在内置基线（通用垃圾：node_modules、dist、*.tmp、thumbs.db 等）之上、不是整替；# 开头的行是注释' },
   { key: 'local-repo', field: 'localRepo', type: 'string', title: '本地仓库', description: '本地 restic 仓库路径（如 D:/Backup/restic-repo）。留空则不备份' },
   { key: 'oss-enabled', field: 'ossEnabled', type: 'boolean', title: 'OSS 异地副本', description: '开启阿里云 OSS 异地副本。开着但 bucket / endpoint 没填会拒跑' },
   { key: 'oss-bucket', field: 'ossBucket', type: 'string', title: 'OSS bucket', description: 'OSS bucket 名字' },
@@ -485,7 +486,6 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
           credentialsDir: paths.credentialsDir,
           passwordFile: paths.passwordFile,
           ossCredentialsFile: paths.ossCredentialsFile,
-          userExcludeFile: paths.userExcludeFile,
           defaultExcludeFile: paths.defaultExcludeFile,
           binDir: paths.binDir,
           logFile: paths.logFile,

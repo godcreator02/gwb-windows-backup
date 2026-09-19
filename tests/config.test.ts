@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_FLAT, flatToConfig, pickFlat, resolveSlotPath, splitSources, toSourceList } from '../src/config.js'
+import {
+  DEFAULT_FLAT,
+  flatToConfig,
+  pickFlat,
+  resolveSlotPath,
+  splitSources,
+  toExcludeList,
+  toSourceList,
+} from '../src/config.js'
 
 describe('pickFlat', () => {
   it('空值吃全套默认', () => {
@@ -48,6 +56,12 @@ describe('splitSources / toSourceList', () => {
     expect(toSourceList([' D:/A ', '', 42, 'D:/B'])).toEqual(['D:/A', 'D:/B'])
     expect(toSourceList(undefined)).toEqual([])
     expect(toSourceList({})).toEqual([])
+  })
+
+  it('toExcludeList 收窄：注释行留着、空行去掉、legacy 分号串也认', () => {
+    expect(toExcludeList(['# 分区', ' *.tmp ', '', 42, '.venv'])).toEqual(['# 分区', '*.tmp', '.venv'])
+    expect(toExcludeList('a;b')).toEqual(['a', 'b'])
+    expect(toExcludeList(undefined)).toEqual([])
   })
 })
 

@@ -1,11 +1,11 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   buildNotification,
+  excludeArgv,
   formatDuration,
-  pickExcludeFile,
   refuseReason,
   runFullBackup,
 } from '../src/backup.js'
@@ -173,12 +173,34 @@ describe('runFullBackup', () => {
   })
 })
 
-describe('pickExcludeFile', () => {
-  it('格内有用户版就用它，否则用包内默认版', () => {
+describe('excludeArgv', () => {
+  it('规则转 --exclude 参数对；# 注释与空行不进 argv', () => {
+    expect(excludeArgv(['# 分区注释', '  ', '*.gwbprobe', ' .venv '])).toEqual([
+      '--exclude',
+      '*.gwbprobe',
+      '--exclude',
+      '.venv',
+    ])
+    expect(excludeArgv([])).toEqual([])
+  })
+
+  it('跑真的一轮时：基线走 --exclude-file，追加规则逐条 --exclude', async () => {
     const paths = tmpPaths()
-    expect(pickExcludeFile(paths)).toBe(paths.defaultExcludeFile)
-    writeFileSync(paths.userExcludeFile, 'node_modules', 'utf8')
-    expect(pickExcludeFile(paths)).toBe(paths.userExcludeFile)
+    const { run, calls } = fakeRestic([{ when: ['backup'], result: { stdout: OK_STDOUT } }])
+    await runFullBackup({
+      paths,
+      config: configured({ exclude: ['# 注释', '*.gwbprobe'] }),
+      logger: nullLogger(),
+      run,
+      now: () => new Date(2026, 8, 8, 10, 0, 0),
+    })
+    const args = calls[0] ?? []
+    expect(args).toContain(`--exclude-file=${paths.defaultExcludeFile}`)
+    const i = args.indexOf('--exclude')
+    expect(args[i + 1]).toBe('*.gwbprobe')
+    expect(args).not.toContain('# 注释')
+    expect(args.indexOf('--exclude')).toBeGreaterThan(args.indexOf('--exclude-file'))
+    expect(args[args.length - 1]).toBe('D:/Notes')
   })
 })
 

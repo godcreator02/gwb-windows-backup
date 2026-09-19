@@ -119,13 +119,15 @@ function configure(host: ReturnType<typeof fakeHost>): void {
 }
 
 describe('设置声明', () => {
-  it('16 个键全定义、默认值来自 DEFAULT_FLAT', () => {
+  it('17 个键全定义、默认值来自 DEFAULT_FLAT', () => {
     const host = fakeHost()
     mount(host.ctx, fakeDeps())
-    expect(host.registered.settingsDefs.size).toBe(16)
+    expect(host.registered.settingsDefs.size).toBe(17)
     expect(host.registered.settingsDefs.get('frequency-minutes')?.default).toBe(DEFAULT_FLAT.frequencyMinutes)
     expect(host.registered.settingsDefs.get('sources')?.default).toEqual([])
     expect(host.registered.settingsDefs.get('sources')?.type).toBe('string-list')
+    expect(host.registered.settingsDefs.get('exclude')?.default).toEqual([])
+    expect(host.registered.settingsDefs.get('exclude')?.type).toBe('string-list')
     expect(host.registered.settingsDefs.get('oss-enabled')?.default).toBe(false)
     expect(host.registered.settingsDefs.get('review-interval-days')?.default).toBe(DEFAULT_FLAT.reviewIntervalDays)
   })
@@ -360,9 +362,9 @@ describe('界面占位（局部注入）', () => {
   })
 })
 
-/** 配置面的完整性哨兵：16 键谁也不许顺手删 */
+/** 配置面的完整性哨兵：17 键谁也不许顺手删 */
 describe('配置面', () => {
-  it('DEFAULT_FLAT 的 16 键齐全', () => {
-    expect(Object.keys(DEFAULT_FLAT).length).toBe(16)
+  it('DEFAULT_FLAT 的 17 键齐全', () => {
+    expect(Object.keys(DEFAULT_FLAT).length).toBe(17)
   })
 })
