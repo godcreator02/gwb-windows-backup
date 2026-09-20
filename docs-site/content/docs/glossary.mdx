@@ -12,7 +12,8 @@ description: 这个仓自造的、或有特定含义的词——每个词一句�
 
 | 词 | 是什么 |
 | --- | --- |
-| **备份白名单** | 设置键 `sources`，分号分隔的目录串（如 `D:/Notes;D:/Projects`）。空则拒跑——不猜「整盘」这种默认 |
+| **备份白名单** | 设置键 `sources`，一行一项（如 `D:/Notes`）。空则拒跑——不猜「整盘」这种默认 |
+| **父快照** | 上一轮成功备份留在同一个仓里的那份快照：restic 拿它比对出「哪些文件没变」，没变的连读都不读。它按 `host,paths` 分组挑，所以**白名单一加路径就挑不着**（那一轮整份重读）；本插件把快照 ID 记进 `state.json` 并显式递给 `--parent`，绕开这条。见[备份管线](/docs/modules/pipeline) |
 | **一轮** | 一次全流程备份：本地备份 →（每日一次）prune → OSS 推送 →（条件）OSS prune。见[备份管线](/docs/modules/pipeline) |
 | **OSS 异地副本** | 第二次**独立的** `restic backup` 直打 `s3:` 仓——不是从本地仓拷快照，两条独立快照链 |
 | **保留窗口** | forget 的 retention 参数：72h 内全留、按日 14 天、周 8 份、月 12 份。见[restic 封装](/docs/modules/restic) |

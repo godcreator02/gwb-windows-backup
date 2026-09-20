@@ -1,11 +1,11 @@
 ---
 title: 配置与状态
-description: 设置那头平铺、程序这头嵌套，现读现用；state.json 记动作时间戳
+description: 设置那头平铺、程序这头嵌套，现读现用；state.json 记动作时间戳与两份父快照 ID
 ---
 
 # 配置与状态
 
-**本页回答**：15 个设置键怎么变成程序里的嵌套配置、坏值为什么吃默认、`state.json` 记了哪些时间戳。
+**本页回答**：15 个设置键怎么变成程序里的嵌套配置、坏值为什么吃默认、`state.json` 记了哪些时间戳与哪两份快照 ID。
 
 `src/config.ts` + `src/state.ts` + `src/timers.ts`。
 
@@ -33,9 +33,9 @@ description: 设置那头平铺、程序这头嵌套，现读现用；state.json
 日志轮转的两个数字（10 MB / 1000 行）**不在设置表上**——它不是用户该操心的旋钮，改它的
 人是在改代码不是在改配置。
 
-## state.json：动作时间戳
+## state.json：动作时间戳与两份父快照 ID
 
-{/* ref file="../src/state.ts" lines="15-36" */}
+{/* ref file="../src/state.ts" lines="15-47" */}
 
 不靠 mtime 判跨日（空文件那类存法）：mtime 这种「载重信息在元数据里」的存法，任何一次拷贝 /
 同步 / 解压都可能把它抹平，症状是 prune 每次都跑或永远不跑。**fail-safe**：解析失败当空
@@ -43,6 +43,9 @@ description: 设置那头平铺、程序这头嵌套，现读现用；state.json
 
 时间戳一律本地时区、无时区标记（`YYYY-MM-DDTHH:MM:SS`）：「跨日」是人过的那个日子，
 不是 UTC 的；无标记的串被 `new Date` 按本地时间解析，写读两头口径对得上。
+
+另有两格不是时间戳：`lastLocalSnapshot` / `lastOssSnapshot`——最近一次成功备份留在两个仓里
+的快照 ID，下一轮交给 restic 的 `--parent` 当基准。为什么非记不可，见[备份管线](/docs/modules/pipeline)。
 
 ## 提供的接口
 

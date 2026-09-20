@@ -1,8 +1,9 @@
 # Restic exclude 规则
 #
 # 用户栈：Windows + VS Code + C++(CMake) + Python + Node/Next.js + Obsidian + Git
-# 有其他工具链需求时，复制本文件到 <home>/data/<条目 id>/restic-exclude.txt 追加个人规则
-# ——数据目录里那份存在就用它、不存在才用本文件（见 src/paths.ts）
+# 这份是**插件自带的基线**，随版本走、总在生效；要追加自己的规则，写进本件的 `exclude`
+# 设置键（一行一条 restic 模式，`#` 开头的行是注释）——它是合并在这份基线上的，不是整替。
+# 数据目录里的同名文件 0.2.0 起不再被读（见文档站的用法页）。
 
 
 # ===== OS / 办公临时文件 =====

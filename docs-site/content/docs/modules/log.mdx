@@ -31,7 +31,12 @@ description: 那几串英文是契约不是文案——写日志的一头和读�
 `error` 单拎出来收窄两道——整词匹配、先扣掉 `0 errors` 计数行。判据还是那句：**误报比
 漏报更伤**。
 
-{/* ref file="../src/messages.ts" lines="49-57" */}
+{/* ref file="../src/messages.ts" lines="82-87" */}
+
+**有一行刻意不算契约**：父快照失效要重跑时补的那句（`parentDroppedLine`），措辞里避开了
+上面四个词——它不是失败，是自我修复的第一步，落成失败关键词会让第②项把一次正常的重试
+记成故障。同一条分寸的另一半是 `parentUnusable`：只认 restic 说「这份父快照找不到」的那两句
+原话，别的失败一个都不重试。
 
 ## toast 通知
 
@@ -54,6 +59,7 @@ toast 与窗格是两条互补的观察面。
 | `nullLogger()` | 什么都不写的 logger，测试与「只算不写」用 |
 | `messages.ts` 的常量与拼行函数 | 全部契约行；别处一律引用，不写字面量 |
 | `matchesFailure(line)` | 一行算不算失败迹象 |
+| `parentUnusable(stdout, stderr)` | 这一次 restic 是不是在说「父快照用不了」（只认那两句原话） |
 | `sendToast(title, body)` | 弹通知；失败只记日志 |
 
 ## 怎么单独测

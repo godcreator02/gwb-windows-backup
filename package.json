@@ -1,6 +1,6 @@
 {
   "name": "@godcreator/gwb-windows-backup",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "author": {"name": "godcreator"},
   "description": "Windows 备份件：restic 快照 + Veeam 整机镜像 + 阿里云 OSS 异地库三栈；配置与状态落盘，headless home 里照跑（shell 与 shared-react 走可选 peer）。服务无；skill 0 份；命令 6 条。",
   "type": "module",

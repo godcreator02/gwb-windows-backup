@@ -50,7 +50,7 @@ export type LogItem = {
   localOk: boolean | null
   /** 最后一轮里 OSS 推送成没成；OSS 关着是 `null`。 */
   ossOk: boolean | null
-  /** 日志尾里命中失败关键词的行。 */
+  /** 日志尾里命中失败关键词的行。**只算翻篇之前还没成功过的那些**，见 `checkLog`。 */
   errorLines: string[]
   message: string
 }
@@ -192,11 +192,17 @@ function checkLastRun(state: BackupState, config: BackupConfig, now: Date): Last
 }
 
 /**
- * ② 日志：最后一轮跑成没成 + 尾巴里有没有失败关键词。
+ * ② 日志：最后一轮跑成没成 + 尾巴里有没有**还没翻篇**的失败关键词。
  *
  * 判的是「从最后一条 `Backup started` 往后算作一轮，看这一轮里有没有成功行」——restic
  * 自己的 stdout 就夹在两条成功行中间，轮到 prune 的那轮末尾还是 prune 的行，「末两行」
  * 式判定在真实日志里几乎永不成立。
+ *
+ * 尾窗口里的失败行**分成两拨**：晚于最近一次成功的是「当前的故障」，早于它的是上一轮
+ * 甚至更早的遗留。为什么要分——2026-09-20 实测：一轮全绿之后健康检查仍是 problem，
+ * 因为一小时前两次人为打断留下的 `Backup FAILED` 还压在尾 30 行里，要等下一轮把旧行顶出
+ * 窗口才转绿。**翻篇的失败不是当前的故障**；反过来，挂了一夜、今早还没成功过的那种，
+ * 最新一条失败就落在最后一次成功之后，照样报。
  */
 function checkLog(paths: BackupPaths, config: BackupConfig): LogItem {
   const ossEnabled = config.repositories.oss.enabled
@@ -211,8 +217,13 @@ function checkLog(paths: BackupPaths, config: BackupConfig): LogItem {
     }
   }
   const lines = readFileSync(paths.logFile, 'utf8').split('\n').filter((line) => line !== '')
-  const tail = lines.slice(-LOG_TAIL_LINES)
-  const errorLines = tail.filter((line) => matchesFailure(line))
+  const lastSuccessAt = lines.findLastIndex(
+    (line) => line.includes(BACKUP_OK) || line.includes(OSS_PUSH_OK),
+  )
+  const tailStart = Math.max(0, lines.length - LOG_TAIL_LINES)
+  const errorLines = lines
+    .slice(tailStart)
+    .filter((line, offset) => matchesFailure(line) && tailStart + offset > lastSuccessAt)
 
   const scan = lines.slice(-ROUND_SCAN_LINES)
   const startedAt = scan.findLastIndex((line) => line.includes(BACKUP_STARTED))
@@ -235,7 +246,10 @@ function checkLog(paths: BackupPaths, config: BackupConfig): LogItem {
   const bad: string[] = []
   if (!localOk) bad.push('最近一轮本地备份没有成功行')
   if (ossEnabled && ossOk === false) bad.push('最近一轮 OSS 推送没有成功行')
-  if (errorLines.length > 0) bad.push(`日志尾有 ${errorLines.length} 行命中失败关键词`)
+  if (errorLines.length > 0) {
+    // 时刻念出来：读到这行的人（或 agent）下一步就是去日志里找那几行，别让人自己数
+    bad.push(`日志尾有 ${errorLines.length} 行失败迹象（最新一条 ${lineStamp(errorLines[errorLines.length - 1] ?? '')}）`)
+  }
   return {
     status: bad.length === 0 ? 'ok' : 'problem',
     exists: true,
@@ -395,6 +409,16 @@ function collectProblems(items: HealthReport['items']): string[] {
   if (items.snapshots.status === 'problem') problems.push(items.snapshots.message)
   if (items.periodic.status === 'problem') problems.push(items.periodic.message)
   return problems
+}
+
+/**
+ * 从 `[2026-09-20 15:47:58] …` 这种日志行里取时刻，念进问题描述里用；认不出回空串。
+ *
+ * 只认 `logger.line` 写出来的方括号前缀——restic 自己的输出没有它，那种行取不出时刻，
+ * 描述里就留个空，不影响判定。
+ */
+function lineStamp(line: string): string {
+  return /^\[([^\]]+)\]/.exec(line)?.[1] ?? ''
 }
 
 /** `restic snapshots --latest 1 --json` 的输出里取最新那条的 `time`。 */

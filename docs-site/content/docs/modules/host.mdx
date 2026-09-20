@@ -24,7 +24,9 @@ description: 挂上 gwb 内核的那半——inject 等待语义、两根计时�
 
 可变状态**只活在这一次 mount 的闭包里**——重挂清零（上一轮结论没了，30 秒后重新自检），
 这是知情认下的代价：结论本身是「此刻的观察」，真正要跨进程活着的那几项住 `state.json`。
-`backing` 布尔是第一层并发保护，第二层是数据目录的 `backup.lock`。
+`backing` 布尔是第一层并发保护，第二层是数据目录的 `backup.lock`。`status` 回包里的
+`backup.runningSince` 就是那把锁记着的 `startedAt`——「这一轮跑了多久」是这面最常被问的
+一句，小时级的轮只凭一个 `running` 分不清是在干活还是卡死。
 
 {/* ref file="../src/index.ts" lines="237-254" */}
 

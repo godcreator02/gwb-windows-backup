@@ -34,6 +34,13 @@ pnpm add @godcreator/gwb-windows-backup@<版本> @cordisjs/plugin-timer
 必填两项：`sources`（备份白名单，设置件里一行一项；老版的分号串也认）与 `local-repo`
 （本地 restic 仓库路径）。缺任何一项，定时那轮照转但每轮都拒跑，拒跑理由是一句指路的话。
 
+**往白名单里加路径的代价**：restic 挑父快照是按 `host,paths` 分的组——**加了路径就是新组、
+一个候选都没有**，那一轮会把全部源重读重算（本机实测 51 GiB / 452k 个文件，`gomaxprocs: 1`
+时约 90 分钟，本地与 OSS 各一遍）。插件把最近一次成功的快照 ID 记在 `state.json` 里、显式递
+给 restic 当父本，于是**只有新加的那条路径要真读**；**减路径、改顺序都不付这个代价**（老快照
+仍是当前路径集的超集，当得上父本）。想再快一档就把 `gomaxprocs` 调大——那种「必须全读」的
+轮（第一次备一条新路径、`state.json` 丢了）是它唯一能帮上大忙的地方。
+
 排除规则是**两层合并**：内置基线（包内通用垃圾清单：node_modules、dist、构建产物、
 临时文件等，随版本走）总在生效；`exclude` 设置键追加自己的规则（一行一条 restic 模式，
 `#` 开头的行是注释）。0.2.0 起数据目录里的 `restic-exclude.txt` 不再被读——存量规则迁进
@@ -60,7 +67,9 @@ OSS 三项（`oss-bucket` / `oss-endpoint` / `oss-repo-path`）只在 `oss-enabl
 
 ## 怎么确认备份在转
 
-1. `windows-backup.status`：`backup.lastRunOk` 是 `true`、`nextRunAt` 在未来；
+1. `windows-backup.status`：`backup.lastRunOk` 是 `true`、`nextRunAt` 在未来；`backup.running`
+   为 `true` 时再看 `runningSince`——这一轮是从什么时候起的，小时级的轮（首次全量那种）只凭
+   一个 `running` 分不清是在干活还是卡死了；
 2. `windows-backup.check`：五项没有 problem；
 3. 有疑问直接看日志（`windows-backup.paths` 拿路径）：最后一轮末尾应有
    `Backup completed successfully`。

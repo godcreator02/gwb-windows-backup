@@ -25,6 +25,17 @@ export type BackupState = {
   lastRunOk?: boolean
   /** 那一轮的一句话小结，如 `4.9 KiB | local 0:01`（= 通知正文）。 */
   lastRunSummary?: string
+  /**
+   * 最近一次成功的本地备份留在**本地仓**里的快照 ID。
+   *
+   * 下一轮把它交给 restic 的 `--parent`。为什么非记不可：restic 挑父快照是按
+   * `--group-by`（默认 `host,paths`）分的组，**白名单里加了路径就是新组、一个候选都没有**，
+   * 于是整份 51 GiB 重读重算（实测：单线程 452k 个文件约 90 分钟）。显式给一份父本，
+   * 新路径当新文件读、其余路径照旧吃比对——加目录的代价从「全量」回到「只读新增」。
+   */
+  lastLocalSnapshot?: string
+  /** 同上，**OSS 仓**那一份——两个仓各自一条快照链，ID 不通用。 */
+  lastOssSnapshot?: string
   /** 上次 forget+prune 成功的本地时间，`YYYY-MM-DDTHH:MM:SS`；判跨日只看前 10 位。 */
   lastPrune?: string
   /** 上次 USB 离机副本的本地日期，`YYYY-MM-DD`。 */
@@ -100,7 +111,16 @@ export function minutesSince(value: string | undefined, now: Date = new Date()):
 
 function pick(raw: Record<string, unknown>): BackupState {
   const state: BackupState = {}
-  for (const key of ['lastRunAt', 'lastRunSummary', 'lastPrune', 'lastUsbCopy', 'lastExcludeAudit', 'lastReview'] as const) {
+  for (const key of [
+    'lastRunAt',
+    'lastRunSummary',
+    'lastLocalSnapshot',
+    'lastOssSnapshot',
+    'lastPrune',
+    'lastUsbCopy',
+    'lastExcludeAudit',
+    'lastReview',
+  ] as const) {
     const value = raw[key]
     if (typeof value === 'string') state[key] = value
   }

@@ -161,6 +161,92 @@ describe('runFullBackup', () => {
     expect(readState(paths.stateFile).lastRunOk).toBe(false)
   })
 
+  it('记着父本就带上 --parent（本地一份、OSS 一份），跑完把新 ID 写回 state', async () => {
+    const paths = tmpPaths()
+    const { run, calls } = fakeRestic([
+      { when: ['backup'], result: { stdout: OK_STDOUT } },
+      { when: ['forget'], result: {} },
+    ])
+    writeState(paths.stateFile, { lastLocalSnapshot: 'oldlocal', lastOssSnapshot: 'oldoss' })
+    await runFullBackup({
+      paths,
+      config: configured({ ossEnabled: true, ossBucket: 'b', ossEndpoint: 'e' }),
+      logger: nullLogger(),
+      run,
+      now: () => new Date(2026, 8, 8, 10, 0, 0),
+    })
+
+    const backups = calls.filter((args) => args[4] === 'backup')
+    expect(backups.length).toBe(2)
+    // 两个仓各自一条快照链，ID 不通用——本地那趟吃本地父本，OSS 那趟吃 OSS 父本
+    const parentOf = (args: string[] | undefined): string | undefined =>
+      args === undefined ? undefined : args[args.indexOf('--parent') + 1]
+    expect(parentOf(backups[0])).toBe('oldlocal')
+    expect(parentOf(backups[1])).toBe('oldoss')
+    // 跑完写回新 ID：下一轮（哪怕白名单又改了）照样有基准
+    const state = readState(paths.stateFile)
+    expect(state.lastLocalSnapshot).toBe('abc12345')
+    expect(state.lastOssSnapshot).toBe('abc12345')
+  })
+
+  it('没记过父本 → 一个 --parent 都不带（冷启动交给 restic 自己挑）', async () => {
+    const paths = tmpPaths()
+    const { run, calls } = fakeRestic([{ when: ['backup'], result: { stdout: OK_STDOUT } }])
+    writeState(paths.stateFile, { lastPrune: '2026-09-08T08:00:00' })
+    await runFullBackup({ paths, config: configured(), logger: nullLogger(), run, now: () => new Date(2026, 8, 8, 10, 0, 0) })
+    expect(calls[0]).not.toContain('--parent')
+    expect(readState(paths.stateFile).lastLocalSnapshot).toBe('abc12345')
+  })
+
+  it('父本在仓库里没了 → 丢开它重跑一次，且不落失败契约行', async () => {
+    const paths = tmpPaths()
+    let backups = 0
+    const run: RunProcess = async (_exe, args) => {
+      if (args[4] !== 'backup') return { code: 0, stdout: '', stderr: '', timedOut: false }
+      backups += 1
+      // 第一次：restic 说找不到这份父快照（实测 0.18.1 的原话）
+      if (backups === 1) {
+        return { code: 1, stdout: '', stderr: 'no matching ID found for prefix "oldlocal"', timedOut: false }
+      }
+      return { code: 0, stdout: OK_STDOUT, stderr: '', timedOut: false }
+    }
+    writeState(paths.stateFile, { lastLocalSnapshot: 'oldlocal', lastPrune: '2026-09-08T08:00:00' })
+    const logger = createLogger(paths.logFile, () => new Date(2026, 8, 8, 10, 0, 0))
+    const result = await runFullBackup({
+      paths,
+      config: configured(),
+      logger,
+      run,
+      now: () => new Date(2026, 8, 8, 10, 0, 0),
+    })
+
+    expect(result.skipped).toBeNull()
+    if (result.skipped !== null) throw new Error('这轮不该被跳过')
+    expect(result.ok).toBe(true)
+    expect(backups).toBe(2)
+
+    const text = readFileSync(paths.logFile, 'utf8')
+    expect(text).toContain('丢开父本重跑一轮')
+    // 自我修复不算故障：日志里一个失败关键词都不该多出来
+    expect(text).not.toContain('Backup FAILED')
+    expect(readState(paths.stateFile).lastLocalSnapshot).toBe('abc12345')
+  })
+
+  it('别的失败不重试：照旧一次就收，落失败契约行', async () => {
+    const paths = tmpPaths()
+    let backups = 0
+    const run: RunProcess = async (_exe, args) => {
+      if (args[4] !== 'backup') return { code: 0, stdout: '', stderr: '', timedOut: false }
+      backups += 1
+      return { code: 1, stdout: '', stderr: 'Fatal: unable to open repository', timedOut: false }
+    }
+    writeState(paths.stateFile, { lastLocalSnapshot: 'oldlocal', lastPrune: '2026-09-08T08:00:00' })
+    const logger = createLogger(paths.logFile, () => new Date(2026, 8, 8, 10, 0, 0))
+    await runFullBackup({ paths, config: configured(), logger, run, now: () => new Date(2026, 8, 8, 10, 0, 0) })
+    expect(backups).toBe(1)
+    expect(readFileSync(paths.logFile, 'utf8')).toContain('Backup FAILED')
+  })
+
   it('占不到锁 → skipped locked，一个字不写', async () => {
     const paths = tmpPaths()
     const result = await runFullBackup({
@@ -225,7 +311,7 @@ describe('buildNotification / formatDuration', () => {
   it('本地成 + OSS 成 → OK 带 OSS 段', () => {
     const n = buildNotification(
       { ok: true, snapshotId: 'a', size: null, durationSeconds: 1 },
-      { ok: true, repo: 's3:e/b/p', durationSeconds: 2 },
+      { ok: true, repo: 's3:e/b/p', durationSeconds: 2, snapshotId: 'b' },
       true,
       'L',
     )

@@ -28,18 +28,25 @@ description: 域库、宿主层、窗格三截，一轮备份的完整路线，�
 ```text
 宿主层 runBackup（busy 挡同进程重入 → 现读配置 → refuseReason 拒跑判定）
   └→ runFullBackup（占 backup.lock，跨进程）
-       ├→ doLocalBackup   restic backup → 本地仓
+       ├→ doLocalBackup   restic backup --parent <state 里的本地快照 ID> → 本地仓
        ├→ doPrune         forget+prune（每日一次，成了才记 lastPrune）
        ├→ doOssPush       第二次独立 restic backup，直打 s3: 仓（ossEnabled 时）
        ├→ doPrune(OSS)    OSS prune（本轮该 prune 且 OSS 推送成功才跑）
        ├→ logger.rotate   日志超阈值轮转
-       ├→ writeState      lastRunAt / lastRunOk / lastRunSummary（成败都记）
+       ├→ writeState      lastRunAt / lastRunOk / lastRunSummary（成败都记）+ 两份父快照 ID
        └→ sendToast       Windows 通知（toast 设置开着时）
 ```
 
 本地备份失败就整条停在第一步——本地都没成，OSS 推的是同一批源，多半也是同样的失败。
 每段在日志里落一行契约句（`Backup started` / `Prune FAILED with exit code N` 那一族），
 健康检查的日志尾判定靠 grep 它们，见[日志契约与通知](/docs/modules/log)。
+
+两趟 `restic backup` 都从 `state.json` 取**父快照 ID** 显式递给 restic（本地仓一份、OSS 仓
+一份，ID 不通用）。为什么要显式给：restic 默认按 `host,paths` 挑父快照，**白名单里加了
+路径就是新组、一个候选都没有**，整份数据重读重算；给一份父本，新路径当新文件读、其余路径
+照旧吃比对。记着的 ID 在仓库里没了时（仓库重建、或 state 从更早的备份里恢复回来），撞上
+restic 那句 `no matching ID found for prefix` 就丢开父本重跑一次——**这一跳写的是普通说明
+行，不是失败契约行**，见[备份管线](/docs/modules/pipeline)。
 
 ## 盘上有什么
 
@@ -50,11 +57,10 @@ description: 域库、宿主层、窗格三截，一轮备份的完整路线，�
 
 | 路径 | 是什么 |
 | --- | --- |
-| `state.json` | 动作时间戳：上次备份、上次 prune、USB 副本、exclude 审计。坏了解析不了就当空，最坏多跑一次 prune |
+| `state.json` | 动作时间戳（上次备份、上次 prune、USB 副本、exclude 审计）加两份父快照 ID。坏了解析不了就当空，最坏多跑一次 prune |
 | `backup.lock` | 进行中的备份那把锁（`{ pid, lease, startedAt, beatAt }`），跑完即删。见[锁](/docs/modules/lock) |
 | `credentials/restic-password.txt` | 仓库密码。**内容永不读进本进程**，只把路径交给 restic |
 | `credentials/oss-credentials.txt` | OSS AccessKey（KEY=VALUE 格式）。解析结果只进子进程 env |
-| `restic-exclude.txt` | 用户覆盖版 exclude；不存在时用插件自带的 `config/restic-exclude.txt` |
 | `bin/restic.exe` | restic 本体（`restic-exe` 设置指向它，相对路径按数据目录解析） |
 | `logs/restic-backup.log` | 备份日志，超 10 MB 只留末 1000 行 |
 

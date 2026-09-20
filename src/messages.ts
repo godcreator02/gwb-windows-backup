@@ -49,6 +49,36 @@ export function notificationFailedLine(reason: string): string {
 /** 健康检查在日志尾里搜的失败关键词，照老仓 cc 版 `docs/restic/commands.md` 那张表。 */
 export const LOG_FAILURE_KEYWORDS = ['FAILED', 'Fatal', 'error', 'exit code'] as const
 
+/**
+ * 父快照用不了时补的那句说明。
+ *
+ * **措辞刻意避开 `FAILED` / `Fatal` / `error` / `exit code` 四个词**：这不是失败，是自我
+ * 修复的第一步——紧接着还要丢开父本重跑一次，先落一行失败关键词，日志尾判定会把一次正常
+ * 的重试记成故障（那四个词正是健康检查在搜的）。
+ */
+export function parentDroppedLine(id: string): string {
+  return `parent snapshot ${id} 不可用，丢开父本重跑一轮（本轮没有基准，会重读全部文件）`
+}
+
+/**
+ * restic 说「你给我的这份父快照找不到」的样子。
+ *
+ * 实测（0.18.1，`backup --parent <不存在的 ID>`）：**stderr 一行、退出码 1、stdout 空**：
+ *
+ * ```
+ * no matching ID found for prefix "00000000"
+ * ```
+ *
+ * 为什么会走到这一步：ID 记在 `state.json` 里，正常情况下最近一份快照永远在保留窗口内；
+ * 但仓库被重建、或者 state 从更早的备份里恢复回来时，那个 ID 在仓库里已经没了。
+ */
+const PARENT_UNUSABLE = /no matching ID found for prefix|unable to find snapshot/i
+
+/** 这一次 restic 是不是在说「父快照用不了」。只认上面那两句原话，别的失败照旧按失败收。 */
+export function parentUnusable(stdout: string, stderr: string): boolean {
+  return PARENT_UNUSABLE.test(`${stdout}\n${stderr}`)
+}
+
 /** `error` 之外那三个词：出现即算数，大小写不敏感。 */
 const HARD_FAILURE = /FAILED|Fatal|exit code/i
 /** restic 每轮正常输出里的计数行（`0 errors` / `0 error`）——这不是错，是「一个错都没有」。 */

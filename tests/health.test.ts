@@ -151,6 +151,57 @@ describe('② log', () => {
     expect(report.items.log.status).toBe('problem')
     expect(report.items.log.ossOk).toBe(false)
   })
+
+  it('失败行已经被后面的成功轮次翻篇 → 不算问题（2026-09-20 撞到的那种假红）', async () => {
+    const paths = tmpPaths()
+    mkdirSync(path.dirname(paths.logFile), { recursive: true })
+    writeFileSync(
+      paths.logFile,
+      [
+        '[2026-09-20 15:36:13] Backup FAILED with exit code 1',
+        '[2026-09-20 15:46:06] Backup started',
+        '[2026-09-20 15:47:58] Backup FAILED with exit code 1',
+        '[2026-09-20 15:52:48] Backup started',
+        '[2026-09-20 15:55:37] Backup completed successfully',
+        '',
+      ].join('\n'),
+      'utf8',
+    )
+    const now = new Date()
+    const report = await runHealthCheck(paths, config(), {
+      now,
+      run: okSnapshots,
+      diskFree: diskOf(0.9),
+      state: healthyState(now),
+    })
+    expect(report.items.log.status).toBe('ok')
+    expect(report.items.log.errorLines).toEqual([])
+  })
+
+  it('最后一次成功之后的失败行照样算，并把时刻念出来', async () => {
+    const paths = tmpPaths()
+    mkdirSync(path.dirname(paths.logFile), { recursive: true })
+    writeFileSync(
+      paths.logFile,
+      [
+        '[2026-09-20 15:55:37] Backup completed successfully',
+        '[2026-09-20 16:25:40] Backup started',
+        '[2026-09-20 16:25:41] Backup FAILED with exit code 1',
+        '',
+      ].join('\n'),
+      'utf8',
+    )
+    const now = new Date()
+    const report = await runHealthCheck(paths, config(), {
+      now,
+      run: okSnapshots,
+      diskFree: diskOf(0.9),
+      state: healthyState(now),
+    })
+    expect(report.items.log.status).toBe('problem')
+    expect(report.items.log.errorLines.length).toBe(1)
+    expect(report.problems.some((problem) => problem.includes('16:25:41'))).toBe(true)
+  })
 })
 
 describe('③ disk', () => {

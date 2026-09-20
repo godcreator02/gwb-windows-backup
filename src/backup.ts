@@ -31,12 +31,14 @@ import {
   OSS_PRUNE_LABEL,
   OSS_PUSH_OK,
   ossPushStartedLine,
+  parentDroppedLine,
+  parentUnusable,
   PRUNE_LABEL,
   startedLine,
 } from './messages.js'
 import type { BackupPaths } from './paths.js'
 import { BACKUP_TIMEOUT_MS, runProcess } from './process.js'
-import type { RunProcess } from './process.js'
+import type { RunProcess, RunResult } from './process.js'
 import { ossRepoUrl, parseProcessedSize, parseSnapshotId, pruneArgs, resticEnv, runRestic } from './restic.js'
 import { localTimestamp, readState, shouldRunPrune, writeState } from './state.js'
 import { sendToast } from './toast.js'
@@ -54,6 +56,8 @@ export type OssOutcome = {
   ok: boolean
   repo: string
   durationSeconds: number
+  /** 这一次推进 OSS 仓的快照 ID——记进 state 给下一轮当父本。解析不出是 `null`。 */
+  snapshotId: string | null
 }
 
 export type Notification = { title: string; body: string }
@@ -162,6 +166,9 @@ async function runLocked(ctx: BackupContext): Promise<CompletedBackupResult> {
   const excludeFile = paths.defaultExcludeFile
   const excludeArgs = excludeArgv(config.exclude)
   const baseEnv = resticEnv(config.restic.gomaxprocs, {}, ctx.env ?? process.env)
+  // 父本在开跑前取一次：这一轮跑着的时候 state 会被我们自己的写回改掉，边跑边读会读到
+  // 刚写进去的新 ID——那是「本轮的结果」，不是「本轮该用的父本」
+  const before = readState(paths.stateFile)
 
   logger.line(BACKUP_STARTED)
   const local = await doLocalBackup({
@@ -175,7 +182,13 @@ async function runLocked(ctx: BackupContext): Promise<CompletedBackupResult> {
     logger,
     run,
     now,
+    parentId: before.lastLocalSnapshot,
   })
+  // 本地一成当场把 ID 落盘：后面还有 prune / OSS 两段，哪一段把这一轮弄失败都不该让下一轮
+  // 赔上一次全量重读
+  if (local.ok && local.snapshotId !== null) {
+    writeState(paths.stateFile, { lastLocalSnapshot: local.snapshotId })
+  }
 
   let oss: OssOutcome | null = null
   let prunedToday = false
@@ -215,7 +228,11 @@ async function runLocked(ctx: BackupContext): Promise<CompletedBackupResult> {
         logger,
         run,
         now,
+        parentId: before.lastOssSnapshot,
       })
+      if (oss.ok && oss.snapshotId !== null) {
+        writeState(paths.stateFile, { lastOssSnapshot: oss.snapshotId })
+      }
       if (prunedToday && oss.ok) {
         await doPrune({
           exe,
@@ -273,9 +290,12 @@ export function excludeArgv(rules: readonly string[]): string[] {
   return out
 }
 
-type LocalBackupArgs = {
+/**
+ * 跑一趟 `restic backup` 要的全部参数。本地那趟与 OSS 那趟只差仓库地址与 env（OSS 多带
+ * 三键 AccessKey），于是两趟共用同一套 argv 拼法与同一条父本回退。
+ */
+type BackupRunArgs = {
   exe: string
-  repo: string
   sources: string[]
   /** 内置基线 exclude 文件（`--exclude-file`）。 */
   excludeFile: string
@@ -285,7 +305,72 @@ type LocalBackupArgs = {
   env: NodeJS.ProcessEnv
   logger: Logger
   run: RunProcess
-  now: () => Date
+  /**
+   * 拿来当基准的快照 ID（`--parent`）；`undefined` = 交给 restic 按 `--group-by` 自己挑。
+   *
+   * 为什么显式给：restic 默认按 `host,paths` 分组挑父快照，**白名单里加了路径就是新组、
+   * 挑不着父本**，整份数据重读一遍。给一份父本，新路径当新文件读、老路径照旧吃比对。
+   */
+  parentId?: string | undefined
+}
+
+/** 本地那趟：仓库地址由调用方给（`repositories.local.repo`）。 */
+type LocalBackupArgs = BackupRunArgs & { repo: string; now: () => Date }
+
+/**
+ * 一趟的 argv。`--parent` 排在源路径之前——restic 的参数与位置参数分开收，插哪儿都认，
+ * 排在这儿是为了让日志里「参数在前、源在后」的样子稳定。
+ */
+export function backupArgv(
+  args: Pick<BackupRunArgs, 'excludeFile' | 'excludeArgs' | 'parentId' | 'sources'>,
+): string[] {
+  return [
+    'backup',
+    `--exclude-file=${args.excludeFile}`,
+    ...args.excludeArgs,
+    ...(args.parentId === undefined ? [] : ['--parent', args.parentId]),
+    ...args.sources,
+  ]
+}
+
+/** 一趟，原样起进程——不判成败、不写契约行。 */
+async function backupOnce(
+  args: BackupRunArgs & { repo: string },
+  parentId: string | undefined,
+): Promise<RunResult> {
+  return runRestic(args.exe, args.repo, backupArgv({ ...args, parentId }), {
+    passwordFile: args.passwordFile,
+    env: args.env,
+    timeoutMs: BACKUP_TIMEOUT_MS,
+    run: args.run,
+  })
+}
+
+/**
+ * 跑一趟，**父本用不了就丢开它自己重跑一次**；两趟的原始输出都进日志。
+ *
+ * 为什么要这一跳：父本 ID 记在 `state.json` 里，正常情况下最近一份快照永远在保留窗口内；
+ * 但仓库被重建、或者 state 从更早的备份里恢复回来时，那个 ID 在仓库里已经没了——restic
+ * 当场硬失败（实测 0.18.1：stderr `no matching ID found for prefix "<id>"`、退出码 1、
+ * stdout 空，见 `messages.ts` 的 `parentUnusable`）。**让整轮备份败在一个「只为了提速」的
+ * 参数上，比不要这个提速更糟**，所以撞上就重跑一次。
+ *
+ * 两处刻意的分寸：**只认 restic 那两句原话**（别的失败一个都不重试，照旧按失败收）；
+ * **这一跳写的是普通说明行**（`parentDroppedLine`），不是 `Backup FAILED` 契约行——不然
+ * 一次正常的自我修复会被健康检查的日志尾判定记成故障。
+ */
+async function backupWithParentFallback(args: BackupRunArgs & { repo: string }): Promise<RunResult> {
+  const first = await backupOnce(args, args.parentId)
+  args.logger.raw(first.stdout)
+  args.logger.raw(first.stderr)
+  if (first.code === 0 || args.parentId === undefined || !parentUnusable(first.stdout, first.stderr)) {
+    return first
+  }
+  args.logger.line(parentDroppedLine(args.parentId))
+  const second = await backupOnce(args, undefined)
+  args.logger.raw(second.stdout)
+  args.logger.raw(second.stderr)
+  return second
 }
 
 /**
@@ -296,14 +381,7 @@ type LocalBackupArgs = {
  */
 export async function doLocalBackup(args: LocalBackupArgs): Promise<LocalOutcome> {
   const startedAt = args.now().getTime()
-  const result = await runRestic(
-    args.exe,
-    args.repo,
-    ['backup', `--exclude-file=${args.excludeFile}`, ...args.excludeArgs, ...args.sources],
-    { passwordFile: args.passwordFile, env: args.env, timeoutMs: BACKUP_TIMEOUT_MS, run: args.run },
-  )
-  args.logger.raw(result.stdout)
-  args.logger.raw(result.stderr)
+  const result = await backupWithParentFallback(args)
   const ok = result.code === 0
   if (ok) args.logger.line(BACKUP_OK)
   else args.logger.line(failedLine('Backup', result.code))
@@ -344,18 +422,9 @@ export async function doPrune(args: PruneArgs): Promise<boolean> {
   return ok
 }
 
-type OssPushArgs = {
-  exe: string
+/** OSS 那趟：仓库地址自己拼（`ossRepoUrl`），因为它同时要进日志那句话。 */
+type OssPushArgs = BackupRunArgs & {
   oss: BackupConfig['repositories']['oss']
-  sources: string[]
-  /** 内置基线 exclude 文件（`--exclude-file`）。 */
-  excludeFile: string
-  /** 设置键 `exclude` 的追加规则（逐条 `--exclude`）。 */
-  excludeArgs: string[]
-  passwordFile: string
-  env: NodeJS.ProcessEnv
-  logger: Logger
-  run: RunProcess
   now: () => Date
 }
 
@@ -364,18 +433,16 @@ export async function doOssPush(args: OssPushArgs): Promise<OssOutcome> {
   const repo = ossRepoUrl(args.oss)
   args.logger.line(ossPushStartedLine(repo))
   const startedAt = args.now().getTime()
-  const result = await runRestic(
-    args.exe,
-    repo,
-    ['backup', `--exclude-file=${args.excludeFile}`, ...args.excludeArgs, ...args.sources],
-    { passwordFile: args.passwordFile, env: args.env, timeoutMs: BACKUP_TIMEOUT_MS, run: args.run },
-  )
-  args.logger.raw(result.stdout)
-  args.logger.raw(result.stderr)
+  const result = await backupWithParentFallback({ ...args, repo })
   const ok = result.code === 0
   if (ok) args.logger.line(OSS_PUSH_OK)
   else args.logger.line(failedLine('OSS push', result.code))
-  return { ok, repo, durationSeconds: (args.now().getTime() - startedAt) / 1000 }
+  return {
+    ok,
+    repo,
+    durationSeconds: (args.now().getTime() - startedAt) / 1000,
+    snapshotId: ok ? parseSnapshotId(result.stdout) : null,
+  }
 }
 
 /** 秒数格式化成 `M:SS`。 */

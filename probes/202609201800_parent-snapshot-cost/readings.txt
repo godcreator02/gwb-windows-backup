@@ -1,0 +1,60 @@
+# 2026-09-20 原始读数（原样粘贴，未加工）
+
+## 1. 那一轮的开头（插件日志）
+
+[2026-09-20 14:59:06] Backup started
+no parent snapshot found, will read all files
+
+（上一轮同位置是：使用父快照）
+[2026-09-20 14:29:31] Backup started
+using parent snapshot 3a86f5ca
+
+## 2. 跑着的时候采的进程计数（14:59:06 起）
+
+15:15:43  sample1: restic pid=139048 ReadTransferCount=8792479133  UserModeTime=700937500
+15:16:03  sample2: restic pid=139048 ReadTransferCount=9610787837  UserModeTime=720312500
+          → 20 秒读 817 MB ≈ 40 MB/s（瞬时），CPU 20 秒 +1.94 s ≈ 单核 9.7%
+
+15:26:35  ReadTransferCount=24055947177 UserModeTime=1101875000
+          → 27.5 分钟读 22.4 GiB ≈ 14 MB/s 均值；CPU 1101.9 s / 1650 s ≈ 单核 67%×…（含内核态后 19%）
+
+15:27:37  20 秒采样：读 9.2 MB/s、CPU 单核 19%（用户态+内核态）、累计 23.2 GB、线程 8、工作集 135 MB
+
+15:29:03  restic 读速 7.4 MB/s；全机读速 15.6 MB/s（另一半是 agent_host.exe 9.3 MB/s）；
+          restic CPU 单核 19%；累计读入 23.9 GB
+          同刻其它进程：qianwen 0.1 MB/s、MsMpEng 0.0 MB/s(读)、PixPin 0.0、msedgewebview2 0.2
+
+15:33:53  MsMpEng.exe CPU（10 秒采样）= 单核 118%
+          机器：Intel Core Ultra X7 358H，16 核；RAM 31.5 GB 总 / 4.5 GB 空闲
+          盘：UMIS UPJYJ1TBMNV1QWY SSD NVMe 954 GB，C/D 两个卷
+          排除项读不到（Get-MpPreference 需要管理员），实时防护 = True
+
+15:36:12  叫停：restic 已跑 37 分钟、读 25.3 GB
+
+## 3. 显式 --parent（同一份快照集合、路径集不同）跑完的那轮
+
+using parent snapshot fd56bd23
+
+Files:         380 new,   133 changed, 452152 unmodified
+Dirs:           39 new,  1307 changed,  66531 unmodified
+Added to the repository: 13.813 MiB (3.490 MiB stored)
+
+processed 452665 files, 51.024 GiB in 4:03
+snapshot 6d2c431d saved
+EXIT=0  用时 244s
+
+## 4. 坏父本的表现（0.18.1，直接起进程、分流 stdout/stderr）
+
+exit code: 1
+--- stdout ---
+（空）
+--- stderr ---
+no matching ID found for prefix "00000000"
+
+## 5. 快照元数据摘录（restic cat snapshot / snapshots --json）
+
+179b3086  2026-05-11T07:24:27  paths=10  parent=(无)  files_new=111927 files_unmodified=0
+19ddb78f  2026-05-11T07:44:02  paths=13  parent=(无)  files_new=111969 files_unmodified=0
+fae07220  2026-05-11T08:00:37  paths=13  parent=19ddb78f  files_unmodified=111960
+1277c92f  2026-09-19T08:15:02  paths=8   parent=1d339612  files_unmodified=446715
+1d339612  2026-09-19T07:45:02  paths=10（含 D:\unitfolders）—— 即 1277c92f 的父本是它的超集

@@ -22,6 +22,9 @@ cd docs-site && pnpm exec docfirst check   # 文档门禁，单独跑
   永不进日志、永不进异常消息
 * **日志契约行只在 `src/messages.ts` 一处拼**——健康检查靠 grep 那几串英文，改一个词就把
   断备份读成一切正常
+* **父快照两趟都显式递**（`state.json` 里的 ID → restic `--parent`），白名单加路径才不吃
+  全量重读；那份 ID 失效时丢开父本重跑一次，**重跑那一跳不许写失败契约行**（`parentDroppedLine`
+  刻意避开那四个关键词）
 * **顶层 `inject` 只列 gwbCommands / gwbSettings / gwbData / timer**；外壳走局部注入，
   列顶层就等于 headless home 里备份整个挂起
 * 所有 async 链自己 catch 并打日志——静默 reject 在日志里一根毛都不剩

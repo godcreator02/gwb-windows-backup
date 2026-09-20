@@ -52,6 +52,7 @@ import { readOssEnv } from './credentials.js'
 import type { HealthReport } from './health.js'
 import { runHealthCheck } from './health.js'
 import { createLogger } from './log.js'
+import { readLock } from './lock.js'
 import { layout } from './paths.js'
 import type { BackupPaths } from './paths.js'
 import { BACKUP_TIMEOUT_MS } from './process.js'
@@ -397,6 +398,14 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
     return {
       frequencyMinutes: state.frequencyMinutes,
       running: state.backing,
+      /**
+       * 这一轮是从什么时候起的（`backup.lock` 的 `startedAt`，ISO）。没在跑就是 `null`。
+       *
+       * 加它是因为「跑着」这一个布尔答不了最常问的那个问题：**跑了多久了**。首次全量、
+       * 白名单加了路径之后的那一轮，都是小时级的——只有 `running: true` 加一份要自己 tail
+       * 的日志，人和 agent 都分不清是在干活还是卡死了。
+       */
+      runningSince: state.backing ? (readLock(paths.lockFile)?.startedAt ?? null) : null,
       lastRunAt: disk.lastRunAt ?? null,
       lastRunOk: disk.lastRunOk ?? null,
       lastRunSummary: disk.lastRunSummary ?? null,
