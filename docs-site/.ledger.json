@@ -32,25 +32,25 @@
     }
   },
   "content/docs/modules/config-state.mdx": {
-    "../src/state.ts:15-36": {
-      "kind": "git",
-      "blob": "3cf4dd696453c59e6c97af9aa086937b000dd2fe",
-      "commit": "87506834419343667793d594647b440723237256",
-      "lines": [
-        15,
-        36
-      ],
-      "hash": "a41f918f049e6073bcaa83538291fe67d8594398cfebab9b448d2c79553bad97"
-    },
     "../src/config.ts:164-175": {
       "kind": "git",
       "blob": "f122266feb229ee2c17595c04135d0dc3568edb9",
-      "commit": "87506834419343667793d594647b440723237256",
+      "commit": "cd24e73a637543239503638a0bad7b2e9f997b3c",
       "lines": [
         164,
         175
       ],
       "hash": "8a33fb8dbe02ea5ae46fa9b3d9afa37116e928651bbc43a197d1820636fb0f65"
+    },
+    "../src/state.ts:15-47": {
+      "kind": "git",
+      "blob": "53a55e322dfc2a5f98dbc418b9c371972f63c4c3",
+      "commit": "cd24e73a637543239503638a0bad7b2e9f997b3c",
+      "lines": [
+        15,
+        47
+      ],
+      "hash": "fb73dee6c0c254b4926fe8393ba8b67b17aff10abe3a31d186479c0291e670be"
     }
   },
   "content/docs/modules/credentials.mdx": {
@@ -78,8 +78,8 @@
   "content/docs/modules/health.mdx": {
     "../src/health.ts:134-154": {
       "kind": "git",
-      "blob": "f4837365e7c31925b8304e8d545d0a545560e0dc",
-      "commit": "87506834419343667793d594647b440723237256",
+      "blob": "256a4b8bb9c3386fd99281cc842fcfec6febe0e8",
+      "commit": "cd24e73a637543239503638a0bad7b2e9f997b3c",
       "lines": [
         134,
         154
@@ -88,23 +88,23 @@
     },
     "../src/health.ts:166-174": {
       "kind": "git",
-      "blob": "f4837365e7c31925b8304e8d545d0a545560e0dc",
-      "commit": "87506834419343667793d594647b440723237256",
+      "blob": "256a4b8bb9c3386fd99281cc842fcfec6febe0e8",
+      "commit": "cd24e73a637543239503638a0bad7b2e9f997b3c",
       "lines": [
         166,
         174
       ],
       "hash": "809458c8f08f28a37bb165c0dce0774f14f23ce95be6766402a0387245bf5dfb"
     },
-    "../src/health.ts:215-222": {
+    "../src/health.ts:219-233": {
       "kind": "git",
-      "blob": "f4837365e7c31925b8304e8d545d0a545560e0dc",
-      "commit": "87506834419343667793d594647b440723237256",
+      "blob": "256a4b8bb9c3386fd99281cc842fcfec6febe0e8",
+      "commit": "cd24e73a637543239503638a0bad7b2e9f997b3c",
       "lines": [
-        215,
-        222
+        219,
+        233
       ],
-      "hash": "77ebde21f6f8996bc1ec60b270992443533f8e8403b0fd57946c43bb28433241"
+      "hash": "fd0ce1ea4eb865b67c527f816120a6ac7781a53dc7d5b1299141744797c3d230"
     }
   },
   "content/docs/modules/host.mdx": {
@@ -174,33 +174,33 @@
   "content/docs/modules/log.mdx": {
     "../src/messages.ts:12-17": {
       "kind": "git",
-      "blob": "4a0b7e2dbc0a2bcfd4ff218462f43edf8b416bd7",
-      "commit": "87506834419343667793d594647b440723237256",
+      "blob": "d4356a23764d8c5ecef320d3a2066c1b0549765a",
+      "commit": "cd24e73a637543239503638a0bad7b2e9f997b3c",
       "lines": [
         12,
         17
       ],
       "hash": "e4ea3ffac4fa99545327d3937a3b4c1795b5f3b5fcd4c3eaee05cc4ccccfdaf1"
     },
-    "../src/messages.ts:49-57": {
-      "kind": "git",
-      "blob": "4a0b7e2dbc0a2bcfd4ff218462f43edf8b416bd7",
-      "commit": "87506834419343667793d594647b440723237256",
-      "lines": [
-        49,
-        57
-      ],
-      "hash": "e3103eeb336ec0199ac7c2e7c0bfc3b60bb1753f3a7654600a1a7753759de1a6"
-    },
     "../src/toast.ts:4-9": {
       "kind": "git",
       "blob": "3cf2e85cbdc536dd9659d9689b269d95f6094b61",
-      "commit": "87506834419343667793d594647b440723237256",
+      "commit": "cd24e73a637543239503638a0bad7b2e9f997b3c",
       "lines": [
         4,
         9
       ],
       "hash": "e5b274f727642fce60a0bea1ecd9906f774604ccf4bec5961bfc08db6799aabf"
+    },
+    "../src/messages.ts:82-87": {
+      "kind": "git",
+      "blob": "d4356a23764d8c5ecef320d3a2066c1b0549765a",
+      "commit": "cd24e73a637543239503638a0bad7b2e9f997b3c",
+      "lines": [
+        82,
+        87
+      ],
+      "hash": "5951460e94a91322b5e321cb29449c4e6bc5972042f4da7f19b23565c30d19b5"
     }
   },
   "content/docs/modules/pipeline.mdx": {
