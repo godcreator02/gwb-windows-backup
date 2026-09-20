@@ -51,7 +51,7 @@ OSS 三项（`oss-bucket` / `oss-endpoint` / `oss-repo-path`）只在 `oss-enabl
 
 | 命令 | 干什么 |
 | --- | --- |
-| `windows-backup.run` | 立刻跑一轮完整备份（= 定时那轮干的事）；占不到锁、配置没填全会如实说 |
+| `windows-backup.run` | 立刻跑一轮完整备份（= 定时那轮干的事）；占不到锁、配置没填全、这轮失败都会如实说——失败不拿上一轮的成功冒充 |
 | `windows-backup.check` | 立刻跑一次五项健康检查，回全量状态 |
 | `windows-backup.status` | 回全量状态（上次备份、自检结论、定时器节奏）——窗格轮的就是它 |
 | `windows-backup.paths` | 回数据目录全部路径——看凭据在不在、tail 日志，先调这条拿路径，别猜 |

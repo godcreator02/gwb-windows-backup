@@ -21,7 +21,7 @@
 import type { BackupConfig } from './config.js'
 import { resolveSlotPath } from './config.js'
 import { readOssEnv } from './credentials.js'
-import { acquire, readLock } from './lock.js'
+import { acquire, HEARTBEAT_MS, readLock, type HeldLock } from './lock.js'
 import type { Logger } from './log.js'
 import {
   BACKUP_OK,
@@ -100,7 +100,7 @@ export type BackupContext = {
   /** 注入点：父 env。 */
   env?: NodeJS.ProcessEnv | undefined
   /** 注入点：占锁。回 `null` = 占不到。测试用它造「另一轮正在跑」。 */
-  acquireLock?: ((file: string) => (() => void) | null) | undefined
+  acquireLock?: ((file: string) => HeldLock | null) | undefined
 }
 
 /**
@@ -136,14 +136,18 @@ export function refuseReason(config: BackupConfig): string | null {
  */
 export async function runFullBackup(ctx: BackupContext): Promise<FullBackupResult> {
   const acquireLock = ctx.acquireLock ?? ((file: string) => acquire(file))
-  const releaseLock = acquireLock(ctx.paths.lockFile)
-  if (releaseLock === null) {
+  const held = acquireLock(ctx.paths.lockFile)
+  if (held === null) {
     return { ok: false, skipped: 'locked', heldSince: readLockStartedAt(ctx.paths.lockFile) }
   }
+  // 心跳：一轮可以合法地串四个六小时上限的子步骤，陈旧判定只认「心跳停了」、不认
+  // 「这轮跑了多久」——不跳的话干得久的活任务会被下一轮当死锁抢走
+  const beat = setInterval(() => held.renew(), HEARTBEAT_MS)
   try {
     return await runLocked(ctx)
   } finally {
-    releaseLock()
+    clearInterval(beat)
+    held.release()
   }
 }
 

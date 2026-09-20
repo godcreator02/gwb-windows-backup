@@ -194,6 +194,44 @@ describe('命令面', () => {
     expect(result.error).toContain('锁')
   })
 
+  it('run 中途炸了 → 回本轮失败，不拿上一轮的成功冒充', async () => {
+    const host = fakeHost()
+    configure(host)
+    const paths = layout(host.dataDir)
+    // state 里躺着上一轮的成功——本轮炸了，回执不许把它当本轮结论
+    writeState(paths.stateFile, { lastRunAt: '2026-09-01T10:00:00', lastRunOk: true, lastRunSummary: '上轮成功' })
+    mount(
+      host.ctx,
+      fakeDeps({
+        runBackup: async () => {
+          throw new Error('EIO')
+        },
+      }),
+    )
+    const result = (await host.registered.commands.get('windows-backup.run')?.()) as { ok: boolean; error?: string }
+    expect(result.ok).toBe(false)
+    expect(result.error).toContain('本轮')
+    // catch 把本轮失败记进了 state——读出来不再是上轮的 true
+    expect(readState(paths.stateFile).lastRunOk).toBe(false)
+  })
+
+  it('run 跑完但备份失败（ok:false）→ 命令照实回失败', async () => {
+    const host = fakeHost()
+    configure(host)
+    mount(
+      host.ctx,
+      fakeDeps({
+        runBackup: async (p) => {
+          writeState(p.stateFile, { lastRunAt: '2026-09-08T10:00:00', lastRunOk: false, lastRunSummary: 'restic 挂了' })
+          return { ok: false, skipped: null, summary: 'restic 挂了' }
+        },
+      }),
+    )
+    const result = (await host.registered.commands.get('windows-backup.run')?.()) as { ok: boolean; error?: string }
+    expect(result.ok).toBe(false)
+    expect(result.error).toContain('本轮')
+  })
+
   it('check → report 进快照；再 status 也拿得到', async () => {
     const host = fakeHost()
     mount(host.ctx, fakeDeps())

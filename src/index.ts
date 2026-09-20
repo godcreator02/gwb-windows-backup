@@ -309,11 +309,11 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
   /**
    * 跑一轮备份。**绝不抛**——它挂在计时器与命令两条路径上，从这儿冒出去会把周期弄死。
    *
-   * 五种结局：`done`（跑完了，成没成看 `state.json`）/ `busy`（这个进程里已经有一轮在
-   * 跑）/ `locked`（别的进程占着数据目录那把锁）/ `refused`（配置没填全）/ `not-ready`
-   * （数据目录还没就绪）。
+   * 六种结局：`done`（跑成了）/ `failed`（这轮失败或没跑完——**state 已按本轮记账**，不会
+   * 拿上一轮的成功冒充）/ `busy`（这个进程里已经有一轮在跑）/ `locked`（别的进程占着
+   * 数据目录那把锁）/ `refused`（配置没填全）/ `not-ready`（数据目录还没就绪）。
    */
-  const runBackup = async (reason: string): Promise<'done' | 'busy' | 'locked' | 'refused' | 'not-ready'> => {
+  const runBackup = async (reason: string): Promise<'done' | 'failed' | 'busy' | 'locked' | 'refused' | 'not-ready'> => {
     // 第一层并发保护：同一个进程里不叠第二轮。第二层（跨进程）是 backup.lock
     if (state.backing) return 'busy'
     const config = currentConfig()
@@ -334,12 +334,23 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
         log.info(`${reason}备份跳过：数据目录的 backup.lock 被占着，另一轮正在跑`)
         return 'locked'
       }
-      if (result.ok) log.info(`${reason}备份完成：${result.summary ?? '（没有小结）'}`)
-      else log.warn(`${reason}备份失败：${result.summary ?? '（没有小结）'}——日志在 ${paths.logFile}`)
-      return 'done'
+      if (result.ok) {
+        log.info(`${reason}备份完成：${result.summary ?? '（没有小结）'}`)
+        return 'done'
+      }
+      log.warn(`${reason}备份失败：${result.summary ?? '（没有小结）'}——日志在 ${paths.logFile}`)
+      return 'failed'
     } catch (error) {
-      log.warn(`${reason}备份没跑完（下一轮照跑）：`, messageOf(error))
-      return 'done'
+      const message = messageOf(error)
+      log.warn(`${reason}备份没跑完（下一轮照跑）：`, message)
+      // state 里还躺着上一轮的结论。不把这轮的失败记下去，命令层读到的就是上一轮的
+      // 「成功」——回执谎报。写不进（磁盘满等）也不吞：命令层按 failed 回，不让旧值冒充
+      try {
+        writeState(paths.stateFile, { lastRunOk: false, lastRunSummary: `本轮没跑完：${message}` })
+      } catch {
+        log.warn('本轮失败想记进 state 也没记成——命令层将按本轮失败回执，不信 state')
+      }
+      return 'failed'
     } finally {
       state.backing = false
     }
@@ -443,6 +454,11 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
         if (outcome === 'not-ready') return { ok: false, error: '数据目录还没就绪' }
         if (outcome === 'refused') return { ok: false, error: refuseReason(currentConfig()) }
         const disk = readState(paths.stateFile)
+        if (outcome === 'failed') {
+          // 本轮失败：成败结论来自 outcome 本身，不信 state——state 写不进时里面还躺着
+          // 上一轮的成功，拿它顶替就是把上轮的 ok 冒充本轮的
+          return { ok: false, error: '本轮备份失败', data: { ...backupInfo(), summary: disk.lastRunSummary ?? null } }
+        }
         return { ok: disk.lastRunOk ?? false, data: { ...backupInfo(), summary: disk.lastRunSummary ?? null } }
       },
     )

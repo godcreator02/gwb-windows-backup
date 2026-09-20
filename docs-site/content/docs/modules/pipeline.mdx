@@ -14,8 +14,9 @@ description: runFullBackup——占锁、本地备份、每日 prune、OSS 推�
 
 ## 管什么
 
-全流程：占锁 → `restic backup`（本地仓）→ forget+prune（每日一次）→ OSS push → OSS prune
-→ 日志轮转 → 记 `state.lastRun*` → 可选 toast。顺序里有三条依赖判据：本地失败就整条停
+全流程：占锁（持锁期间每五分钟跳一次心跳——陈旧判定认心跳不认轮时长，干得久的活任务
+不会被当死锁抢走）→ `restic backup`（本地仓）→ forget+prune（每日一次）→ OSS push → OSS
+prune → 日志轮转 → 记 `state.lastRun*` → 可选 toast。顺序里有三条依赖判据：本地失败就整条停
 （本地都没成，OSS 推的是同一批源）；**prune 只有真成功才记时间戳**（失败下一轮再试）；
 OSS prune 跟本地同节奏**且 OSS 推送成功才跑**（往刚推失败的仓库上跑 forget，等于拿不完整
 的快照集算保留策略）。

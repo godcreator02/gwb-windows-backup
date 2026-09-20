@@ -15,22 +15,24 @@ afterEach(() => {
 })
 
 describe('acquire / release', () => {
-  it('占到了回释放函数，释放后锁文件没了', () => {
+  it('占到了回持有句柄，锁里带租约与心跳，释放后锁文件没了', () => {
     const file = tmpFile()
-    const releaseLock = acquire(file, { pid: 101 })
-    expect(releaseLock).not.toBeNull()
+    const held = acquire(file, { pid: 101, lease: 'lease-a' })
+    expect(held).not.toBeNull()
     const lock = readLock(file)
     expect(lock?.pid).toBe(101)
+    expect(lock?.lease).toBe('lease-a')
     expect(lock?.startedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
-    releaseLock?.()
+    expect(lock?.beatAt).toBe(lock?.startedAt)
+    held?.release()
     expect(existsSync(file)).toBe(false)
   })
 
-  it('释放函数幂等', () => {
+  it('释放幂等', () => {
     const file = tmpFile()
-    const releaseLock = acquire(file, { pid: 101 })
-    releaseLock?.()
-    expect(() => releaseLock?.()).not.toThrow()
+    const held = acquire(file, { pid: 101 })
+    held?.release()
+    expect(() => held?.release()).not.toThrow()
   })
 
   it('活人占着 → 后来者拿 null', () => {
@@ -38,7 +40,7 @@ describe('acquire / release', () => {
     const first = acquire(file, { pid: 101, alive: () => true })
     expect(first).not.toBeNull()
     expect(acquire(file, { pid: 202, alive: () => true })).toBeNull()
-    first?.()
+    first?.release()
   })
 
   it('进程没了 → 锁算陈旧，后来者接管', () => {
@@ -51,7 +53,7 @@ describe('acquire / release', () => {
     expect(readLock(file)?.pid).toBe(202)
   })
 
-  it('超过 6 小时也算陈旧（pid 被回收的兜底）', () => {
+  it('心跳停了超过上限也算陈旧（pid 被回收的兜底）', () => {
     const file = tmpFile()
     const start = new Date('2026-09-08T08:00:00Z')
     const first = acquire(file, { pid: 101, alive: () => true, now: () => start })
@@ -61,13 +63,38 @@ describe('acquire / release', () => {
     expect(second).not.toBeNull()
   })
 
-  it('释放只删自己的 pid——被抢的那方晚一步删不动新主人的锁', () => {
+  it('释放只删自己的 lease——被抢的那方晚一步删不动新主人的锁', () => {
     const file = tmpFile()
-    const stale = acquire(file, { pid: 101, alive: () => false })
-    const fresh = acquire(file, { pid: 202, alive: (pid) => pid === 202 })
+    const stale = acquire(file, { pid: 101, lease: 'lease-old', alive: () => false })
+    const fresh = acquire(file, { pid: 202, lease: 'lease-new', alive: (pid) => pid === 202 })
     expect(fresh).not.toBeNull()
-    stale?.() // 被抢的那方跑完来删——pid 对不上，一个字都不动
+    stale?.release() // 被抢的那方跑完来删——lease 对不上，一个字都不动
     expect(readLock(file)?.pid).toBe(202)
+  })
+
+  it('同一个 pid 的两代任务也分得清：旧代的 release 删不掉新代的锁', () => {
+    const file = tmpFile()
+    // 同 pid 时 alive 判定分不出两代，抢占只能走时间支（第一代心跳停了超上限）
+    const start = new Date('2026-09-08T08:00:00Z')
+    const older = acquire(file, { pid: 101, lease: 'lease-gen1', alive: () => true, now: () => start })
+    const later = new Date(start.getTime() + STALE_AFTER_MS + 1)
+    const newer = acquire(file, { pid: 101, lease: 'lease-gen2', alive: () => true, now: () => later })
+    expect(newer).not.toBeNull()
+    older?.release() // pid 相同——但租约不同，删不掉
+    expect(readLock(file)?.lease).toBe('lease-gen2')
+  })
+
+  it('心跳刷新 beatAt；锁已被抢走后心跳是空操作', () => {
+    const file = tmpFile()
+    const held = acquire(file, { pid: 101, lease: 'lease-a', alive: () => true })
+    held?.renew()
+    expect(readLock(file)?.lease).toBe('lease-a')
+    // 被抢：原持有方还跳心跳——lease 对不上，锁内容一个字不变
+    const taker = acquire(file, { pid: 202, lease: 'lease-b', alive: (pid) => pid === 202, now: () => new Date(Date.now() + STALE_AFTER_MS + 1) })
+    expect(taker).not.toBeNull()
+    const before = readLock(file)
+    held?.renew()
+    expect(readLock(file)).toEqual(before)
   })
 })
 
@@ -81,5 +108,20 @@ describe('readLock / isStale', () => {
 
   it('startedAt 认不出的也算陈旧', () => {
     expect(isStale({ pid: 1, startedAt: '垃圾' }, { alive: () => true })).toBe(true)
+  })
+
+  it('陈旧判定看心跳不看开工时长——startedAt 早已超限、心跳刚跳过的不算死', () => {
+    const now = new Date('2026-09-08T20:00:00Z')
+    expect(
+      isStale({ pid: 1, startedAt: '2026-09-08T08:00:00Z', beatAt: '2026-09-08T19:59:00Z' }, { alive: () => true, now: () => now }),
+    ).toBe(false)
+    expect(
+      isStale({ pid: 1, startedAt: '2026-09-08T08:00:00Z', beatAt: '2026-09-08T08:00:00Z' }, { alive: () => true, now: () => now }),
+    ).toBe(true)
+  })
+
+  it('旧格式锁（没有 beatAt）退回 startedAt 判', () => {
+    const now = new Date('2026-09-08T20:00:00Z')
+    expect(isStale({ pid: 1, startedAt: '2026-09-08T19:59:00Z' }, { alive: () => true, now: () => now })).toBe(false)
   })
 })

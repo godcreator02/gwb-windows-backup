@@ -51,7 +51,7 @@ description: 域库、宿主层、窗格三截，一轮备份的完整路线，�
 | 路径 | 是什么 |
 | --- | --- |
 | `state.json` | 动作时间戳：上次备份、上次 prune、USB 副本、exclude 审计。坏了解析不了就当空，最坏多跑一次 prune |
-| `backup.lock` | 进行中的备份那把锁（`{ pid, startedAt }`），跑完即删。见[锁](/docs/modules/lock) |
+| `backup.lock` | 进行中的备份那把锁（`{ pid, lease, startedAt, beatAt }`），跑完即删。见[锁](/docs/modules/lock) |
 | `credentials/restic-password.txt` | 仓库密码。**内容永不读进本进程**，只把路径交给 restic |
 | `credentials/oss-credentials.txt` | OSS AccessKey（KEY=VALUE 格式）。解析结果只进子进程 env |
 | `restic-exclude.txt` | 用户覆盖版 exclude；不存在时用插件自带的 `config/restic-exclude.txt` |
