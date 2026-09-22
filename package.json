@@ -49,7 +49,7 @@
     "@godcreator/gwb-commands": "^0.4.5",
     "@godcreator/gwb-settings": "^0.3.1",
     "@godcreator/gwb-data": "^0.1.5",
-    "@godcreator/gwb-shell": "^0.13.2"
+    "@godcreator/gwb-shell": "^0.13.5"
   },
   "peerDependenciesMeta": {
     "@godcreator/gwb-shell": {
