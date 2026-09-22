@@ -45,7 +45,7 @@
   },
   "//peer": "硬 peer 五条：commands（写面全在总线上）、settings（配置 SSOT）、data（状态与凭据落盘）是备份的命根，缺哪个这个件都没有意义；plugin-api 的类型出现在 dist/index.d.ts 的导出面；tokens 供样式映射面（theme.reference.css，构建期吃）。定时器走官方 @cordisjs/plugin-timer（内核 AGENTS 认定的开件），由 home 的 yml 条目提供——跟 cordis 一样是宿主环境给的，只进 dev 不进 peer。shell / shared-react 是浏览器半的前提，走可选 peer——headless home（没外壳）里备份照跑，缺了只是没有界面",
   "peerDependencies": {
-    "@godcreator/gwb-plugin-api": "^0.1.2",
+    "@godcreator/gwb-plugin-api": "^0.2.7",
     "@godcreator/gwb-commands": "^0.4.5",
     "@godcreator/gwb-settings": "^0.3.1",
     "@godcreator/gwb-data": "^0.1.5",
@@ -63,7 +63,7 @@
     "@cordisjs/plugin-timer": "1.1.3",
     "@godcreator/gwb-commands": "0.4.5",
     "@godcreator/gwb-data": "0.1.5",
-    "@godcreator/gwb-plugin-api": "0.1.2",
+    "@godcreator/gwb-plugin-api": "^0.2.7",
     "@godcreator/gwb-repo-kit": "0.3.0",
     "@godcreator/gwb-settings": "0.3.1",
     "@godcreator/gwb-shell": "^0.13.5",
