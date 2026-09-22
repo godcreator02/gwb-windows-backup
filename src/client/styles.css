@@ -16,7 +16,7 @@
  */
 
 @import 'tailwindcss/theme.css' theme(reference) prefix(windowsbackup);
-@import '@godcreator/gwb-tokens/theme.reference.css' theme(reference);
+@import '@godcreator/gwb-shell/theme.reference.css' theme(reference);
 @import 'tailwindcss/utilities.css' layer(utilities) source(none);
 @source "./";
 
