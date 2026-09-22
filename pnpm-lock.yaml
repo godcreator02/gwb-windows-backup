@@ -26,15 +26,9 @@ importers:
       '@godcreator/gwb-settings':
         specifier: 0.3.1
         version: 0.3.1(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)
-      '@godcreator/gwb-shared-react':
-        specifier: 0.1.1
-        version: 0.1.1
       '@godcreator/gwb-shell':
-        specifier: 0.13.2
-        version: 0.13.2(@godcreator/gwb-commands@0.4.5(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9)))(@godcreator/gwb-data@0.1.5(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9))(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(@godcreator/gwb-shared-react@0.1.1)(@godcreator/gwb-tokens@0.1.4)(cordis@4.0.0-rc.9)
-      '@godcreator/gwb-tokens':
-        specifier: 0.1.4
-        version: 0.1.4
+        specifier: ^0.13.5
+        version: 0.13.5(@godcreator/gwb-commands@0.4.5(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9)))(@godcreator/gwb-data@0.1.5(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9))(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)
       '@tailwindcss/cli':
         specifier: ^4.3.0
         version: 4.3.3
@@ -588,21 +582,13 @@ packages:
       '@godcreator/gwb-plugin-api': ^0.1.2
       cordis: ^4.0.0-rc.9
 
-  '@godcreator/gwb-shared-react@0.1.1':
-    resolution: {integrity: sha512-WSghqkEcSZ0kYd+EouW7FsGw0NhsuyU/XvqYgGjHFgmkg+lBCnH9TibEy/qID3md/zJxJA/ZUxYbkqCWr9/l1A==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-shared-react/-/0.1.1/gwb-shared-react-0.1.1.tgz}
-
-  '@godcreator/gwb-shell@0.13.2':
-    resolution: {integrity: sha512-jT5Nruy90JKzK2vVDcfp2tHYNvWwNcZ63MaP+4a78ZE4W8SZnsYtf8+b29/jp1AI0dv7aLXtONV1eBeV12EE4Q==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-shell/-/0.13.2/gwb-shell-0.13.2.tgz}
+  '@godcreator/gwb-shell@0.13.5':
+    resolution: {integrity: sha512-kPzqN3h51lU0BDuo7X4wgDVtjMxNB01PI4h48y4oDzO/MLT4Pv9v5n778sq6CzCmNW8YW8tLjwa27GVp4vkbXg==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-shell/-/0.13.5/gwb-shell-0.13.5.tgz}
     peerDependencies:
       '@godcreator/gwb-commands': ^0.4.5
       '@godcreator/gwb-data': ^0.1.5
-      '@godcreator/gwb-plugin-api': ^0.1.2
-      '@godcreator/gwb-shared-react': ^0.1.1
-      '@godcreator/gwb-tokens': ^0.1.4
+      '@godcreator/gwb-plugin-api': ^0.2.7
       cordis: ^4.0.0-rc.9
-
-  '@godcreator/gwb-tokens@0.1.4':
-    resolution: {integrity: sha512-H7IlSkUpqPtYirfwaCrlhsnyFZCSU45SFoyHQ7Zf5qGaFa0fRTpQXEsSEQT5Ib5tZCa/cxCYiKjD/EUYZt7BZA==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fgwb-tokens/-/0.1.4/gwb-tokens-0.1.4.tgz}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -3118,18 +3104,12 @@ snapshots:
       '@godcreator/gwb-plugin-api': 0.1.2(cordis@4.0.0-rc.9)
       cordis: 4.0.0-rc.9
 
-  '@godcreator/gwb-shared-react@0.1.1': {}
-
-  '@godcreator/gwb-shell@0.13.2(@godcreator/gwb-commands@0.4.5(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9)))(@godcreator/gwb-data@0.1.5(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9))(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(@godcreator/gwb-shared-react@0.1.1)(@godcreator/gwb-tokens@0.1.4)(cordis@4.0.0-rc.9)':
+  '@godcreator/gwb-shell@0.13.5(@godcreator/gwb-commands@0.4.5(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9)))(@godcreator/gwb-data@0.1.5(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9))(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)':
     dependencies:
       '@godcreator/gwb-commands': 0.4.5(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))
       '@godcreator/gwb-data': 0.1.5(@godcreator/gwb-plugin-api@0.1.2(cordis@4.0.0-rc.9))(cordis@4.0.0-rc.9)
       '@godcreator/gwb-plugin-api': 0.1.2(cordis@4.0.0-rc.9)
-      '@godcreator/gwb-shared-react': 0.1.1
-      '@godcreator/gwb-tokens': 0.1.4
       cordis: 4.0.0-rc.9
-
-  '@godcreator/gwb-tokens@0.1.4': {}
 
   '@img/colour@1.1.0':
     optional: true
