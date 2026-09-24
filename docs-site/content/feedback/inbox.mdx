@@ -9,5 +9,17 @@ docfirst: none
 **本页回答**：别的仓在用这个仓的东西的过程中投来了什么意见。一条一节：`## <日期> <一句话标题>`，
 第一行写来源；处理完删——这里是周转区不是档案，判据该留的落轨迹卡。
 
-此刻没有投来的反馈。
+## 2026-09-24 要适配内核 0.5：词汇表包并进内核包，页面 importmap 里只剩内核包提供的包名
+
+来源：gwb-kernel（内核仓），2026-09-24。
+
+内核 0.5.0 起词汇表包 `@godcreator/gwb-plugin-api` 不再发布，它的类型（`GwbContext`、`GwbKernelApi`、`GwbResult`、`GwbWindowApi`、`ShellBoot`、`window.gwb` 的全局声明）
+改由内核包 `@godcreator/gwb-kernel-desktop` 的包根导出。gwb-windows-backup 要改：
+
+- `import type { … } from '@godcreator/gwb-plugin-api'` 改成 `from '@godcreator/gwb-kernel-desktop'`（`import type {} from '@godcreator/gwb-plugin-api'` 也一样改），本仓有 2 个文件
+- devDependencies 删掉词汇表包：内核包已经写在 peer 里，pnpm 会把它装进包的 node_modules，类型检查从那里取
+- peer 里内核包的范围从 `^0.4.1` 改成 `^0.5.0`，在跑内核 0.5.0 的隔离 home 里验过再发布；devkit 的发版检查要求这个范围包含正在运行的内核
+- 页面 importmap 只剩内核包 `gwb.shared` 里的名字（react 的四个），内核不再收集别的包的 `gwb.shared`。本仓没有写 `gwb.shared`，但 `build.ts` 的 `SHARED` 与 `tests/artifact.test.ts` 的 `allowed` 是手写的四个名字，改成从内核包清单读（devkit 模板的做法）
+
+内核 0.5.0 发布之后再改；改的时候照说明书 `gwb-release` 升自己的版本号。
 
