@@ -28,11 +28,11 @@ description: 挂上 gwb 内核的那半——inject 等待语义、两根计时�
 `backup.runningSince` 就是那把锁记着的 `startedAt`——「这一轮跑了多久」是这面最常被问的
 一句，小时级的轮只凭一个 `running` 分不清是在干活还是卡死。
 
-{/* ref file="../src/index.ts" lines="237-254" */}
+{/* ref file="../src/index.ts" lines="236-255" */}
 
 ## 计时器：每响一次把「下次」往后推
 
-{/* ref file="../src/index.ts" lines="287-297" */}
+{/* ref file="../src/index.ts" lines="288-298" */}
 
 只在起计时器时算一次 `nextRunAt` 的话，跑完不推，状态里显示的就永远是一个已经过去的
 时刻。设置改了频率就停旧的重开（下一轮生效）；间隔没变只推下次时刻，不变着重开——重开
@@ -42,7 +42,7 @@ description: 挂上 gwb 内核的那半——inject 等待语义、两根计时�
 可能带查询串 import 本模块，`createRequire` 拿那种 URL 解析相对路径会炸，先剥 `?` 后面
 那段。
 
-{/* ref file="../src/index.ts" lines="179-194" */}
+{/* ref file="../src/index.ts" lines="180-195" */}
 
 ## 提供的接口
 
@@ -64,7 +64,7 @@ description: 挂上 gwb 内核的那半——inject 等待语义、两根计时�
 
 ## 局部注入：外壳缺席只是没有界面
 
-{/* ref file="../src/index.ts" lines="590-607" */}
+{/* ref file="../src/index.ts" lines="624-641" */}
 
 `ctx.inject(['gwbShell'], ...)` 走局部注入：headless home（没装外壳）里备份照跑，缺的只是
 看得见的那层界面。列进顶层 inject 却缺席的话，整个插件连同备份本体一起静默 pending——那才是
