@@ -35,13 +35,15 @@ type Registered = {
   commands: Map<string, (args?: unknown) => unknown>
   /** 命令名 → 登记的 plugin 字段——commands 0.4 起认完整包名，写运行时名要被 warn */
   commandPlugins: Map<string, string>
+  /** 命令名 → 登记时给的 description 与 usage */
+  commandTexts: Map<string, { description: string; usage: string }>
   pane?: { id: string }
   cell?: { id: string }
 }
 
 /**
  * 假宿主：effect 只登记 disposer；局部注入按「服务在场才回调」；设置 / 命令 / 外壳
- * 全是内存表。`services` 里放局部注入可用的那几个（缺谁谁那路不跑）。
+ * 全是内存表。`services` 里放局部注入可用的那几个服务（缺哪个，依赖它的那部分就不运行）。
  */
 function fakeHost(services: { gwbShell?: unknown } = {}) {
   const registered: Registered = {
@@ -49,6 +51,7 @@ function fakeHost(services: { gwbShell?: unknown } = {}) {
     settingsValues: new Map(),
     commands: new Map(),
     commandPlugins: new Map(),
+    commandTexts: new Map(),
   }
   const disposers: Array<() => void> = []
   const logs: string[] = []
@@ -62,7 +65,7 @@ function fakeHost(services: { gwbShell?: unknown } = {}) {
         callback({ ...base, ...(services as Record<string, unknown>) })
       }
     },
-    // 官方 timer 件那两个的假身：真件是 fiber 感知的，测试里 vi 的假钟拦得住这对裸定时器
+    // 官方 timer 插件两个方法的替身：真插件感知 fiber，测试里 vi 的假时钟能接管这两个原生定时器
     interval(callback: () => void, ms: number): () => void {
       const id = setInterval(callback, ms)
       return () => clearInterval(id)
@@ -76,9 +79,10 @@ function fakeHost(services: { gwbShell?: unknown } = {}) {
       warn: (...args: unknown[]) => logs.push(String(args[0])),
     },
     gwbCommands: {
-      register(def: { name: string; plugin: string }, handler: (args?: unknown) => unknown) {
+      register(def: { name: string; description: string; usage: string; plugin: string }, handler: (args?: unknown) => unknown) {
         registered.commands.set(def.name, handler)
         registered.commandPlugins.set(def.name, def.plugin)
+        registered.commandTexts.set(def.name, { description: def.description, usage: def.usage })
         return () => registered.commands.delete(def.name)
       },
     },
@@ -102,7 +106,7 @@ function fakeHost(services: { gwbShell?: unknown } = {}) {
   return { ctx, registered, disposers, logs, dataDir }
 }
 
-/** 标配 deps：健康全绿、备份全成、restic 直通回空。 */
+/** 默认 deps：健康全绿、备份全成功、restic 直接回空结果。 */
 function fakeDeps(over: Partial<MountDeps> = {}): MountDeps {
   return {
     runHealth: async () => greenReport,
@@ -141,6 +145,18 @@ describe('命令面', () => {
       ['windows-backup.check', 'windows-backup.mark', 'windows-backup.paths', 'windows-backup.restic', 'windows-backup.run', 'windows-backup.status'].sort(),
     )
     for (const [cmd, pkg] of host.registered.commandPlugins) expect(pkg, cmd).toBe('@godcreator/gwb-windows-backup')
+  })
+
+  it('每条命令的 description 与 usage 都是非空字符串（命令总线拒绝登记缺任何一项的命令）', () => {
+    const host = fakeHost()
+    mount(host.ctx, fakeDeps())
+    expect(host.registered.commandTexts.size).toBe(6)
+    for (const [cmd, { description, usage }] of host.registered.commandTexts) {
+      expect(typeof description, cmd).toBe('string')
+      expect(description.trim(), cmd).not.toBe('')
+      expect(typeof usage, cmd).toBe('string')
+      expect(usage.trim(), cmd).not.toBe('')
+    }
   })
 
   it('status 的形状：三指纹、backup 节、report 默认 null（= 没结论不是健康）', async () => {
@@ -198,7 +214,7 @@ describe('命令面', () => {
     const host = fakeHost()
     configure(host)
     const paths = layout(host.dataDir)
-    // state 里躺着上一轮的成功——本轮炸了，回执不许把它当本轮结论
+    // state 里留着上一轮的成功——本轮抛错了，回执不许把它当本轮结论
     writeState(paths.stateFile, { lastRunAt: '2026-09-01T10:00:00', lastRunOk: true, lastRunSummary: '上轮成功' })
     mount(
       host.ctx,
@@ -273,7 +289,7 @@ describe('命令面', () => {
     const handler = host.registered.commands.get('windows-backup.restic')
     const local = (await handler?.({ repo: 'local', args: ['snapshots'] })) as { ok: boolean; data: { stdout: string } }
     expect(local.ok).toBe(true)
-    // runRestic 注的前四格是 --repo/--password-file
+    // runRestic 补上的前四个参数是 --repo/--password-file
     expect(seen[0]?.args.slice(0, 2)).toEqual(['--repo', 'D:/Backup/test-repo'])
     expect(seen[0]?.args.slice(4)).toEqual(['snapshots'])
 
@@ -363,7 +379,7 @@ describe('定时器与补跑', () => {
     configure(host)
     mount(host.ctx, fakeDeps()) // 起来时按默认 30 分钟转
     host.registered.settingsValues.set('frequency-minutes', 15)
-    // 手动跑一轮 → 现读配置顺手对表，发现 30 → 15，重开
+    // 手动跑一轮 → 用现读的配置核对定时器，发现 30 → 15，重建
     await host.registered.commands.get('windows-backup.run')?.()
     const status = (await host.registered.commands.get('windows-backup.status')?.()) as { data: { backup: { frequencyMinutes: number | null } } }
     expect(status.data.backup.frequencyMinutes).toBe(15)
@@ -400,7 +416,7 @@ describe('界面占位（局部注入）', () => {
   })
 })
 
-/** 配置面的完整性哨兵：17 键谁也不许顺手删 */
+/** 配置完整性检查：17 个键一个都不许删 */
 describe('配置面', () => {
   it('DEFAULT_FLAT 的 17 键齐全', () => {
     expect(Object.keys(DEFAULT_FLAT).length).toBe(17)
