@@ -23,3 +23,15 @@ docfirst: none
 
 内核 0.5.0 发布之后再改；改的时候照说明书 `gwb-release` 升自己的版本号。
 
+
+## 2026-09-25 内核直接跟 0.6：跳过 0.5，外置名单写死 react 的四个名字
+
+来源：gwb-kernel（内核仓），2026-09-25，9061518。
+
+上一条「要适配内核 0.5」照做，但版本改成跟 0.6：内核 0.6.0 把页面的 importmap 写死在页面入口里，只有 `react`、`react/jsx-runtime`、
+`react-dom`、`react-dom/client` 四个包名；内核包清单的 `gwb.shared` 字段和 `./react*` 出口都删了。所以：
+
+- peer 里的内核包写 `^0.6.0`（不是 `^0.5.0`），在跑内核 0.6.0 的隔离 home 里验过再发
+- 浏览器端构建（`build.ts` 或 `tools/build-plugin.ts`）里从内核包清单读 `gwb.shared` 的那段删掉，`external` 直接写上面四个名字；
+  产物测试里读 `gwb.shared` 的名单一样写死。没有浏览器端产物的包只改 peer
+- 等 devkit 发了认 0.6 的新版再发：devkit 现在的发版检查还读内核包的 `gwb.shared`，装上 0.6 会被拒（已投 devkit 收件页）
