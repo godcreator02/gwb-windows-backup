@@ -4,7 +4,7 @@
   "author": {
     "name": "godcreator"
   },
-  "description": "Windows 备份件：restic 快照 + Veeam 整机镜像 + 阿里云 OSS 异地库三栈；配置与状态落盘，headless home 里照跑（shell 与 shared-react 走可选 peer）。服务无；skill 0 份；命令 6 条。",
+  "description": "Windows 备份插件：定时把白名单目录做成 restic 快照、同步到阿里云 OSS 异地库并周期自检，没装外壳的 home 里照样备份，装了外壳多一个备份窗格。",
   "type": "module",
   "exports": {
     ".": {
@@ -30,7 +30,7 @@
     "url": "https://git.tianshen02.online:28377/godcreator/gwb-windows-backup.git"
   },
   "scripts": {
-    "//build": "三步：node 半 tsc、浏览器半 esbuild（react 外置走 importmap）、样式 tailwindcss 前缀直出",
+    "//build": "三步：node 侧 tsc、浏览器侧 esbuild（react 不打包，由页面的 importmap 提供）、样式 tailwindcss 按类名前缀输出",
     "build": "tsc -p tsconfig.build.json && node build.ts && tailwindcss -i src/client/styles.css -o dist/style.css",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/client/tsconfig.json",
     "lint": "oxlint . --deny-warnings",
@@ -43,36 +43,24 @@
   "engines": {
     "node": ">=24"
   },
-  "//peer": "硬 peer 五条：commands（写面全在总线上）、settings（配置 SSOT）、data（状态与凭据落盘）是备份的命根，缺哪个这个件都没有意义；plugin-api 的类型出现在 dist/index.d.ts 的导出面；tokens 供样式映射面（theme.reference.css，构建期吃）。定时器走官方 @cordisjs/plugin-timer（内核 AGENTS 认定的开件），由 home 的 yml 条目提供——跟 cordis 一样是宿主环境给的，只进 dev 不进 peer。shell / shared-react 是浏览器半的前提，走可选 peer——headless home（没外壳）里备份照跑，缺了只是没有界面",
+  "//peerDependencies": "peer 里的内核包声明这个插件兼容哪些内核，范围写 ^<验证时那个内核的版本号>。node 侧构建产物只 import type，没有按值 import cordis，所以 peer 里没有 cordis",
   "peerDependencies": {
-    "@godcreator/gwb-plugin-api": "^0.2.7",
-    "@godcreator/gwb-commands": "^0.4.5",
-    "@godcreator/gwb-settings": "^0.3.1",
-    "@godcreator/gwb-data": "^0.1.5",
-    "@godcreator/gwb-shell": "^0.13.5"
+    "@godcreator/gwb-kernel-desktop": "^0.4.1"
   },
-  "peerDependenciesMeta": {
-    "@godcreator/gwb-shell": {
-      "optional": true
-    },
-    "@godcreator/gwb-shared-react": {
-      "optional": true
-    }
-  },
+  "//devDependencies": "命令总线、设置、数据、外壳与官方定时器插件 @cordisjs/plugin-timer 都只取类型，运行时经 inject 使用，由 home 里装的插件提供；外壳的 theme.reference.css 是样式构建的输入；react 由页面的 importmap 提供（内核包的 gwb.shared），构建时不打包；cordis 只给本地构建与类型检查",
   "devDependencies": {
     "@cordisjs/plugin-timer": "1.1.3",
-    "@godcreator/gwb-commands": "0.4.5",
-    "@godcreator/gwb-data": "0.1.5",
-    "@godcreator/gwb-plugin-api": "^0.2.7",
-    "@godcreator/gwb-repo-kit": "0.3.0",
-    "@godcreator/gwb-settings": "0.3.1",
-    "@godcreator/gwb-shell": "^0.13.5",
+    "@godcreator/gwb-commands": "^0.4.5",
+    "@godcreator/gwb-data": "^0.1.5",
+    "@godcreator/gwb-plugin-api": "^0.4.1",
+    "@godcreator/gwb-settings": "^0.3.1",
+    "@godcreator/gwb-shell": "^0.13.7",
     "@tailwindcss/cli": "^4.3.0",
     "@tailwindcss/node": "^4.3.0",
     "@types/node": "^24.0.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
-    "cordis": "4.0.0-rc.9",
+    "cordis": "4.0.0-rc.10",
     "esbuild": "^0.27.0",
     "oxlint": "1.76.0",
     "oxlint-tsgolint": "7.0.2001",

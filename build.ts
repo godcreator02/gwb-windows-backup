@@ -3,13 +3,13 @@ import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 
 /**
- * 浏览器半打包。react 系**外置**——它们由页面 importmap 解析到共享包，件之间拿同一份实例；
- * 其余依赖一律**打进本束**：本件的 client 半只依赖 react 系，没有别的裸名。
+ * 浏览器侧打包。react 的四个包名**不打包**——页面的 importmap 把它们解析到同一份 react，各插件共用一个实例；
+ * 其余依赖一律**打进 client.js**：本插件的浏览器侧只用到 react，没有别的包名 import。
  */
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
-/** 这四个名字由 gwb-shared-react 提供，跟它 package.json 里的 gwb.shared 一一对应 */
+/** 这四个名字由内核包 `@godcreator/gwb-kernel-desktop` 提供，跟它 package.json 里的 gwb.shared 一一对应 */
 const SHARED = ['react', 'react/jsx-runtime', 'react-dom', 'react-dom/client']
 
 await build({

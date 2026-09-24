@@ -1,0 +1,33 @@
+---
+born-at: 2026-09-24T18:30
+type: choice
+parent: [2026-09-08-backup-line]
+label: 跟内核 0.4
+domain: 依赖
+---
+
+## 背景
+
+内核 0.4 起内核包 `@godcreator/gwb-kernel-desktop` 装在每个 home 的根上，并由它给页面的 importmap 提供
+react；devkit 的「依赖怎么写」随之定成：peer 只写 home 根上的两个包（按值 import 的 `cordis` 与内核包），
+别的插件、词汇表包一律写 dev。本插件 0.2.5 上一次调 `devkit.release` 被拒了 8 条，都出在旧写法上：peer 里写着
+命令总线、设置、数据、词汇表包与外壳，外壳与 `gwb-shared-react` 还标成可选 peer；dev 里命令总线、数据、设置
+写的是精确号，源上 latest 已经出了范围；词汇表包 0.2.7 的类型声明用了 `HTMLElement`，node 侧 tsconfig
+不带 DOM，关掉 `skipLibCheck` 过不了。
+
+## 结论与边界
+
+**采纳**：peer 只留 `"@godcreator/gwb-kernel-desktop": "^0.4.1"`。node 侧产物只 import type，没有按值
+import `cordis`，所以 peer 里不写 `cordis`。命令总线、设置、数据、外壳、`@cordisjs/plugin-timer` 全写 dev
+（`^` 范围），词汇表包抬到 `^0.4.1`，外壳抬到 `^0.13.7`，dev 的 `cordis` 跟到 4.0.0-rc.10。
+代码不用改：换到词汇表包 0.4.1 后，node 与浏览器两份 tsconfig 在 `skipLibCheck: false` 下都通过。
+
+「没装外壳也照常备份」原来靠可选 peer 在清单上表达，现在清单上不再表达，只靠源码里外壳走局部注入——
+这本来就是真正起作用的那一层，清单上的可选 peer 从来拦不住也放不行任何东西。
+
+退役的 `@godcreator/gwb-repo-kit` 自述检查（`tests/self-report.test.ts`）连同依赖删掉，`description` 不再写
+「服务 / skill / 命令」三项计数，改成一句话。产物测试允许的包名 import 从词汇表包改成 node 内置模块、
+`electron` 与 `cordis`，跟 `devkit.release` 的检查同一口径。
+
+**边界**：命令总线、设置、数据几个包源上的版本仍在 peer 里要词汇表包 `^0.2.7`，装依赖时 pnpm 报
+unmet peer 警告；那是上游清单的事，不影响本插件的类型检查与运行。

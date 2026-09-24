@@ -4,10 +4,10 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 /**
- * 产物守卫：装进 home 的是 dist 那份，源码这边看着对不算数。这个插件有**两半**：node 半
- * 走 tsc（index.js 一族），浏览器半走 esbuild（client.js），样式走 tailwindcss（style.css）。
- * 三样规矩分别钉：相对 import 带 .js、裸名只有词汇表包、样式围栏是类名前缀本身且不烤
- * 字面量 fallback。缺产物时整组跳过——门禁不依赖 build，发布前的 build 才真跑这组。
+ * 产物检查：装进 home 的是 dist 那份，源码这边看着对不算数。这个插件的产物分三部分：node 侧
+ * 由 tsc 输出（index.js 一族），浏览器侧由 esbuild 打包（client.js），样式由 tailwindcss 输出（style.css）。
+ * 分别检查三条规矩：相对 import 带 .js、包名 import 只有 node 内置模块、`electron` 与 `cordis`，样式的类名
+ * 一律带本插件前缀且 var() 不带字面量 fallback。缺产物时整组跳过——`pnpm check` 不构建，发版前构建之后才真跑这组。
  */
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -20,8 +20,11 @@ const built =
 if (!built) console.warn('[gwb-windows-backup] dist/ 还没造出来，产物组跳过（pnpm build 之后再跑）')
 
 const CLIENT = 'client.js'
-/** node 半运行时真 import 的。其余件都是 import type，整句擦除，不该出现 */
-const ALLOWED_BARE = new Set(['@godcreator/gwb-plugin-api'])
+/**
+ * node 侧产物里允许出现的包名 import（除 `node:` 开头的内置模块外）：home 根上与运行环境里有的只有这两个。
+ * 别的插件与词汇表包都只 import type，编译后整句消失
+ */
+const ALLOWED_BARE = new Set(['electron', 'cordis'])
 /** 正则锚行首：字符串字面量里的 import 总带着缩进，顶格的才是真的顶层 import */
 const RELATIVE = /^import\s+(?:[^'"]*from\s*)?['"](\.[^'"]*)['"]/gm
 const BARE = /^import\s+(?:[^'"]*from\s*)?['"]([^'".][^'"]*)['"]/gm
@@ -39,10 +42,10 @@ const COMMAND_NAMES = [
 const CSS_COMMENT = /\/\*[\s\S]*?\*\//g
 /**
  * 一条规则的选择器：`{` 之前那段。**只在这一段里找类**——全文搜 `.xxx` 会把声明值里的
- * 小数（`0.25rem` 的 `.25rem`）也捞成类选择器
+ * 小数（`0.25rem` 的 `.25rem`）也当成类选择器
  */
 const PRELUDE = /(?:^|[{};])([^{};]*)\{/g
-/** 一个类选择器。转义序列（`.windowsbackup\:flex` 里那个 `\:`）整体吃掉 */
+/** 一个类选择器。转义序列（`.windowsbackup\:flex` 里那个 `\:`）算作类名的一部分 */
 const CLASS_SELECTOR = /\.(?:\\.|[A-Za-z0-9_-])+/g
 /** 唯一放行的非前缀类：`.dark` 是页面级亮暗标志，只以祖先身份出现 */
 const DARK_FLAG = new Set(['.dark'])
@@ -57,7 +60,7 @@ function classSelectors(css: string): string[] {
   return [...found]
 }
 
-/** 把 @property 与 @supports 的整块换成空白：机制块不进字面量判 */
+/** 把 @property 与 @supports 的整块换成空白：这两类块是 tailwind 自己生成的，不参与字面量 fallback 检查 */
 function blankMechanism(css: string): string {
   const chars = css.split('')
   for (const name of ['@property', '@supports']) {
@@ -80,7 +83,7 @@ function blankMechanism(css: string): string {
   return chars.join('')
 }
 
-/** 每个 var() 调用的完整文本（括号配平吃到闭合，嵌套的各自也算一条） */
+/** 每个 var() 调用的完整文本（按括号配对找到闭合括号，嵌套的各自也算一条） */
 function varCalls(css: string): string[] {
   const out: string[] = []
   let i = css.indexOf('var(')
@@ -115,15 +118,15 @@ function fallbackOf(call: string): string | undefined {
 }
 
 /**
- * **字面量 fallback 守卫**：被本件用到的出厂主题键全部由令牌映射面接管到页面变量，
- * `var(--x, 0.25rem)` 这类烤死在件里的 fallback 必然消失。这条钉住反转：var() 的 fallback
- * 若是字面量即红——症状是升了令牌没重编、或谁手写了兜底值，两种都不报错，但页面上
- * 令牌改了样式不动。放行：var() 引用、currentcolor、空。
+ * **字面量 fallback 检查**：本插件用到的 tailwind 出厂主题键，全部经外壳的 theme.reference.css
+ * 换成页面上的主题令牌变量，`var(--x, 0.25rem)` 这类写死在本插件样式里的 fallback 应当一个都没有。
+ * var() 的 fallback 是字面量就红——原因是升了主题令牌没重新构建、或有人手写了默认值，两种都不报错，
+ * 但页面上主题令牌改了样式不动。放行：var() 引用、currentcolor、空。
  *
- * 唯一的例外：emerald 一族（成功色）。令牌包没有 `--success` 这个语义色（只有
- * destructive / warning），状态灯的绿是语义信息不能丢；前缀模式下裸色板编译成件私有的
- * 命名空间变量 + 出厂值 fallback，恒定不随主题。记成已知缺口——令牌包出成功色那天，
- * 类名换语义键、这份放行删掉。
+ * 唯一的例外：emerald 一族（成功色）。主题令牌里没有 `--success` 这个语义色（只有
+ * destructive / warning），状态灯的绿是语义信息不能丢；带前缀时 tailwind 出厂调色板编译成本插件私有的
+ * 变量加出厂值 fallback，不随主题变。这是已知缺口——主题令牌有了成功色那天，
+ * 类名换成语义色、删掉这条放行。
  */
 const BAKED_EMERALD = /^var\(--windowsbackup-color-emerald-\d+,/
 
@@ -141,14 +144,14 @@ function literalFallbacks(css: string): string[] {
   return bad
 }
 
-describe.skipIf(!built)('产物：node 半', () => {
+describe.skipIf(!built)('产物：node 侧', () => {
   const all = fs.readdirSync(distDir).filter((f) => f.endsWith('.js'))
-  const nodeHalf = all.filter((f) => f !== CLIENT)
+  const nodeSideFiles = all.filter((f) => f !== CLIENT)
   const indexText = fs.readFileSync(path.join(distDir, 'index.js'), 'utf8')
 
-  it('两半都在——node 半至少有 index.js，浏览器半有 client.js，外加 style.css', () => {
-    // node 半＝所有 .js 减掉 client.js；拆出 store.js 等新文件也照收
-    expect(nodeHalf).toContain('index.js')
+  it('两侧产物都在——node 侧至少有 index.js，浏览器侧有 client.js，外加 style.css', () => {
+    // node 侧＝所有 .js 减掉 client.js；以后拆出新文件也算在内
+    expect(nodeSideFiles).toContain('index.js')
     expect(all).toContain(CLIENT)
     expect(fs.existsSync(path.join(distDir, 'style.css'))).toBe(true)
   })
@@ -157,9 +160,9 @@ describe.skipIf(!built)('产物：node 半', () => {
     for (const command of COMMAND_NAMES) expect(indexText).toContain(`'${command}'`)
   })
 
-  it('裸名 import 只许 node:* 与词汇表包（真运行时取值 isRecord，它是硬 peer）', () => {
+  it('包名 import 只许 node 内置模块、electron 与 cordis', () => {
     const bare = new Set<string>()
-    for (const file of nodeHalf) {
+    for (const file of nodeSideFiles) {
       const text = fs.readFileSync(path.join(distDir, file), 'utf8')
       for (const m of text.matchAll(BARE)) {
         const spec = m[1]!
@@ -171,7 +174,7 @@ describe.skipIf(!built)('产物：node 半', () => {
 
   it('相对 import 一律带 .js——产物给 node 直接加载，ESM 不做补全', () => {
     const bad: string[] = []
-    for (const file of nodeHalf) {
+    for (const file of nodeSideFiles) {
       const text = fs.readFileSync(path.join(distDir, file), 'utf8')
       for (const m of text.matchAll(RELATIVE)) {
         if (!m[1]!.endsWith('.js')) bad.push(`${file}: ${m[1]!}`)
@@ -180,17 +183,17 @@ describe.skipIf(!built)('产物：node 半', () => {
     expect(bad).toEqual([])
   })
 
-  it('插件名与注入清单在（挂载等待语义的锚）', () => {
+  it('插件名与注入清单在（cordis 按注入清单决定插件等不等待）', () => {
     expect(indexText).toContain("export const name = 'gwb-windows-backup'")
     expect(indexText).toContain("'gwbCommands'")
     expect(indexText).toContain("'gwbData'")
   })
 })
 
-describe.skipIf(!built)('产物：client 半', () => {
+describe.skipIf(!built)('产物：浏览器侧', () => {
   const text = fs.readFileSync(path.join(distDir, CLIENT), 'utf8')
 
-  it('裸名 import 只许四个共享 react 名（用不到的不必出现，判子集）', () => {
+  it('包名 import 只许内核包 importmap 里 react 的四个名字（用不到的不必出现，判子集）', () => {
     const specs = [...text.matchAll(/from\s*['"]([^'"]+)['"]/g)].map((m) => m[1] ?? '')
     const bare = specs.filter((spec) => !spec.startsWith('.'))
     const allowed = ['react', 'react/jsx-runtime', 'react-dom', 'react-dom/client']
@@ -210,18 +213,18 @@ describe.skipIf(!built)('产物：client 半', () => {
 describe.skipIf(!built)('产物：样式', () => {
   const css = fs.readFileSync(path.join(distDir, 'style.css'), 'utf8')
 
-  it('类选择器一律 .windowsbackup\\: 开头——围栏就是前缀本身', () => {
+  it('类选择器一律 .windowsbackup\\: 开头——靠前缀和别的插件的样式隔开', () => {
     const bad = classSelectors(css)
       .filter((s) => !s.startsWith('.windowsbackup\\:') && !DARK_FLAG.has(s))
       .sort()
     expect(bad).toEqual([])
   })
 
-  it('没有 data-gwb-plugin——围栏换成前缀之后不依赖任何祖先关系', () => {
+  it('没有 data-gwb-plugin——样式隔离只靠类名前缀，不依赖任何祖先元素', () => {
     expect(css).not.toContain('data-gwb-plugin')
   })
 
-  it('var() fallback 不藏字面量——主题值整页一份，由令牌表供', () => {
+  it('var() fallback 不带字面量——主题值整页一份，由主题令牌提供', () => {
     expect(literalFallbacks(css).sort()).toEqual([])
   })
 })
