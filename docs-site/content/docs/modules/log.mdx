@@ -19,7 +19,7 @@ description: 那几串英文是契约不是文案——写日志的一头和读�
 将来手册的验收步骤）必须认同一串字；让两头各自写字面量，迟早改了一头忘了另一头，症状是
 「健康检查报一切正常，其实备份三个月前就断了」。
 
-{/* ref file="../plugins/windows-backup/src/messages.ts" lines="12-17" hash="e4ea3ffac4fa" blob="d4356a23764d" */}
+{/* ref file="../plugins/windows-backup/src/messages.ts" lines="3-8" hash="70dedc1fe661" blob="dd618ded29f8" */}
 
 英文不是随手写的：这几串字是**既有契约**——用户的存量日志里躺着的就是它们，翻成中文
 等于把存量日志作废。改一个词，健康检查就会把「备份早就断了」读成
@@ -31,7 +31,7 @@ description: 那几串英文是契约不是文案——写日志的一头和读�
 `error` 单拎出来收窄两道——整词匹配、先扣掉 `0 errors` 计数行。判据还是那句：**误报比
 漏报更伤**。
 
-{/* ref file="../plugins/windows-backup/src/messages.ts" lines="82-87" hash="5951460e94a9" blob="d4356a23764d" */}
+{/* ref file="../plugins/windows-backup/src/messages.ts" lines="53-58" hash="37ec501f659e" blob="dd618ded29f8" */}
 
 **有一行刻意不算契约**：父快照失效要重跑时补的那句（`parentDroppedLine`），措辞里避开了
 上面四个词——它不是失败，是自我修复的第一步，落成失败关键词会让第②项把一次正常的重试
@@ -47,7 +47,7 @@ toast 与窗格是两条互补的观察面。
 转义是唯一的技术难点，两层嵌着：XML 文本进的是 PowerShell 单引号字面串，所以 `'` 与 `"`
 都得转成 XML 实体——stdlib 那种「只管 `& < >`」的转义在这儿不够。
 
-{/* ref file="../plugins/windows-backup/src/toast.ts" lines="4-9" hash="e5b274f72764" blob="3cf2e85cbdc5" */}
+{/* ref file="../plugins/windows-backup/src/toast.ts" lines="10-21" hash="a65cb9ece723" blob="376e07f1e708" */}
 
 弹失败只记一行 `Notification failed: ...`、不抛——通知弹不出来不该把已经跑完的备份判成失败。
 

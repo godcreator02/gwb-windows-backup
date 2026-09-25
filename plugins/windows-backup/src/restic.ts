@@ -1,11 +1,3 @@
-/**
- * restic 封装：补 `--repo` / `--password-file`、拼 OSS 仓库 URL、拼 retention 参数。
- *
- * `ossRepoUrl` 与 `pruneArgs` 是 SSOT：透传命令、全流程备份、健康检查都从这两个函数取，
- * 改 retention 字段只改一处。这两串参数跟 restic 的实际接受度绑定，另拼一份就可能再遇到
- * 一次已经解决过的参数问题——参数表与旧实现一字不差。
- */
-
 import type { OssSection, RetentionSection } from './config.js'
 import { DEFAULT_TIMEOUT_MS, runProcess } from './process.js'
 import type { RunProcess, RunResult } from './process.js'
@@ -13,7 +5,7 @@ import type { RunProcess, RunResult } from './process.js'
 export type ResticOptions = {
   /** restic 的 `--password-file` 指向哪；内容不读，只传路径。 */
   passwordFile: string
-  /** 子进程完整 env（含 GOMAXPROCS 与 OSS 两键）。 */
+  /** 子进程完整 env（含 GOMAXPROCS 与 OSS 那几键）。 */
   env?: NodeJS.ProcessEnv | undefined
   input?: string | undefined
   timeoutMs?: number | undefined
@@ -31,17 +23,12 @@ export function runRestic(exe: string, repo: string, args: string[], options: Re
   })
 }
 
-/** SSOT：OSS 仓库 URL 拼法，透传命令与 OSS 推送共用。 */
+/** OSS 仓库 URL 的唯一拼法，透传命令与 OSS 推送共用。 */
 export function ossRepoUrl(oss: Pick<OssSection, 'endpoint' | 'bucket' | 'repoPath'>): string {
   return `s3:${oss.endpoint}/${oss.bucket}/${oss.repoPath}`
 }
 
-/**
- * SSOT：forget+prune 的参数清单，本地 / OSS prune 共用。
- *
- * `--group-by host`：restic 默认按 `host,paths` 分组，白名单每改一次就多一组，每组各自留满
- * 保留窗口、永远删不掉（2026-09-25 实测：1052 个快照按默认分组只删 36 个）。
- */
+/** forget+prune 参数的唯一拼法，本地 / OSS prune 共用。 */
 export function pruneArgs(retention: RetentionSection): string[] {
   return [
     'forget',
@@ -59,12 +46,7 @@ export function pruneArgs(retention: RetentionSection): string[] {
   ]
 }
 
-/**
- * restic 跑起来时的 env：**父进程 env 打底，只叠 GOMAXPROCS 与 OSS 那几键**。
- *
- * 造的是一份给这一次子进程用的副本——父进程的 env 从头到尾没碰过，本进程后续启动的
- * 任何子进程都不会带着 OSS 密钥。
- */
+/** 这一次 restic 子进程的 env：父进程 env 的副本上叠 GOMAXPROCS 与 OSS 那几键，父进程的 env 不改。 */
 export function resticEnv(
   gomaxprocs: number,
   ossEnv: Record<string, string> = {},

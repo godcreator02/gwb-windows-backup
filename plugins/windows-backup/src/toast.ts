@@ -1,14 +1,3 @@
-/**
- * Windows toast 通知——走 PowerShell 5.1 + WinRT。
- *
- * 成功 / 失败都通知，**不做「宿主在就不 toast」的判断**：无人值守的机器上 toast 与
- * 窗格是两条互补的观察面，谁也不替代谁。
- *
- * 转义是这里唯一的技术难点，两层嵌着：XML 文本进的是 `$xml.LoadXml('...')` 的
- * PowerShell 单引号字面串。所以 `'` 会截断 PowerShell 的串、`"` 会破 XML 属性边界，两个都
- * 必须转成实体——stdlib 那种「只管 `& < >`」的转义在这儿是不够的。
- */
-
 import { notificationFailedLine } from './messages.js'
 import type { Logger } from './log.js'
 import { nullLogger } from './log.js'
@@ -18,7 +7,10 @@ import type { RunProcess } from './process.js'
 /** Windows PowerShell 的 AUMID——借它的身份弹通知，省了自己注册一个应用标识。 */
 export const POWERSHELL_AUMID = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe'
 
-/** XML 转义：`&` 必须第一个换，否则后面换出来的 `&lt;` 会被二次处理。 */
+/**
+ * XML 转义，连 `'` 与 `"` 一起转：转出来的 XML 要放进 PowerShell 的单引号字面串，`'` 会截断那个串。
+ * `&` 必须第一个换，否则后面换出来的 `&lt;` 会被二次处理。
+ */
 export function escapeXml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -62,7 +54,7 @@ export type ToastOptions = {
 }
 
 /**
- * 弹一条 toast。**失败只记一行日志、不抛**——通知弹不出来不该把已经跑完的备份判成失败。
+ * 弹一条 toast。失败只记一行日志、不抛——通知弹不出来不影响已经跑完的备份结论。
  * 用的是 `powershell`（Windows PowerShell 5.1，任何 Windows 都有），不是 `pwsh`。
  */
 export async function sendToast(title: string, body: string, options: ToastOptions = {}): Promise<boolean> {
