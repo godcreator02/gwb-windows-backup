@@ -53,3 +53,24 @@ docfirst: none
 - `@godcreator/gwb-windows-backup`：dev 里的命令总线、数据 `@godcreator/gwb-data`、设置 `@godcreator/gwb-settings`、外壳挪进 peer；命令总线 dev 里写的是 `^0.4.5`，挪进 peer 时改到 `^0.5.0`（源上 latest 是 0.5.0）
 
 随适配内核 0.6 那一轮一起改、一起发，版本号照说明书 `gwb-release` 升。规矩正本是 devkit 文档站的规则页「用到的插件写 peer」与说明书 `gwb-release`（`run skill.read {"name":"gwb-release"}`）。
+
+## 2026-09-25 要跟内核 0.7：peer 里内核包改成 ^0.7.0
+
+来源：gwb-kernel（内核仓 `D:\unitfolders\igldu-gwbkernel\gwb-kernel`），提交 `6ab4ed8`，2026-09-25；总控台会话代投。
+
+内核包 `@godcreator/gwb-kernel-desktop` 马上从 0.6.2 发 0.7.0，这是破坏性版本：内核服务删掉了 `gwbKernel.launcherVersion`，home 里的 `runtime.json` 删掉了 `appDir`（内核仓轨迹卡 `2026-09-25-drop-launcher-version`）。此前 0.6.1、0.6.2 还给页面加了导航锁（内核仓 `docs-site/content/docs/seams/ipc.mdx` 的「页面保证」）：
+
+- 页面的主框架只能是内核的 `index.html`：不带 `target` 的链接点击、拖进窗口的链接一律拒绝，页面上没有任何反应
+- `window.open(url)` 与 `target="_blank"` 的链接不再开新窗口：`http:`、`https:` 地址交给系统默认浏览器打开，别的协议（`file:`、`javascript:`、`data:`、自定义协议）拒绝
+- 页面经 `window.gwb.command` 调命令，只接收顶层框架发来的；iframe 里调用拿到的是 `ok: false` 的回执
+
+本仓的情况：
+
+- `@godcreator/gwb-windows-backup`（`package.json` 第 48 行）：peer 里内核包写的是 `^0.4.1`，不包含 0.7.0（也不包含现在的 0.6）
+- `launcherVersion`、`appDir`、`window.open`、`target="_blank"`：都没有用到；备份窗格里没有链接
+
+要做的：
+
+1. 内核 0.7.0 发布后，在装了 0.7.0 的隔离 home 里验一遍，再把 peer 里内核包的范围改成 `^0.7.0`，版本号照说明书 `gwb-release` 升，然后发版。上面「内核直接跟 0.6」那条还没做的，peer 直接写 `^0.7.0`，不用先改到 0.6；那条里别的改动照做
+2. 不改的后果：`plugin-manager.list` 会把插件标成 `kernelUntested`；`devkit.release` 发版前检查要求 peer 里内核包的范围包含运行中的内核，不改就拒发。运行时照常
+3. 以后窗格里要打开外部网页（比如 OSS 控制台），写 `target="_blank"` 或调用 `window.open(url)`，内核交给系统浏览器；不带 `target` 的链接点了没有反应
