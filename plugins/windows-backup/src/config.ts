@@ -1,28 +1,12 @@
-/**
- * 配置——设置项那张平铺表，加一条通往程序内运行形状的桥。
- *
- * - **平铺形状 `FlatConfig`**：15 个键，键名与语义照老仓 god-windows-backup 一字不差
- *   （camelCase）。`sources` 在这一头是**分号分隔的一个串**（`D:/Notes;D:/Projects`），
- *   单值文本框装数组最自然的写法。这一头的键**不等于** gwb-settings 里的键——设置件
- *   只收 kebab-case，宿主层 `src/index.ts` 里有一张对照表负责换名。
- * - **嵌套形状 `BackupConfig`**：程序内部真正在用的那份（`sources` 在这一头是数组）。
- *
- * 老仓还有第三样东西——把配置写成数据区里 `config.json` 快照，那是给宿主无关的 CLI 门
- * 读的；那条门新线这轮没搬，快照也就不存在了（见 README 的「不做」）。
- *
- * **缺字段吃默认、类型不对吃默认**：设置件没有校验钩子，谁都能往键里写东西，读这一头
- * 就是全仓唯一的守门员。频率 / 自检间隔另有一条「非正数退回默认」——写 0 进去等于让
- * 定时器每 0 毫秒疯转，退回默认比照收安全。
- */
-
 import os from 'node:os'
 import path from 'node:path'
 
-// ── 平铺形状（设置那张表）──────────────────────────────────────────────────────
-
-/** 17 个键的全集。**顺序即设置界面里的显示顺序**。 */
+/**
+ * 设置那一头的平铺形状，17 个键（camelCase；设置插件里的 kebab-case 键名由 `src/index.ts` 的对照表换过来）。
+ * **顺序即设置界面里的显示顺序**。
+ */
 export type FlatConfig = {
-  /** 备份白名单（设置件 `string-list` 型，一行一项）；空则拒跑。legacy 的分号串也认。 */
+  /** 备份白名单，一行一项；空则拒跑。分号分隔的一整串也认。 */
   sources: string[]
   /** 追加的排除规则（一行一条，追加在内置基线之上）；`#` 开头的行是注释。 */
   exclude: string[]
@@ -50,12 +34,7 @@ export type FlatConfig = {
   reviewIntervalDays: number
 }
 
-/**
- * 平铺默认值。留空的那几个（`sources` / `localRepo` / `ossBucket` / `ossEndpoint`）是
- * 「逐字段问用户」的字段，塞一个像模像样的假默认只会让人以为配好了。`ossEnabled`
- * 默认关：新机只配了本地仓库就跑备份，默认开着的话每一轮都会多一次注定失败的 OSS
- * 推送、通知报 partial——用户还没配 OSS，那不是故障。
- */
+/** 平铺默认值。`sources` / `localRepo` / `ossBucket` / `ossEndpoint` 故意留空，`ossEnabled` 默认关。 */
 export const DEFAULT_FLAT: FlatConfig = {
   sources: [],
   exclude: [],
@@ -75,8 +54,6 @@ export const DEFAULT_FLAT: FlatConfig = {
   gomaxprocs: 1,
   reviewIntervalDays: 7,
 }
-
-// ── 嵌套形状（程序内部）────────────────────────────────────────────────────────
 
 export type ResticSection = {
   /** restic 可执行文件；相对路径按数据目录解析，绝对路径原样。 */
@@ -98,9 +75,9 @@ export type RetentionSection = {
   keepMonthly: number
 }
 
+/** 程序内部用的嵌套形状。 */
 export type BackupConfig = {
   restic: ResticSection
-  /** 备份白名单，逐条由用户口述——默认空，备份会因此拒跑。 */
   sources: string[]
   /** 追加的排除规则——**合并**在内置基线（包内 `config/restic-exclude.txt`）之上，不是整替。 */
   exclude: string[]
@@ -108,65 +85,43 @@ export type BackupConfig = {
     local: { repo: string }
     oss: OssSection
   }
-  /** 定时备份周期（分钟）。 */
   schedule: { frequencyMinutes: number }
   retention: RetentionSection
-  /**
-   * 日志轮转。**不在设置表上**——它不是用户该操心的旋钮，改它的人是在改代码不是在改
-   * 配置。留在这份形状里是因为日志轮转要吃它。
-   */
+  /** 日志轮转，固定值，不在设置表上。 */
   logging: { rotateWhenBytes: number; keepLastLines: number }
-  /** 周期自检间隔（小时）。 */
   healthCheckIntervalHours: number
-  /** 备份结束弹不弹 Windows 通知。 */
   toast: boolean
-  /** 人工复核提醒间隔（天）。 */
   reviewIntervalDays: number
 }
 
-/** 日志轮转的固定值（不上设置表，见 `BackupConfig.logging` 的注释）。 */
 const DEFAULT_LOGGING = { rotateWhenBytes: 10_485_760, keepLastLines: 1000 }
 
-// ── 两头之间的桥 ──────────────────────────────────────────────────────────────
-
-/**
- * 把来路不明的一份值收成平铺配置。缺的、类型不对的一律吃默认。
- *
- * 调用处：宿主层从设置件读回的那 15 个值。
- */
+/** 把来路不明的一份值收成平铺配置。缺的、类型不对的、该是正数却不是的，一律用默认值。 */
 export function pickFlat(value: unknown): FlatConfig {
-  const raw = isPlainObject(value) ? value : {}
-  const d = DEFAULT_FLAT
+  const fields = isPlainObject(value) ? value : {}
+  const defaults = DEFAULT_FLAT
   return {
-    sources: toSourceList(raw.sources),
-    exclude: toExcludeList(raw.exclude),
-    localRepo: str(raw.localRepo, d.localRepo),
-    ossEnabled: bool(raw.ossEnabled, d.ossEnabled),
-    ossBucket: str(raw.ossBucket, d.ossBucket),
-    ossEndpoint: str(raw.ossEndpoint, d.ossEndpoint),
-    ossRepoPath: str(raw.ossRepoPath, d.ossRepoPath),
-    frequencyMinutes: positive(num(raw.frequencyMinutes, d.frequencyMinutes), d.frequencyMinutes),
-    keepWithin: str(raw.keepWithin, d.keepWithin),
-    keepWithinDaily: str(raw.keepWithinDaily, d.keepWithinDaily),
-    keepWeekly: positive(num(raw.keepWeekly, d.keepWeekly), d.keepWeekly),
-    keepMonthly: positive(num(raw.keepMonthly, d.keepMonthly), d.keepMonthly),
-    healthCheckIntervalHours: positive(
-      num(raw.healthCheckIntervalHours, d.healthCheckIntervalHours),
-      d.healthCheckIntervalHours,
-    ),
-    toast: bool(raw.toast, d.toast),
-    resticExe: str(raw.resticExe, d.resticExe),
-    gomaxprocs: positive(num(raw.gomaxprocs, d.gomaxprocs), d.gomaxprocs),
-    reviewIntervalDays: positive(num(raw.reviewIntervalDays, d.reviewIntervalDays), d.reviewIntervalDays),
+    sources: toSourceList(fields.sources),
+    exclude: toExcludeList(fields.exclude),
+    localRepo: stringOr(fields.localRepo, defaults.localRepo),
+    ossEnabled: booleanOr(fields.ossEnabled, defaults.ossEnabled),
+    ossBucket: stringOr(fields.ossBucket, defaults.ossBucket),
+    ossEndpoint: stringOr(fields.ossEndpoint, defaults.ossEndpoint),
+    ossRepoPath: stringOr(fields.ossRepoPath, defaults.ossRepoPath),
+    frequencyMinutes: positiveNumberOr(fields.frequencyMinutes, defaults.frequencyMinutes),
+    keepWithin: stringOr(fields.keepWithin, defaults.keepWithin),
+    keepWithinDaily: stringOr(fields.keepWithinDaily, defaults.keepWithinDaily),
+    keepWeekly: positiveNumberOr(fields.keepWeekly, defaults.keepWeekly),
+    keepMonthly: positiveNumberOr(fields.keepMonthly, defaults.keepMonthly),
+    healthCheckIntervalHours: positiveNumberOr(fields.healthCheckIntervalHours, defaults.healthCheckIntervalHours),
+    toast: booleanOr(fields.toast, defaults.toast),
+    resticExe: stringOr(fields.resticExe, defaults.resticExe),
+    gomaxprocs: positiveNumberOr(fields.gomaxprocs, defaults.gomaxprocs),
+    reviewIntervalDays: positiveNumberOr(fields.reviewIntervalDays, defaults.reviewIntervalDays),
   }
 }
 
-/**
- * 分号串切成路径数组：**去空白、去空项**。
- *
- * `"D:/Notes; ;D:/Projects "` → `["D:/Notes", "D:/Projects"]`。用户多打一个分号是常态，
- * 切出来的空项要是原样进 `restic backup` 的 argv，restic 会去备份「当前目录」。
- */
+/** 分号串切成路径数组：**去空白、去空项**。`"D:/Notes; ;D:/Projects "` → `["D:/Notes", "D:/Projects"]`。 */
 export function splitSources(value: string): string[] {
   return value
     .split(';')
@@ -174,26 +129,17 @@ export function splitSources(value: string): string[] {
     .filter((one) => one !== '')
 }
 
-/**
- * 收 sources：数组逐条收字符串（trim、去空）；legacy 的分号串走 splitSources——
- * 从旧版设置搬过来的值还没迁数组的那阵子，两头都得认。
- */
+/** 收 sources：数组逐条收字符串（trim、去空）；分号串走 `splitSources`。 */
 export function toSourceList(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value
-      .filter((one): one is string => typeof one === 'string')
-      .map((one) => one.trim())
-      .filter((one) => one !== '')
-  }
-  if (typeof value === 'string') return splitSources(value)
-  return []
+  return trimmedNonEmptyLines(value)
 }
 
-/**
- * 收 exclude：数组逐条收字符串（trim、去空行），**`#` 开头的注释行留着**——它是设置值
- * 的一部分（textarea 里分区用），进 argv 时再由 `excludeArgv` 滤掉。legacy 分号串也认。
- */
+/** 收 exclude：同 `toSourceList`。`#` 开头的注释行留着，进 argv 时由 `excludeArgv` 滤掉。 */
 export function toExcludeList(value: unknown): string[] {
+  return trimmedNonEmptyLines(value)
+}
+
+function trimmedNonEmptyLines(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value
       .filter((one): one is string => typeof one === 'string')
@@ -206,40 +152,35 @@ export function toExcludeList(value: unknown): string[] {
 
 /** 平铺表 → 程序内部那份嵌套形状。 */
 export function flatToConfig(flat: unknown): BackupConfig {
-  const f = pickFlat(flat)
+  const picked = pickFlat(flat)
   return {
-    restic: { exe: f.resticExe, gomaxprocs: f.gomaxprocs },
-    sources: f.sources,
-    exclude: f.exclude,
+    restic: { exe: picked.resticExe, gomaxprocs: picked.gomaxprocs },
+    sources: picked.sources,
+    exclude: picked.exclude,
     repositories: {
-      local: { repo: f.localRepo },
+      local: { repo: picked.localRepo },
       oss: {
-        enabled: f.ossEnabled,
-        bucket: f.ossBucket,
-        repoPath: f.ossRepoPath,
-        endpoint: f.ossEndpoint,
+        enabled: picked.ossEnabled,
+        bucket: picked.ossBucket,
+        repoPath: picked.ossRepoPath,
+        endpoint: picked.ossEndpoint,
       },
     },
-    schedule: { frequencyMinutes: f.frequencyMinutes },
+    schedule: { frequencyMinutes: picked.frequencyMinutes },
     retention: {
-      keepWithin: f.keepWithin,
-      keepWithinDaily: f.keepWithinDaily,
-      keepWeekly: f.keepWeekly,
-      keepMonthly: f.keepMonthly,
+      keepWithin: picked.keepWithin,
+      keepWithinDaily: picked.keepWithinDaily,
+      keepWeekly: picked.keepWeekly,
+      keepMonthly: picked.keepMonthly,
     },
     logging: { ...DEFAULT_LOGGING },
-    healthCheckIntervalHours: f.healthCheckIntervalHours,
-    toast: f.toast,
-    reviewIntervalDays: f.reviewIntervalDays,
+    healthCheckIntervalHours: picked.healthCheckIntervalHours,
+    toast: picked.toast,
+    reviewIntervalDays: picked.reviewIntervalDays,
   }
 }
 
-/**
- * 路径类字段按数据目录解析：绝对路径原样、`~/` 展成家目录、其余按数据目录拼。
- *
- * `~/` 那一支是给从老线搬过来的旧配置留的——那些值里写的就是 `~/...`，直接当相对
- * 路径拼进数据目录会得到一条谁都不认识的路径。
- */
+/** 路径类字段按数据目录解析：绝对路径原样、`~` / `~/` 展成家目录、其余按数据目录拼。 */
 export function resolveSlotPath(value: string, slot: string): string {
   const trimmed = value.trim()
   if (!trimmed) return ''
@@ -251,25 +192,23 @@ export function resolveSlotPath(value: string, slot: string): string {
   return path.resolve(slot, trimmed)
 }
 
-// ── 小工具 ────────────────────────────────────────────────────────────────────
-
-/** 非正数退回默认——防「每 0 毫秒响一次的计时器」与「保留 0 份快照」那种配置。 */
-function positive(value: number, fallback: number): number {
-  return value > 0 ? value : fallback
-}
-
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function str(value: unknown, fallback: string): string {
+function stringOr(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback
 }
 
-function num(value: unknown, fallback: number): number {
+function finiteNumberOr(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
-function bool(value: unknown, fallback: boolean): boolean {
+function positiveNumberOr(value: unknown, fallback: number): number {
+  const number = finiteNumberOr(value, fallback)
+  return number > 0 ? number : fallback
+}
+
+function booleanOr(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback
 }

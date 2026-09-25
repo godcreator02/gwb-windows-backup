@@ -1,29 +1,18 @@
-/**
- * 数据目录内的布局。
- *
- * 数据目录由宿主给出（`ctx.gwbData.dir`，即 `<home>/data/<条目 id 末段>`）——这就是老仓
- * 说的「格」。全部用户私有数据住格里，代码树里一个字节的用户数据都没有；隔离 home 有
- * 自己的数据目录，开发时碰不到真凭据。
- *
- * 与老仓的差别：老仓自己从 `GOD_DATA_ROOT` 环境变量解析数据根（那扇门留给不认识宿主的
- * CLI），新线宿主层直接把目录递进来，这一层只管往下摊路径。
- */
-
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-/** 目录内布局（全绝对路径）。 */
+/** 数据目录内的布局（全绝对路径）。 */
 export type BackupPaths = {
-  /** 数据目录本尊，`<home>/data/<条目 id>`。 */
+  /** 数据目录本身，`<home>/data/<条目 id>`，由宿主的 `ctx.gwbData.dir` 给出。 */
   dir: string
   stateFile: string
-  /** 进行中的备份那把锁（`{ pid, startedAt }`），跑完即删。见 `lock.ts`。 */
+  /** 进行中的备份那把锁，跑完即删。见 `lock.ts`。 */
   lockFile: string
   credentialsDir: string
   /** restic `--password-file` 指的那份，内容任何时候都不读进本进程。 */
   passwordFile: string
   ossCredentialsFile: string
-  /** 内置基线 exclude，住代码树 `config/` 里、跟着版本走；用户的追加规则走设置键 `exclude`。 */
+  /** 内置基线 exclude，在插件包的 `config/` 里、跟着版本走；用户的追加规则走设置键 `exclude`。 */
   defaultExcludeFile: string
   binDir: string
   logsDir: string
@@ -54,10 +43,8 @@ export function defaultExcludeFile(): string {
 }
 
 /**
- * 包根的绝对路径——`config/` 从这里往下算。
- *
- * 一层 `..` 在两种形态下都对：源码态本文件住 `<包根>/src/paths.ts`；产物态它被编译进
- * `<包根>/dist/index.js`，`import.meta.url` 的目录是 `<包根>/dist`。
+ * 插件包根的绝对路径。一层 `..` 在两种形态下都对：源码在 `<包根>/src/paths.ts`，
+ * 构建产物在 `<包根>/dist/paths.js`。
  */
 export function pluginRoot(): string {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')

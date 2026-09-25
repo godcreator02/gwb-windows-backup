@@ -1,38 +1,14 @@
-/**
- * `state.json` —— 动作时间戳，落在数据目录里（宿主层用 `ctx.gwbData.dir` 定位）。
- *
- * 取代靠 mtime 判跨日的空文件存法：mtime 这种「载重信息在元数据里」的存法，任何一次
- * 拷贝 / 同步 / 解压都可能把它抹平，而抹平的症状是 prune 每次都跑或永远不跑。换成显式
- * 字段后，语义仍是「本地日期跨日才再跑」。
- *
- * **fail-safe**：解析失败当空对象。这份文件坏掉最坏的后果是多跑一次 prune，为它中断整条
- * 备份链路不划算。
- */
-
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 export type BackupState = {
-  /**
-   * 上次跑完一轮全流程备份的本地时间，`YYYY-MM-DDTHH:MM:SS`。
-   *
-   * **成败都记**——它回答的是「这台机器上次备份是什么时候」，健康检查的「上次备份」
-   * 那一项与开机补跑的判定读的都是它。只在成功时记的话，连着失败三天看起来会像
-   * 「三天前刚备过」。
-   */
+  /** 上次跑完一轮全流程备份的本地时间，`YYYY-MM-DDTHH:MM:SS`。**成败都记**。 */
   lastRunAt?: string
   /** 那一轮成没成。 */
   lastRunOk?: boolean
   /** 那一轮的一句话小结，如 `4.9 KiB | local 0:01`（= 通知正文）。 */
   lastRunSummary?: string
-  /**
-   * 最近一次成功的本地备份留在**本地仓**里的快照 ID。
-   *
-   * 下一轮把它交给 restic 的 `--parent`。为什么非记不可：restic 挑父快照是按
-   * `--group-by`（默认 `host,paths`）分的组，**白名单里加了路径就是新组、一个候选都没有**，
-   * 于是整份 51 GiB 重读重算（实测：单线程 452k 个文件约 90 分钟）。显式给一份父本，
-   * 新路径当新文件读、其余路径照旧吃比对——加目录的代价从「全量」回到「只读新增」。
-   */
+  /** 最近一次成功的本地备份留在**本地仓**里的快照 ID，下一轮交给 restic 的 `--parent`。 */
   lastLocalSnapshot?: string
   /** 同上，**OSS 仓**那一份——两个仓各自一条快照链，ID 不通用。 */
   lastOssSnapshot?: string
@@ -46,13 +22,13 @@ export type BackupState = {
   lastReview?: string
 }
 
-/** 读；文件缺失 / 内容坏 / 不是对象一律当 `{}`。 */
+/** 读；文件缺失 / 内容坏 / 不是对象一律当 `{}`——坏了最多多跑一次 prune。 */
 export function readState(file: string): BackupState {
   if (!existsSync(file)) return {}
   try {
     const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'))
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
-    return pick(parsed as Record<string, unknown>)
+    return pickKnownFields(parsed as Record<string, unknown>)
   } catch {
     return {}
   }
@@ -66,21 +42,21 @@ export function writeState(file: string, patch: BackupState): BackupState {
   return merged
 }
 
-/** 本地日期 `YYYY-MM-DD`——用本地时区，因为「跨日」是人过的那个日子，不是 UTC 的。 */
+/** 本地日期 `YYYY-MM-DD`——「跨日」按人过的日子算，用本地时区。 */
 export function localDate(now: Date = new Date()): string {
-  return `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`
+  return `${now.getFullYear()}-${twoDigits(now.getMonth() + 1)}-${twoDigits(now.getDate())}`
 }
 
-/** 本地时间戳 `YYYY-MM-DDTHH:MM:SS`，无时区标记（跟老仓的写法一致，存量对得上）。 */
+/** 本地时间戳 `YYYY-MM-DDTHH:MM:SS`，不带时区标记（存量 state.json 就是这个写法）。 */
 export function localTimestamp(now: Date = new Date()): string {
-  return `${localDate(now)}T${two(now.getHours())}:${two(now.getMinutes())}:${two(now.getSeconds())}`
+  return `${localDate(now)}T${twoDigits(now.getHours())}:${twoDigits(now.getMinutes())}:${twoDigits(now.getSeconds())}`
 }
 
 /** 每日一次：没记过、或记的不是今天，就该跑。 */
 export function shouldRunPrune(state: BackupState, now: Date = new Date()): boolean {
-  const last = state.lastPrune
-  if (typeof last !== 'string' || last.length < 10) return true
-  return last.slice(0, 10) !== localDate(now)
+  const lastPrune = state.lastPrune
+  if (typeof lastPrune !== 'string' || lastPrune.length < 10) return true
+  return lastPrune.slice(0, 10) !== localDate(now)
 }
 
 /**
@@ -88,47 +64,53 @@ export function shouldRunPrune(state: BackupState, now: Date = new Date()): bool
  * 值缺失 / 认不出返回 `null`——调用方按「从没做过」处理。
  */
 export function daysSince(value: string | undefined, now: Date = new Date()): number | null {
-  if (typeof value !== 'string' || value.trim() === '') return null
-  const parsed = new Date(value.length === 10 ? `${value}T00:00:00` : value)
-  if (Number.isNaN(parsed.getTime())) return null
-  const a = Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
-  const b = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
-  return Math.round((b - a) / 86_400_000)
+  const parsed = parseLocalTimestamp(value)
+  if (parsed === null) return null
+  const thenUtcDay = Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
+  const todayUtcDay = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+  return Math.round((todayUtcDay - thenUtcDay) / 86_400_000)
 }
 
 /**
  * 距某个时间戳过了几分钟（四舍五入）。值缺失 / 认不出返回 `null`——调用方按「从没跑过」处理。
- *
- * 无时区标记的 `YYYY-MM-DDTHH:MM:SS` 被 `new Date` 当**本地时间**解析，正是
- * `localTimestamp` 写进去的那个口径，两头对得上。
  */
 export function minutesSince(value: string | undefined, now: Date = new Date()): number | null {
-  if (typeof value !== 'string' || value.trim() === '') return null
-  const parsed = new Date(value.length === 10 ? `${value}T00:00:00` : value)
-  if (Number.isNaN(parsed.getTime())) return null
+  const parsed = parseLocalTimestamp(value)
+  if (parsed === null) return null
   return Math.round((now.getTime() - parsed.getTime()) / 60_000)
 }
 
-function pick(raw: Record<string, unknown>): BackupState {
+/**
+ * `YYYY-MM-DD` 或 `YYYY-MM-DDTHH:MM:SS` → Date。不带时区标记的串被 `new Date` 按本地时间解析，
+ * 正是 `localTimestamp` 写进去的口径。缺失 / 认不出回 `null`。
+ */
+function parseLocalTimestamp(value: string | undefined): Date | null {
+  if (typeof value !== 'string' || value.trim() === '') return null
+  const parsed = new Date(value.length === 10 ? `${value}T00:00:00` : value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+const STRING_FIELDS = [
+  'lastRunAt',
+  'lastRunSummary',
+  'lastLocalSnapshot',
+  'lastOssSnapshot',
+  'lastPrune',
+  'lastUsbCopy',
+  'lastExcludeAudit',
+  'lastReview',
+] as const
+
+function pickKnownFields(fields: Record<string, unknown>): BackupState {
   const state: BackupState = {}
-  for (const key of [
-    'lastRunAt',
-    'lastRunSummary',
-    'lastLocalSnapshot',
-    'lastOssSnapshot',
-    'lastPrune',
-    'lastUsbCopy',
-    'lastExcludeAudit',
-    'lastReview',
-  ] as const) {
-    const value = raw[key]
+  for (const key of STRING_FIELDS) {
+    const value = fields[key]
     if (typeof value === 'string') state[key] = value
   }
-  // 唯一的布尔格单独收：混进上面那圈会被 `typeof value === 'string'` 静默吃掉
-  if (typeof raw.lastRunOk === 'boolean') state.lastRunOk = raw.lastRunOk
+  if (typeof fields.lastRunOk === 'boolean') state.lastRunOk = fields.lastRunOk
   return state
 }
 
-function two(value: number): string {
+function twoDigits(value: number): string {
   return String(value).padStart(2, '0')
 }
