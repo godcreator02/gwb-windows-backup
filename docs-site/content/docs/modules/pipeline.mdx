@@ -8,14 +8,14 @@ description: runFullBackup——占锁、本地备份、每日 prune、OSS 推�
 **本页回答**：一轮完整备份按什么顺序跑、每段的成败怎么影响后面的段、结果怎么记。
 
 `src/backup.ts`。域库的主体，定时器与命令两条触发路都从 `runFullBackup` 这一个函数进，
-所以锁开在这里而不是各调用方各来一把。
+所以锁开在这里而不是各调用方各自加一把。
 
 {/* ref file="../src/backup.ts" lines="137-152" */}
 
 ## 管什么
 
 全流程：占锁（持锁期间每五分钟跳一次心跳——陈旧判定认心跳不认轮时长，干得久的活任务
-不会被当死锁抢走）→ `restic backup`（本地仓）→ forget+prune（每日一次）→ OSS push → OSS
+不会被当成死锁把锁接管）→ `restic backup`（本地仓）→ forget+prune（每日一次）→ OSS push → OSS
 prune → 日志轮转 → 记 `state.lastRun*` → 可选 toast。顺序里有三条依赖判据：本地失败就整条停
 （本地都没成，OSS 推的是同一批源）；**prune 只有真成功才记时间戳**（失败下一轮再试）；
 OSS prune 跟本地同节奏**且 OSS 推送成功才跑**（往刚推失败的仓库上跑 forget，等于拿不完整
@@ -23,25 +23,25 @@ OSS prune 跟本地同节奏**且 OSS 推送成功才跑**（往刚推失败的�
 不影响后续备份，却会让需要排他锁的 prune 天天失败（轨迹卡 `2026-09-25-prune-group-by-host`）。
 
 **不知道什么**：不知道是谁触发的（定时还是命令）；不知道 restic 二进制在哪、密码是什么
-（路径由 `paths.ts` 摊开，密码只经 `--password-file` 路径过手）；不知道 OSS 凭据内容
+（路径由 `paths.ts` 统一算出，密码只把文件路径交给 `--password-file`）；不知道 OSS 凭据内容
 （解析在 `credentials.ts`，这儿只拿到 env 表）。
 
-## 父快照：两趟都显式递
+## 父快照：两次都显式传入
 
-`doLocalBackup` 与 `doOssPush` 都从 `state.json` 取一份快照 ID 递给 restic 的 `--parent`
+`doLocalBackup` 与 `doOssPush` 都从 `state.json` 取一份快照 ID 传给 restic 的 `--parent`
 （本地仓一份 `lastLocalSnapshot`、OSS 仓一份 `lastOssSnapshot`，两个仓的快照链独立、ID 不
 通用）。不知道什么：不知道那份快照还在不在仓库里——**失效的处置在下面那段回退里**。
 
 为什么要显式递：restic 挑父快照是按 `--group-by`（默认 `host,paths`）分的组，**白名单里
 加了路径就是新组、一个候选都没有**，于是全部文件重读重算（实测：单台机器 51 GiB / 452k 个
-文件，`gomaxprocs: 1` 时约 90 分钟一轮，两趟就是三小时）。显式给一份父本，新路径当新文件
-读、其余路径照旧吃比对——同一件事从「整份重读」缩回「只读新增」。
+文件，`gomaxprocs: 1` 时约 90 分钟一轮，两次就是三小时）。显式给一份父快照，新路径当新文件
+读、其余路径照旧按父快照比对——同一件事从「整份重读」缩回「只读新增」。
 
 **回退**：记着的 ID 在仓库里没了时（仓库被重建、或者 `state.json` 从更早的备份里恢复回来），
 restic 会硬失败（实测 0.18.1：stderr `no matching ID found for prefix "<id>"`、退出码 1）。
-撞上就**丢开父本重跑一次**——让整轮备份败在一个「只为了提速」的参数上，比不要这个提速更糟。
-两处刻意的分寸：判据只认 restic 那两句原话（别的失败一个都不重试，照旧按失败收）；重跑那
-一跳写的是普通说明行，不是 `Backup FAILED` 契约行，否则一次正常的自我修复会被健康检查的
+遇到就**丢开父快照重跑一次**——让整轮备份败在一个「只为了提速」的参数上，比不要这个提速更糟。
+两处刻意的分寸：判据只认 restic 那两句原话（别的失败一个都不重试，照旧按失败收）；重跑前
+写的那一行是普通说明行，不是 `Backup FAILED` 契约行，否则一次正常的自我修复会被健康检查的
 日志尾判定记成故障。
 
 ## 数据结构
@@ -51,19 +51,19 @@ restic 会硬失败（实测 0.18.1：stderr `no matching ID found for prefix "<
 （`skipped: 'locked'` + 占锁者的 `heldSince`）——**不写失败日志、不弹 toast、不动
 `state.lastRun*`**，「另一轮正在跑」不是故障，记成失败会让健康检查误报。
 
-`LocalOutcome` / `OssOutcome` 各带一格这次落下的快照 ID（`snapshotId`），管线在两段各自成功
-之后**当场**写回 `state.json`——后面还有 prune / OSS 两段，哪一段把这轮弄失败，都不该让下
-一轮赔上一次全量重读。
+`LocalOutcome` / `OssOutcome` 各带一格这次产生的快照 ID（`snapshotId`），管线在两段各自成功
+之后**立即**写回 `state.json`——后面还有 prune / OSS 两段，哪一段把这轮弄失败，都不该让下
+一轮多付一次全量重读。
 
 ## 提供的接口
 
 | 接口 | 干什么 |
 | --- | --- |
-| `runFullBackup(ctx)` | 全流程一次，**不抛**；占锁、失败全落日志与返回值 |
-| `refuseReason(config)` | 配置齐不齐，回一句人话或 `null`；两条触发路共用这一份判据 |
-| `backupArgv(args)` | 一趟 `restic backup` 的 argv：基线 `--exclude-file` + 追加 `--exclude` + 可选 `--parent` + 源路径 |
+| `runFullBackup(ctx)` | 全流程一次，**不抛**；占锁、失败全写进日志与返回值 |
+| `refuseReason(config)` | 配置齐不齐，回一句说明或 `null`；两条触发路共用这一份判据 |
+| `backupArgv(args)` | 一次 `restic backup` 的 argv：基线 `--exclude-file` + 追加 `--exclude` + 可选 `--parent` + 源路径 |
 | `buildNotification(...)` | 通知三态：本地失败 FAILED / 全成 OK / 本地成 OSS 败 partial |
-| `doLocalBackup` / `doPrune` / `doOssPush` | 单段执行；本地与 OSS 两趟共用同一条父本回退，成功路径必须落各自的契约句 |
+| `doLocalBackup` / `doPrune` / `doOssPush` | 单段执行；本地与 OSS 两次共用同一条父快照回退，成功路径必须写各自的契约句 |
 
 ## 依赖的接口
 
@@ -72,15 +72,15 @@ restic 会硬失败（实测 0.18.1：stderr `no matching ID found for prefix "<
 | `RunProcess` | 起每一个 restic 子进程 | `process.ts` 的 `runProcess` | 按子命令前缀分发的假 restic |
 | `Logger` | 契约行与 restic 原始输出 | `log.ts` 的 `createLogger` | `nullLogger` |
 | `acquire` / `readLock` | 跨进程占锁 | `lock.ts` | 注入 `acquireLock` 造「别人占着」 |
-| `readState` / `writeState` | 读 prune 旗子与两份父快照 ID、写 lastRun 三项与新快照 ID | `state.ts` | 临时目录真文件 |
+| `readState` / `writeState` | 读 prune 时间戳与两份父快照 ID、写 lastRun 三项与新快照 ID | `state.ts` | 临时目录真文件 |
 | `readOssEnv` | OSS 那几段的子进程 env | `credentials.ts` | 不注入，真读空目录 |
 | `sendToast` | 结束通知 | `toast.ts` | 注入 `notify` 或 `toast: false` |
-| `now` | 报时（prune 跨日、时长） | `new Date` | 注入拨钟 |
+| `now` | 报时（prune 跨日、时长） | `new Date` | 注入固定时间 |
 
 ## 怎么单独测
 
 `tests/backup.test.ts`：`fakeRestic` 造一个按 argv 前缀分发的假 restic，每个调用的参数都
-记进表——证明的是「顺序对不对」「该跳过的段跳没跳」「成败怎么落 state」。用临时目录当
+记进表——证明的是「顺序对不对」「该跳过的段跳没跳」「成败怎么写进 state」。用临时目录当
 数据目录，跑完即删。
 
 ## 代码地图

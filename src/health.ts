@@ -1,15 +1,15 @@
 /**
- * 健康检查 —— 观察面的**权威判据**。定时器周期自检与 `windows-backup.check` 命令调的是
- * 同一个 `runHealthCheck`，窗格只是它的皮。
+ * 健康检查 —— 备份是否正常的**权威判据**。定时器周期自检与 `windows-backup.check` 命令调的是
+ * 同一个 `runHealthCheck`，窗格只负责显示它的结果。
  *
  * 输出是纯 JSON（`HealthReport`），不打印、不弹窗、不写日志——怎么呈现由调用方决定。
  *
- * 五项规则照老仓（再往前是 cc 版 `docs/health-check.md`），四处有意改过判据的照抄：
+ * 五项规则照旧实现（再往前是 cc 版 `docs/health-check.md`），四处有意改过判据的照抄：
  * **第一项整个换过**（问外部调度器要任务状态 → 读 `state.json` 的 `lastRun*`，定时器住
  * 在宿主里、没有外部账本可查）、日志尾（按轮判、不按末两行）、快照新鲜度（两个周期、
  * 不是写死 30 分钟）、磁盘（跟着配置里的仓库盘走、不写死 D 盘）。
  *
- * 所有会跑外部程序 / 摸磁盘的地方都从 `opts` 拿注入点，测试不起真 restic、不摸真磁盘。
+ * 所有会跑外部程序 / 读磁盘的地方都从 `opts` 拿注入点，测试不启动真 restic、不读真磁盘。
  */
 
 import { existsSync, readFileSync, statfsSync } from 'node:fs'
@@ -23,11 +23,11 @@ import type { RunProcess } from './process.js'
 import type { BackupState } from './state.js'
 import { daysSince, localTimestamp, minutesSince, readState } from './state.js'
 
-/** 每项的结论。`unknown` = 判不了（缺件 / 仓库锁着），**不算失败**。 */
+/** 每项的结论。`unknown` = 判不了（缺组件 / 仓库锁着），**不算失败**。 */
 export type CheckStatus = 'ok' | 'problem' | 'unknown' | 'skipped'
 
 /**
- * ① 上次备份——外部账本不存在，能回答「备份这件事还在不在转」的唯一事实是
+ * ① 上次备份——外部账本不存在，能回答「备份这件事还在不在正常运行」的唯一事实是
  * `state.json` 里那三格。
  */
 export type LastRunItem = {
@@ -92,7 +92,7 @@ export type PeriodicItem = {
   usbCopyDue: boolean
   /** 该扫一遍 exclude 有没有误伤了。 */
   excludeAuditDue: boolean
-  /** 该人工复核备份了（跑自检、看快照；窗格据此挂横幅）。 */
+  /** 该人工复核备份了（跑自检、看快照；窗格据此显示横幅）。 */
   reviewDue: boolean
   message: string
 }
@@ -115,7 +115,7 @@ export type HealthReport = {
 
 export type HealthOptions = {
   now?: Date | undefined
-  /** 跳过快照那项（要连 restic 一起起，慢）。 */
+  /** 跳过快照那项（要启动 restic，慢）。 */
   skipSnapshots?: boolean | undefined
   /** 注入点：跑 restic 的那个函数（只有快照那一项要它）。 */
   run?: RunProcess | undefined
@@ -165,7 +165,7 @@ export async function runHealthCheck(
  * 三支各说各的话：
  *
  * - 从没跑过：新机 / 刚配好，还没到第一轮；
- * - 上次失败：那一轮的小结原样念出来，人一眼看见是哪一段挂了；
+ * - 上次失败：那一轮的小结原样写进消息，人一眼看见是哪一段失败了；
  * - 太久没成功：容忍两个周期（跟快照新鲜度同一个口径），一个周期的话备份跑了 3 分钟、
  *   自检又晚到 1 分钟就会误报。
  *
@@ -221,9 +221,9 @@ function checkLastRun(state: BackupState, config: BackupConfig, now: Date): Last
  *
  * 尾窗口里的失败行**分成两拨**：晚于最近一次成功的是「当前的故障」，早于它的是上一轮
  * 甚至更早的遗留。为什么要分——2026-09-20 实测：一轮全绿之后健康检查仍是 problem，
- * 因为一小时前两次人为打断留下的 `Backup FAILED` 还压在尾 30 行里，要等下一轮把旧行顶出
- * 窗口才转绿。**翻篇的失败不是当前的故障**；反过来，挂了一夜、今早还没成功过的那种，
- * 最新一条失败就落在最后一次成功之后，照样报。
+ * 因为一小时前两次人为打断留下的 `Backup FAILED` 还压在尾 30 行里，要等下一轮把旧行挤出
+ * 窗口才转绿。**翻篇的失败不是当前的故障**；反过来，失败了一夜、今早还没成功过的那种，
+ * 最新一条失败就排在最后一次成功之后，照样报。
  */
 function checkLog(paths: BackupPaths, config: BackupConfig): LogItem {
   const ossEnabled = config.repositories.oss.enabled
@@ -268,7 +268,7 @@ function checkLog(paths: BackupPaths, config: BackupConfig): LogItem {
   if (!localOk) bad.push('最近一轮本地备份没有成功行')
   if (ossEnabled && ossOk === false) bad.push('最近一轮 OSS 推送没有成功行')
   if (errorLines.length > 0) {
-    // 时刻念出来：读到这行的人（或 agent）下一步就是去日志里找那几行，别让人自己数
+    // 把时刻写进描述：读到这行的人（或 agent）下一步就是去日志里找那几行，别让人自己数
     bad.push(`日志尾有 ${errorLines.length} 行失败迹象（最新一条 ${lineStamp(errorLines[errorLines.length - 1] ?? '')}）`)
   }
   return {
@@ -421,7 +421,7 @@ function checkPeriodic(state: BackupState, config: BackupConfig, now: Date): Per
   }
 }
 
-/** 把五项里该说的话收成一张中文列表——不健康时直接念这张表。 */
+/** 把五项里该说的话收成一张中文列表——不健康时直接给出这张表。 */
 function collectProblems(items: HealthReport['items']): string[] {
   const problems: string[] = []
   if (items.lastRun.status === 'problem') problems.push(items.lastRun.message)
@@ -433,7 +433,7 @@ function collectProblems(items: HealthReport['items']): string[] {
 }
 
 /**
- * 从 `[2026-09-20 15:47:58] …` 这种日志行里取时刻，念进问题描述里用；认不出回空串。
+ * 从 `[2026-09-20 15:47:58] …` 这种日志行里取时刻，写进问题描述里用；认不出回空串。
  *
  * 只认 `logger.line` 写出来的方括号前缀——restic 自己的输出没有它，那种行取不出时刻，
  * 描述里就留个空，不影响判定。

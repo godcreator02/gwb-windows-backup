@@ -1,19 +1,19 @@
 ---
 title: restic 封装与子进程
-description: 参数表两处 SSOT、四条子进程硬规矩——全仓唯一起外部程序的地方
+description: 参数表两处 SSOT、四条子进程硬规矩——全仓唯一启动外部程序的地方
 ---
 
 # restic 封装与子进程
 
 **本页回答**：restic 的命令行怎么拼、retention 与 OSS 仓库 URL 为什么只有一处定义、起子进程有哪几条不许绕的规矩。
 
-`src/restic.ts` + `src/process.ts`。参数跟 restic 的实际接受度绑死，重拼一次就是重踩一次坑。
+`src/restic.ts` + `src/process.ts`。参数跟 restic 实际接受的写法绑定，另拼一份就可能再遇到已经解决过的参数问题。
 
 ## 管什么
 
 `runRestic` 补 `--repo` 与 `--password-file`，调用方只给子命令与参数；`ossRepoUrl` 拼
 `s3:<endpoint>/<bucket>/<repoPath>`；`pruneArgs` 拼 forget 的保留窗口参数。**不知道什么**：
-不知道仓库里有什么、不知道密码内容（路径过手，内容不读）。
+不知道仓库里有什么、不知道密码内容（只传路径，内容不读）。
 
 两串参数是 SSOT：透传命令（`windows-backup.restic`）、全流程备份、健康检查的快照项都从
 这两个函数取，改 retention 字段只改一处。
@@ -26,18 +26,18 @@ description: 参数表两处 SSOT、四条子进程硬规矩——全仓唯一�
 
 ## 子进程四条硬规矩
 
-`src/process.ts` 是全仓唯一起外部程序的地方，一条都不许绕：
+`src/process.ts` 是全仓唯一启动外部程序的地方，一条都不许绕：
 
 {/* ref file="../src/process.ts" lines="4-11" */}
 
 超时分两档：restic 备份 / prune 给 6 小时（首次全量几十 GB 是常态），其余子进程（快照
 查询、toast）默认 2 分钟。退出码约定：信号杀掉记 `-1`、起不来记 `-2`——都是非零，调用方
-按失败处理即可。异常转人话只取 `message` 不带栈，**栈里可能夹着命令行参数**。
+按失败处理即可。异常转成可读说明时只取 `message` 不带栈，**栈里可能带着命令行参数**。
 
 ## env 的边界
 
 `resticEnv` 造的是**这一次子进程专用的一份副本**：父进程 env 打底、叠 `GOMAXPROCS`，
-OSS 那趟再叠 AccessKey 两键——父进程的 env 从头到尾没碰过，本进程后续起的任何子进程都
+OSS 那次再叠 AccessKey 两键——父进程的 env 从头到尾没碰过，本进程后续起的任何子进程都
 不会带着 OSS 密钥。
 
 {/* ref file="../src/restic.ts" lines="62-74" */}
@@ -48,7 +48,7 @@ OSS 那趟再叠 AccessKey 两键——父进程的 env 从头到尾没碰过，
 | --- | --- |
 | `runRestic(exe, repo, args, opts)` | 补全全局参数后真跑一条 restic 命令 |
 | `ossRepoUrl` / `pruneArgs` | 上面说的两处 SSOT |
-| `parseSnapshotId` / `parseProcessedSize` | 从成功 stdout 里抠 `snapshot abc12345 saved` 与 `processed N files, X GiB` |
+| `parseSnapshotId` / `parseProcessedSize` | 从成功 stdout 里取出 `snapshot abc12345 saved` 与 `processed N files, X GiB` |
 | `runProcess(exe, args, opts)` | 裸的子进程执行，返回 `{ code, stdout, stderr, timedOut }` |
 
 ## 依赖的接口

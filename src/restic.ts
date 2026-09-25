@@ -2,8 +2,8 @@
  * restic 封装：补 `--repo` / `--password-file`、拼 OSS 仓库 URL、拼 retention 参数。
  *
  * `ossRepoUrl` 与 `pruneArgs` 是 SSOT：透传命令、全流程备份、健康检查都从这两个函数取，
- * 改 retention 字段只改一处。这两串参数跟 restic 的实际接受度绑死，重拼一次就是重踩
- * 一次坑——参数表照老仓一字不差。
+ * 改 retention 字段只改一处。这两串参数跟 restic 的实际接受度绑定，另拼一份就可能再遇到
+ * 一次已经解决过的参数问题——参数表与旧实现一字不差。
  */
 
 import type { OssSection, RetentionSection } from './config.js'
@@ -17,7 +17,7 @@ export type ResticOptions = {
   env?: NodeJS.ProcessEnv | undefined
   input?: string | undefined
   timeoutMs?: number | undefined
-  /** 注入点：默认真起进程，测试传假的。 */
+  /** 注入点：默认真的启动进程，测试传假的。 */
   run?: RunProcess | undefined
 }
 
@@ -78,7 +78,7 @@ export function parseSnapshotId(stdout: string): string | null {
   return /snapshot ([a-f0-9]{8}) saved/.exec(stdout)?.[1] ?? null
 }
 
-/** restic 备份成功时 stdout 里那句 `processed 123 files, 1.5 GiB`。裸 `B` 单位（小文件）也要认。 */
+/** restic 备份成功时 stdout 里那句 `processed 123 files, 1.5 GiB`。只写 `B` 的单位（小文件）也要认。 */
 export function parseProcessedSize(stdout: string): string | null {
   return /processed \d+ files, ([\d.]+\s+\w*B)/.exec(stdout)?.[1] ?? null
 }
