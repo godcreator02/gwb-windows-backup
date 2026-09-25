@@ -30,24 +30,20 @@
     "url": "https://git.tianshen02.online:28377/godcreator/gwb-windows-backup.git"
   },
   "scripts": {
-    "//build": "三步：node 侧 tsc、浏览器侧 esbuild（react 不打包，由页面的 importmap 提供）、样式 tailwindcss 按类名前缀输出",
     "build": "tsc -p tsconfig.build.json && node build.ts && tailwindcss -i src/client/styles.css -o dist/style.css",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/client/tsconfig.json",
     "lint": "oxlint . --deny-warnings",
     "test": "vitest run --passWithNoTests --tags-filter=!slow",
     "test:all": "vitest run --passWithNoTests",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run test",
-    "//prepublishOnly": "发版前强制构建一次。pnpm check 不构建，少了这条会把上一版的 dist 原样发出去——静默的",
     "prepublishOnly": "pnpm build"
   },
   "engines": {
     "node": ">=24"
   },
-  "//peerDependencies": "peer 里的内核包声明这个插件兼容哪些内核，范围写 ^<验证时那个内核的版本号>。node 侧构建产物只 import type，没有按值 import cordis，所以 peer 里没有 cordis",
   "peerDependencies": {
     "@godcreator/gwb-kernel-desktop": "^0.4.1"
   },
-  "//devDependencies": "命令总线、设置、数据、外壳与官方定时器插件 @cordisjs/plugin-timer 都只取类型，运行时经 inject 使用，由 home 里装的插件提供；外壳的 theme.reference.css 是样式构建的输入；react 由页面的 importmap 提供（内核包的 gwb.shared），构建时不打包；cordis 只给本地构建与类型检查",
   "devDependencies": {
     "@cordisjs/plugin-timer": "1.1.3",
     "@godcreator/gwb-commands": "^0.4.5",
