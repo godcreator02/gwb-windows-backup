@@ -1,72 +1,52 @@
 ---
 title: 五项健康
-description: runHealthCheck——备份是否正常的权威判据；窗格与 check 命令都只是它的展示层
+description: runHealthCheck——「备份还在正常运行吗」的判据；定时自检与 check 命令调的是同一个函数，窗格只负责显示
 ---
 
-# 五项健康
+**本页回答**：「备份还在正常运行吗」由哪五项判据回答、每项容忍到多少、判不了的时候怎么算。
 
-**本页回答**：「备份还活着吗」由哪五项判据回答、每项的容忍口径是多少、判不了的时候怎么算。
-
-`src/health.ts`。定时自检（每 `health-check-interval-hours` 小时）与
-`windows-backup.check` 命令调的是同一个 `runHealthCheck`，输出纯 JSON（`HealthReport`），
-不打印不弹窗——怎么呈现由调用方决定。
+`src/health.ts`。定时自检（每 `health-check-interval-hours` 小时）与 `windows-backup.check` 调的是同一个 `runHealthCheck`，
+输出一份 `HealthReport`，不打印、不弹窗、不写日志，怎么显示由调用方决定：
 
 {/* ref file="../plugins/windows-backup/src/health.ts" lines="122-143" hash="6123b967689e" blob="14d5473563fa" */}
 
-## 管什么
-
-五项：上次备份 / 日志尾 / 仓库盘余量 / 快照新鲜度 / 周期维护。**不知道什么**：不知道
-界面长什么样（那是窗格的事）；不判「备份内容对不对」——它只回答「这件事还在不在正常运行」，
-数据可不可恢复归 restic 自己的校验，不在这五项里。
-
-四项的容忍口径是一处刻意的统一：**两个周期**（`frequencyMinutes × 2`）。写死一个周期的话，
-备份跑了 3 分钟、自检又晚到 1 分钟就误报；给两个周期，漏报的代价（晚一个周期发现）比
-天天误报小得多——误报比漏报更伤，告警天天响，人就不再看，真出事那次也一起被忽略。
-
-{/* ref file="../plugins/windows-backup/src/health.ts" lines="145-154" hash="bce445ae9946" blob="14d5473563fa" */}
+它只回答「备份这件事还在不在正常运行」，不判备份内容对不对——数据能不能恢复靠 restic 自己的校验，不在这五项里。
 
 ## 五项各判什么
 
 | 项 | 判据 | 判不了时 |
 | --- | --- | --- |
-| ① 上次备份 | `state.json` 三个字段：跑过 + 上次成了 + 距上次成功 ≤ 两周期；备份正常时再看 `lastPrune`，隔了 2 个日历日还没 prune 成功（或从没成功过）也是 problem | 没跑过是 problem（「还没备份过」），不是 unknown |
-| ② 日志尾 | 最后一轮（从最后一条 `Backup started` 往后）有没有成功行 + 尾 30 行里**晚于最近一次成功**的失败关键词（翻篇的不算） | 上一轮还在跑记 unknown |
-| ③ 磁盘余量 | **`local-repo` 所在的那个盘**，`<20%` notice、`<10%` alert | 读不到盘记 unknown |
-| ④ 快照新鲜度 | `restic snapshots --latest 1 --json`，距最新快照 ≤ 两周期 | restic 不在 / 仓库锁着 / 盘没插，一律 unknown 不算失败 |
-| ⑤ 周期维护 | USB 离机副本 ≥ 7 天该做、exclude 误伤扫描 ≥ 30 天该扫 | 从没做过按「该做了」算 |
+| ① 上次备份 | `state.json` 里跑过、上次成了、距上次成功不超过两个周期；备份没问题时再看 `lastPrune`，隔了 2 个日历日还没 prune 成功（或从没成功过）也算问题 | 从没跑过算问题（「还没备份过」），不算判不了 |
+| ② 备份日志 | 最后一轮有没有成功行；尾 30 行里晚于最近一次成功行的失败关键词 | 最后一轮还在跑记 `unknown` |
+| ③ 磁盘余量 | `local-repo` 所在的那个盘：低于 20% 提醒、低于 10% 告警 | 读不到盘记 `unknown` |
+| ④ 快照新鲜度 | `restic snapshots --latest 1 --json`，距最新快照不超过两个周期 | restic 不在、仓库锁着、盘没插，一律 `unknown` |
+| ⑤ 周期维护 | USB 离机副本满 7 天、exclude 误伤扫描满 30 天、人工复核满 `review-interval-days` 天就提醒 | 从没做过按「该做了」算 |
 
-`unknown` / `skipped` **不算失败**——判不了（组件缺席、仓库锁着）与「备份坏了」是两回事；
-要启动 restic 的第④项可以 `skipSnapshots` 跳过（慢），正式调用不跳过：快照新鲜度正是
-健康检查最想看的一项。
+`unknown` 与 `skipped` 不算失败：判不了（组件不在、仓库锁着）和「备份坏了」是两回事。第④项要启动 restic，调用时可以
+`skipSnapshots` 跳过；定时自检与命令都不跳过，快照新鲜度正是最想看的一项。
 
-## 日志尾为什么按轮判
+## 为什么容忍两个周期
+
+①④两项的上限都是 `frequency-minutes × 2`。只给一个周期的话，备份跑了 3 分钟、自检又晚到 1 分钟就会报问题；给两个周期，
+漏报的代价是晚一个周期发现，远小于天天误报——告警天天响，人就不再看，真出事那次也一起被忽略。
+
+{/* ref file="../plugins/windows-backup/src/health.ts" lines="145-154" hash="bce445ae9946" blob="14d5473563fa" */}
+
+prune 的失败放在第①项判，而不是第②项：prune 的失败行后面紧跟着同一轮 OSS 备份的成功行，第②项会把它当成「已经翻篇」，
+只有 `lastPrune` 的新旧看得出来。
+
+## 日志尾按「一轮」判
 
 {/* ref file="../plugins/windows-backup/src/health.ts" lines="236-250" hash="9c43c8ff54be" blob="14d5473563fa" */}
 
-「末两行」式判定在真实日志里几乎永不成立：restic 自己的 stdout 夹在两条契约行中间，
-轮到 prune 的那轮末尾还是 prune 的行。所以从最后一条 `Backup started` 往后算作一轮，
-看这一轮里有没有成功行。失败关键词里 `error` 收窄了两道——整词匹配（不然
-`terror` 也算数）、先扣掉 `0 errors` 计数行（restic 每轮正常输出里就带着它）。
+「看最后两行是不是成功行」在真实日志里几乎永远不成立：restic 自己的输出夹在契约行之间，轮到 prune 的那一轮最后还是 prune 的行。
+所以从最后一条 `Backup started` 往后算作一轮，看这一轮里有没有 `Backup completed successfully`（OSS 开着时再看 OSS 那一行）。
 
-尾窗口里的失败行还分两拨：**晚于最近一次成功**的是「当前的故障」，早于它的是上一轮甚至
-更早的遗留，不算。为什么分——一轮刚跑成全绿时，尾 30 行里往往还压着更早失败留下的行，
-不分的话健康检查会一直红到下一轮把旧行挤出窗口。反过来，失败了一夜、今早还没成功过的那种，
-最新一条失败排在最后一次成功之后，照样报，并把那一行的**时刻**写进问题描述里。
+尾窗口里的失败行分两拨：**晚于最近一次成功行**的是当前的故障，早于它的是已经翻篇的旧失败，不算——否则一轮全成功之后，
+尾 30 行里还压着更早被打断留下的 `Backup FAILED`，第②项要一直报问题，直到下一轮把旧行挤出窗口。失败了一夜、今早还没成功过的那种，
+最新的失败行排在最后一次成功之后，照样报，并把那一行的时刻写进问题描述。失败关键词怎么收窄见[日志契约与通知](/docs/modules/log)。
 
-## 提供的接口
+## 测试
 
-`runHealthCheck(paths, config, opts)`（不抛，判不了的项记 unknown 不影响其余四项）与几个
-纯解析函数（`parseLatestSnapshotTime`）。注入点：`run`（假 restic）、`diskFree`（假磁盘）、
-`state`（假状态）、`now`（固定时间）。
-
-## 怎么单独测
-
-`tests/health.test.ts`：注入假 restic / 假磁盘 / 假状态，逐项传入「成、败、判不了」三种输入，
-证明容忍口径与 unknown 分级。
-
-## 代码地图
-
-- **在哪**：`src/health.ts`
-- **先读**：`runHealthCheck` → 五个 `check*` 按序
-- **读序**：`messages.ts`（它 grep 的那串字在那儿定义）→ `state.ts`（第①项读的三个字段）→ 本页
-- **可跳过**：`parseLatestSnapshotTime` 的 JSON 收窄
+`tests/health.test.ts` 注入假 restic、假磁盘、假状态与固定时间，逐项喂「成、败、判不了」三种输入，查容忍口径、`unknown` 的分法、
+翻篇的失败行不报、最新失败的时刻进描述。

@@ -1,75 +1,48 @@
 ---
 title: 日志契约与通知
-description: 那几串英文是契约不是文案——写日志的一头和读日志的一头必须认同一串字
+description: 日志里那几串英文是契约不是文案——写日志的一头和读日志的一头认同一串字；结束通知从哪儿出去
 ---
 
-# 日志契约与通知
+**本页回答**：备份日志里哪些行是给程序读的契约、失败关键词怎么收窄、结束通知怎么弹出来。
 
-**本页回答**：备份日志里哪些行是机器读的契约、失败关键词怎么收窄、结束通知从哪儿出去。
+## 日志
 
-`src/log.ts` + `src/messages.ts` + `src/toast.ts`。
+`src/log.ts` 往数据目录的 `logs/restic-backup.log` 写：`[YYYY-MM-DD HH:MM:SS] <内容>` 一行一条，restic 的输出原样附上
+（不加时间戳，restic 自己的排版有信息量），超过 10 MB 只留最后 1000 行。一律同步写：链路中途崩了，已经写的行都在盘上。
 
-## 管什么
+## 契约行
 
-`log.ts` 管往 `<数据目录>/logs/restic-backup.log` 写：`[YYYY-MM-DD HH:MM:SS] <msg>` 一行
-一条，子进程输出原样附上（不加时间戳——restic 自己的排版有信息量），超 10 MB 只留末
-1000 行。一律同步写：链路上一条日志没落盘就崩了，等于没有排查线索。
-
-`messages.ts` 是契约行的**唯一出处**。写日志的一头（备份管线）和读日志的一头（五项健康、
-将来手册的验收步骤）必须认同一串字；让两头各自写字面量，迟早改了一头忘了另一头，症状是
-「健康检查报一切正常，其实备份三个月前就断了」。
+`src/messages.ts` 是契约行的唯一出处。写日志的一头（备份管线）与读日志的一头（五项自检的第②项，将来手册里的验收步骤）必须认同一串字；
+两头各写各的字面量，迟早改了一头忘了另一头，症状是「自检说一切正常，其实备份三个月前就断了」。
 
 {/* ref file="../plugins/windows-backup/src/messages.ts" lines="3-8" hash="70dedc1fe661" blob="dd618ded29f8" */}
 
-英文不是随手写的：这几串字是**既有契约**——用户的存量日志里躺着的就是它们，翻成中文
-等于把存量日志作废。改一个词，健康检查就会把「备份早就断了」读成
-「一切正常」，而这种误报要等到灾后取数据那天才现形。
+四组：`Backup`、`Prune`、`OSS push`、`OSS prune`，每组 `started` / `completed successfully` / `FAILED with exit code N`；另有
+`Log rotated (kept last N lines)` 与 `Notification failed: <原因>`。英文是存量日志里已有的写法，翻成中文等于让存量日志作废；
+改一个词，自检就会把断掉的备份读成正常，而这种误报要到灾后取数据那天才发现。
 
-## 失败关键词的收窄
+## 失败关键词
 
-五项健康的第②项在日志尾搜四个词：`FAILED` / `Fatal` / `exit code` 出现即算数；
-`error` 单拎出来收窄两道——整词匹配、先扣掉 `0 errors` 计数行。判据还是那句：**误报比
-漏报更伤**。
+第②项在日志尾搜四个词：`FAILED`、`Fatal`、`exit code` 出现即算；`error` 收窄两道——整词匹配（不然 `terror` 也算），先扣掉 `0 errors`
+这种计数行（restic 每轮正常输出里都有）。判据还是那句：误报比漏报更伤。
 
 {/* ref file="../plugins/windows-backup/src/messages.ts" lines="53-58" hash="37ec501f659e" blob="dd618ded29f8" */}
 
-**有一行刻意不算契约**：父快照失效要重跑时补的那句（`parentDroppedLine`），措辞里避开了
-上面四个词——它不是失败，是自我修复的第一步，落成失败关键词会让第②项把一次正常的重试
-记成故障。同一条分寸的另一半是 `parentUnusable`：只认 restic 说「这份父快照找不到」的那两句
-原话，别的失败一个都不重试。
+**有一行刻意不含这四个词**：父快照失效、要不带父快照重跑时补的说明行（`parentDroppedLine`）。它不是失败，是自我修复的第一步；
+写成失败关键词，第②项会把一次正常的重跑记成故障。配套的 `parentUnusable` 只认 restic 说「父快照找不到」的那两句原话，别的失败一个都不重试。
 
-## toast 通知
+## 结束通知
 
-`toast.ts` 走 Windows PowerShell 5.1 + WinRT 弹系统通知（`powershell` 而不是 `pwsh`——
-任何 Windows 都有前者）。成败都通知，不做「宿主在就不弹」的判断：无人值守的机器上，
-toast 与窗格是两条互补的观察面。
+`src/toast.ts` 用 Windows PowerShell 5.1 调 WinRT 弹系统通知，用 `powershell` 不用 `pwsh`：任何 Windows 都有前者。成败都通知，
+不判断「工作台开着就不弹」：没人看屏幕的机器上，通知与窗格互补，谁也替代不了谁。
 
-转义是唯一的技术难点，两层嵌着：XML 文本进的是 PowerShell 单引号字面串，所以 `'` 与 `"`
-都得转成 XML 实体——stdlib 那种「只管 `& < >`」的转义在这儿不够。
+转义是唯一的难点，嵌了两层：XML 文本要放进 PowerShell 的单引号字符串，所以 `'` 与 `"` 也要转成 XML 实体，只转 `& < >` 不够。
 
 {/* ref file="../plugins/windows-backup/src/toast.ts" lines="10-21" hash="a65cb9ece723" blob="376e07f1e708" */}
 
-弹失败只记一行 `Notification failed: ...`、不抛——通知弹不出来不该把已经跑完的备份判成失败。
+弹失败只记一行 `Notification failed: ...`，不抛：通知弹不出来，不该把已经跑完的备份判成失败。设置键 `toast` 关掉就整个不弹。
 
-## 提供的接口
+## 测试
 
-| 接口 | 干什么 |
-| --- | --- |
-| `createLogger(file)` | 造 logger：`line`（带时间戳）/ `raw`（原样）/ `rotate`（超阈值留末 N 行） |
-| `nullLogger()` | 什么都不写的 logger，测试与「只算不写」用 |
-| `messages.ts` 的常量与拼行函数 | 全部契约行；别处一律引用，不写字面量 |
-| `matchesFailure(line)` | 一行算不算失败迹象 |
-| `parentUnusable(stdout, stderr)` | 这一次 restic 是不是在说「父快照用不了」（只认那两句原话） |
-| `sendToast(title, body)` | 弹通知；失败只记日志 |
-
-## 怎么单独测
-
-`tests/log-toast.test.ts` 与 `tests/messages.test.ts`：临时目录里证明轮转留行数、契约行拼法
-逐字对、`matchesFailure` 对 `0 errors` / 整词边界的判定、XML 转义对单双引号的处理。
-
-## 代码地图
-
-- **在哪**：`src/messages.ts`（契约）、`src/log.ts`（写）、`src/toast.ts`（通知）
-- **先读**：`messages.ts` 的常量区
-- **读序**：本页 → [五项健康](/docs/modules/health)（读的那头）→ [备份管线](/docs/modules/pipeline)（写的那头）
-- **可跳过**：`timestamp` 的格式化
+`tests/log-toast.test.ts` 与 `tests/messages.test.ts`：临时目录里查轮转留的行数、契约行逐字对得上、`matchesFailure` 对 `0 errors` 与整词边界的判定、
+XML 转义对单双引号的处理、弹失败只记一行。

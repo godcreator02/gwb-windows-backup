@@ -1,74 +1,49 @@
 ---
 title: 配置与状态
-description: 设置那头平铺、程序这头嵌套，现读现用；state.json 记动作时间戳与两份父快照 ID
+description: 设置那头是平铺的 17 个键、程序这头是嵌套形状，每轮现读；state.json 记动作时间与两份父快照 ID
 ---
 
-# 配置与状态
+**本页回答**：17 个设置键怎么变成程序里用的配置、坏值为什么用默认值、`state.json` 记了什么、定时器的周期怎么换算。
 
-**本页回答**：15 个设置键怎么变成程序里的嵌套配置、坏值为什么吃默认、`state.json` 记了哪些时间戳与哪两份快照 ID。
+`src/config.ts` + `src/state.ts` + `src/timers.ts`，都是只看输入输出的纯函数，配上临时目录就能测。
 
-`src/config.ts` + `src/state.ts` + `src/timers.ts`。
+## 两个形状
 
-## 管什么
+设置插件里的键是 kebab-case（`frequency-minutes`），宿主层 `SETTING_KEYS` 那张表把它们换成平铺形状 `FlatConfig` 的 camelCase 字段；
+`flatToConfig` 再把平铺形状收成程序内部用的嵌套形状 `BackupConfig`（`restic`、`repositories.local` / `oss`、`schedule`、`retention`……）。
+日志轮转的两个数字（10 MB、1000 行）只在嵌套形状里，不上设置表：它不是用户该调的旋钮。
 
-`config.ts` 管两个形状和中间那座桥：**平铺形状 `FlatConfig`**（15 键，
-`sources` 是分号分隔的一个串——单值文本框装数组最自然的写法）与**嵌套形状 `BackupConfig`**
-（程序内部真正在用的，`sources` 是数组）。设置插件只收 kebab-case，宿主层有一张对照表负责
-换名，两个键名世界不相认。
+## 坏值用默认值
 
-**不知道什么**：不知道设置界面上长什么样；不知道 `state.json` 里除了自己写的键还有什么。
+设置插件不校验写进来的值，读这一头是唯一把关的地方：缺字段、类型不对一律用默认值；频率、自检间隔、保留份数这类数字不是正数也用默认值——
+写 0 进频率等于让定时器每 0 毫秒触发一次，退回默认比照收安全，而且**退回默认、不夹到边界**。
 
-## 坏值吃默认
+默认值里有几项故意留空：`sources`、`local-repo`、`oss-bucket`、`oss-endpoint` 要用户逐项给，塞一个像模像样的假默认只会让人以为配好了。
+`oss-enabled` 默认关：新机器只配了本地仓库就开始备份时，不会每一轮多一次注定失败的 OSS 备份、通知天天报 partial。
 
-设置插件没有校验钩子，谁都能往键里写东西，读这一头就是全仓唯一的守门员：缺字段、类型
-不对一律吃默认；频率 / 自检间隔另有「非正数退回默认」——写 0 进去等于让定时器每 0 毫秒
-疯转，退回默认比照收安全。留空的那几项（`sources` / `localRepo` / `ossBucket` /
-`ossEndpoint`）是「逐字段问用户」的字段，塞一个像模像样的假默认只会让人以为配好了。
-
-分号串切成路径数组时**去空白、去空项**——用户多打一个分号是常态，切出来的空项要是原样
-进 `restic backup` 的 argv，restic 会去备份「当前目录」。
+白名单分号分隔的一整串也认（旧版设置里是这个写法）：切开时去掉空白与空项——用户多打一个分号是常有的事，切出来的空项要是原样进了
+`restic backup` 的参数，restic 会去备份「当前目录」。
 
 {/* ref file="../plugins/windows-backup/src/config.ts" lines="124-130" hash="7288cf170fa7" blob="8206c30736f0" */}
 
-日志轮转的两个数字（10 MB / 1000 行）**不在设置表上**——它不是用户该操心的旋钮，改它的
-人是在改代码不是在改配置。
+路径类设置（`restic-exe`）按数据目录解析：绝对路径原样，`~` / `~/` 展开成家目录，其余拼在数据目录后面。
 
-## state.json：动作时间戳与两份父快照 ID
+## state.json
 
 {/* ref file="../plugins/windows-backup/src/state.ts" lines="4-23" hash="0664142270f3" blob="e08a9dbb2092" */}
 
-不靠 mtime 判跨日（空文件那类存法）：mtime 这种「载重信息在元数据里」的存法，任何一次拷贝 /
-同步 / 解压都可能把它抹平，症状是 prune 每次都跑或永远不跑。**fail-safe**：解析失败当空
-对象——这份文件坏掉最坏的后果是多跑一次 prune，为它中断整条备份链路不划算。
+时间一律本地时区、不带时区标记（`YYYY-MM-DDTHH:MM:SS`）：「跨日」按人过的日子算；不带标记的串被 `new Date` 按本地时间解析，写与读两头对得上。
+不靠文件修改时间判跨日：修改时间放在元数据里，任何一次拷贝、同步、解压都可能把它抹平，症状是 prune 每次都跑或永远不跑。
 
-时间戳一律本地时区、无时区标记（`YYYY-MM-DDTHH:MM:SS`）：「跨日」是人过的那个日子，
-不是 UTC 的；无标记的串被 `new Date` 按本地时间解析，写读两头口径对得上。
+写是合并写，只改这次给的字段。读不了（文件不在、JSON 坏了、不是对象）就当空对象：这份文件坏了最坏多跑一次 prune，为它中断整条备份不值得。
+两份快照 ID 为什么非记不可，见[备份管线](/docs/modules/pipeline#父快照)。
 
-另有两格不是时间戳：`lastLocalSnapshot` / `lastOssSnapshot`——最近一次成功备份留在两个仓里
-的快照 ID，下一轮交给 restic 的 `--parent` 当基准。为什么非记不可，见[备份管线](/docs/modules/pipeline)。
+## 周期换算
 
-## 提供的接口
+`timers.ts` 三个函数：自检间隔小时换毫秒、备份周期分钟换毫秒（不合法就退回 `DEFAULT_FLAT` 里的默认值，默认值不在第二处写死）；
+`shouldCatchUp` 判加载 30 秒后要不要补跑：从没跑过，或上一轮离现在已满一个周期。
 
-| 接口 | 干什么 |
-| --- | --- |
-| `pickFlat` / `flatToConfig` | 来路不明的值 → 平铺表 → 嵌套配置 |
-| `splitSources` | 分号串 → 干净的路径数组 |
-| `resolveSlotPath` | 路径类字段按数据目录解析（绝对原样、`~/` 展家目录、其余按数据目录拼） |
-| `readState` / `writeState` | merge 写，只动 patch 里的键 |
-| `shouldRunPrune` / `shouldCatchUp` / `intervalMsOf` / `backupIntervalMsOf` | `timers.ts` 的三个纯函数：每日一次的旗子、起来补跑的判据、周期换算（不合法退回默认，不悄悄夹到边界） |
+## 测试
 
-## 依赖的接口
-
-只依赖 node 内建 `os` / `path` / `fs`。无注入点，纯函数配上临时目录就能测。
-
-## 怎么单独测
-
-`tests/config.test.ts`、`tests/state.test.ts`、`tests/timers.test.ts`：喂坏值证明吃默认、
-喂分号串证明去空项、喂时间戳证明跨日与分钟差的口径。
-
-## 代码地图
-
-- **在哪**：`src/config.ts`、`src/state.ts`、`src/timers.ts`
-- **先读**：`DEFAULT_FLAT`（15 个默认值就是一份配置说明）
-- **读序**：本页 → [宿主层](/docs/modules/host)（现读配置的那头）→ [备份管线](/docs/modules/pipeline)
-- **可跳过**：`resolveSlotPath` 的 `~/` 支路（给从老线搬过来的旧配置留的）
+`tests/config.test.ts`、`tests/state.test.ts`、`tests/timers.test.ts`：喂坏值查用默认值、喂分号串查去空项、喂时间串查跨日与分钟差的口径、
+坏 JSON 当空对象。

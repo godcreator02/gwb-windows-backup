@@ -1,83 +1,53 @@
 ---
 title: 宿主层
-description: 挂上 gwb 内核的那半——inject 等待语义、两根计时器、六条命令、局部注入的外壳
+description: 把域库接到工作台上的那一层——顶层注入的等待语义、两个定时器、六条命令、局部注入的外壳
 ---
 
-# 宿主层
+**本页回答**：域库怎么接到工作台上、哪些服务缺了会让备份停、哪些缺了只是没有界面、运行时状态放在哪。
 
-**本页回答**：域库怎么挂上 gwb 内核、哪些缺席会让备份停、哪些只是没有界面。
+`src/index.ts`。全部加载动作在 `mount(ctx, deps)`，`apply` 只是外面一层，负责传入会启动子进程的两个生产实现；拆成两层是为了测试把它们换成替身。
+宿主层只认 `HostContext` 这个最小形状，不 import 内核的运行时代码；它和工作台插件之间的每条连接见首页[接缝 1–5](/docs#接缝逐条)。
 
-`src/index.ts`。全部挂载动作在 `mount(ctx, deps)`，`apply` 只是它的一层壳、负责把真身递
-进来——拆两层是为了测试（`runHealthCheck` 与 `runFullBackup` 都会起子进程，测试换假的）。
+## 顶层注入是等待语义
 
-## 管什么
+`export const inject` 列的服务缺一个，cordis 就不调用 `apply`，整个插件（连同备份）停在等待，日志里写明在等谁。所以顶层只列离了就没法备份的四个：
+命令总线、设置、数据、定时器；外壳走局部注入，缺了只是没有窗格。
 
-六件事：定时备份（`frequency-minutes` 周期）、开机补跑、周期自检、设置 15 键声明、命令
-六条、窗格注册。**不知道什么**：不知道 restic 怎么跑（域库的事）、不知道界面怎么画
-（窗格的事）、不知道宿主是什么程序（只认 `HostContext` 那几个方法）。
+## 运行时状态
 
-## inject 是等待语义
-
-顶层 `inject` 列了却缺席，整个插件（连同备份本体）静默挂起。所以只列命根：命令总线、
-设置、数据、timer——**外壳绝不进顶层 inject**（见文末局部注入）。`timer`
-（`@cordisjs/plugin-timer`）缺席时本插件整个挂起等它：宁挂起，不静默不备份。
-
-可变状态**只活在这一次 mount 的闭包里**——重挂清零（上一轮结论没了，30 秒后重新自检），
-这是知情认下的代价：结论本身是「此刻的观察」，真正要跨进程活着的那几项住 `state.json`。
-`backing` 布尔是第一层并发保护，第二层是数据目录的 `backup.lock`。`status` 回包里的
-`backup.runningSince` 就是那把锁记着的 `startedAt`——「这一轮跑了多久」是这面最常被问的
-一句，小时级的轮只凭一个 `running` 分不清是在干活还是卡死。
+`createBackupRuntime` 把可变状态放在这一次 `mount` 的闭包里：自检进行中、上一次自检的结论与时间、下一次自检时间、自检本身出错时的那句话、
+两个定时器的间隔、下一轮备份时间，以及第一层并发保护 `backing`。重新加载就清零（上一次自检的结论没了，30 秒后重新自检）——
+结论本来就是「此刻的观察」，不值得另存一份文件；要跨进程保留的几项在 `state.json`。
 
 {/* ref file="../plugins/windows-backup/src/index.ts" lines="200-216" hash="3228a0cd1b93" blob="7eec32c17df0" */}
 
-## 计时器：每响一次把「下次」往后推
+`status` 回执里的 `backup.runningSince` 取自 `backup.lock` 的 `startedAt`：「这一轮跑了多久」是最常被问的一句，几个小时的一轮只看 `running` 分不清是在干活还是卡住了。
+
+## 定时器每次触发都往后推「下次」
 
 {/* ref file="../plugins/windows-backup/src/index.ts" lines="245-255" hash="959f8a9b7c88" blob="7eec32c17df0" */}
 
-只在起计时器时算一次 `nextRunAt` 的话，跑完不推，状态里显示的就永远是一个已经过去的
-时刻。设置改了频率就停旧的重开（下一轮生效）；间隔没变只推下次时刻，不变着重开——重开
-的代价是当前这一轮计时清零。
+只在开定时器时算一次 `nextRunAt`、触发后不推的话，状态里显示的永远是一个已经过去的时刻。设置里改了频率，下一轮开跑时用现读的值核对，
+变了才停掉旧的、按新值重开；自检间隔没变时只把下次时刻往后推，不重开——重开会让当前这一轮的计时清零。
 
-版本号读包根清单要**上一层**（`'../package.json'`，不是 `'./'`——本模块住 `dist/`）；loader
-可能带查询串 import 本模块，`createRequire` 拿那种 URL 解析相对路径会炸，先剥 `?` 后面
-那段。
+`runBackup` 与 `runCheck` 都**绝不抛**：定时器与命令两条路都调它们，抛出去周期定时就停了；所有异步调用自己 catch 并写日志，
+静默的 reject 在日志里什么都不留，现象是「加载了，但什么都没发生」。
+
+## 版本号
+
+`status` 里的版本号从插件包根的 `package.json` 读，本模块在 `dist/index.js`，所以相对路径是上一层；loader 可能带查询串 import 本模块，
+`createRequire` 拿那种地址解析相对路径会抛错，先去掉 `?` 后面那段。另有 `moduleLoadedAt`（模块被 import 的时刻）与 `appliedAt`：
+重新安装后这两个时刻没变，就是新代码没加载上。
 
 {/* ref file="../plugins/windows-backup/src/index.ts" lines="120-133" hash="355b9e1b3677" blob="7eec32c17df0" */}
 
-## 提供的接口
-
-对宿主导出 `name` / `inject` / `apply` / `mount` 与 `MountDeps`（测试的注入口）。对 agent
-是命令六条与设置 15 键，见[用法](/docs/usage)。对人是窗格，见[备份窗格](/docs/modules/client)。
-
-每条命令一个 `effect` 注册——某条撞名不该把别的几条也带走。所有 async 链自己 catch 并打
-日志——静默 reject 在日志里一根毛都不剩，「挂上了但什么都没发生」就是那类假象的样子。
-
-## 依赖的接口
-
-| 接口 | 用来做什么 | 生产实现 | 测试实现 |
-| --- | --- | --- | --- |
-| `ctx.gwbSettings` | 声明与现读 17 键 | gwb-settings 插件 | 内存表 |
-| `ctx.gwbCommands` | 注册命令六条 | gwb-commands 插件 | 内存表 |
-| `ctx.gwbData.dir` | 数据目录 | gwb-data 插件 | 临时目录 |
-| `ctx.interval` / `ctx.timeout` | 两根计时器 | `@cordisjs/plugin-timer` | 立即回调 |
-| `ctx.gwbShell` | 注册窗格（**局部注入**） | gwb-shell 插件 | 缺席即不回调 |
-
-## 局部注入：外壳缺席只是没有界面
+## 外壳走局部注入
 
 {/* ref file="../plugins/windows-backup/src/index.ts" lines="554-572" hash="aeae7c0d9079" blob="7eec32c17df0" */}
 
-`ctx.inject(['gwbShell'], ...)` 走局部注入：headless home（没装外壳）里备份照跑，缺的只是
-看得见的那层界面。列进顶层 inject 却缺席的话，整个插件连同备份本体一起静默 pending——那才是
-事故。
+没装外壳的 home 里备份照常，缺的只是窗格；把外壳写进顶层注入的话，外壳不在时整个插件连同备份一起停在等待，那才是事故。
 
-## 怎么单独测
+## 测试
 
-`tests/mount.test.ts`：假宿主（effect 只登记 disposer、设置/命令/外壳全是内存表）+ 假
-runner，证明首检与补跑的时机、命令回包的形状、设置现读、外壳缺席时挂载不坏。
-
-## 代码地图
-
-- **在哪**：`src/index.ts`
-- **先读**：`mount` → `createBackupRuntime`
-- **读序**：[配置与状态](/docs/modules/config-state) → 本页 → 各域库模块页
-- **可跳过**：`todayLocal` / `messageOf` 两个小工具
+`tests/plugin.test.ts`：假宿主（`effect` 只记下注销函数，设置、命令、外壳全是内存表）加两个替身，查首次自检与补跑的时机、`nextRunAt` 往后推、
+改了频率后重建、命令回执的形状、设置现读、中途抛错回本轮失败、外壳不在时照常加载、卸载后命令与设置全部注销。先读 `mount`，再读 `createBackupRuntime`。
