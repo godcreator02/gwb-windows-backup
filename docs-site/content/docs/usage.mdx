@@ -20,7 +20,7 @@ plugin-manager.install {"pkg":"@godcreator/gwb-windows-backup"}
 **home 里没有 timer 条目时本插件整个停在等待**——顶层 `inject` 是等待语义，宁可等待，
 不在没有定时器时假装在备份。
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="91-91" hash="4eb5c1a16e7e" blob="de0d5bdaecca" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="41-41" hash="4eb5c1a16e7e" blob="7eec32c17df0" */}
 
 数据目录由数据插件按条目 id 给出（插件管理默认给的条目 id 是 `windows-backup`，即
 `<home>/data/windows-backup`），全部用户数据住那里。装完把 restic 本体放进 `bin/restic.exe`
@@ -31,7 +31,7 @@ plugin-manager.install {"pkg":"@godcreator/gwb-windows-backup"}
 设置经 gwb-settings 声明，**每次跑现读现用、绝不缓存**——设置插件没有变更通知，缓存一份
 就会「设置改了、跑的还是旧值」。类型不对或缺字段的值按默认值处理，不报错。
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="94-118" hash="9335d4ec8d1f" blob="de0d5bdaecca" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="44-68" hash="9335d4ec8d1f" blob="7eec32c17df0" */}
 
 必填两项：`sources`（备份白名单，在设置插件里一行一项；分号分隔的一整串也认）与 `local-repo`
 （本地 restic 仓库路径）。缺任何一项，定时照常触发，但每轮都拒跑，拒跑理由是一句指路的话。
@@ -55,7 +55,7 @@ OSS 三项（`oss-bucket` / `oss-endpoint` / `oss-repo-path`）只在 `oss-enabl
 
 ## 命令（六条，agent 经 MCP 入口的 `run` 调用）
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="454-603" hash="ce6d2671e21f" blob="de0d5bdaecca" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="401-474" hash="e6910a162fbb" blob="7eec32c17df0" */}
 
 | 命令 | 干什么 |
 | --- | --- |
@@ -78,7 +78,7 @@ OSS 三项（`oss-bucket` / `oss-endpoint` / `oss-repo-path`）只在 `oss-enabl
 加载后 30 秒是第一轮：先自检，上一轮备份太旧（超过一个周期）就顺带补跑一轮。不在加载时
 当场跑——加载期间所有插件都在启动，这时运行 restic 会让仓库 I/O 拖慢启动。
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="605-622" hash="eb07f01b272d" blob="de0d5bdaecca" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="538-552" hash="511e1929f689" blob="7eec32c17df0" */}
 
 **工作台没运行就不备份**——定时器在 gwb 工作台里，工作台关了备份就停，下次启动 30 秒后
 补跑。这是有意接受的代价；要不依赖工作台的保底，等路线上的灾难恢复命令行入口。

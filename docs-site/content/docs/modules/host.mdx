@@ -28,11 +28,11 @@ description: 挂上 gwb 内核的那半——inject 等待语义、两根计时�
 `backup.runningSince` 就是那把锁记着的 `startedAt`——「这一轮跑了多久」是这面最常被问的
 一句，小时级的轮只凭一个 `running` 分不清是在干活还是卡死。
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="236-255" hash="269d1b98b7f4" blob="de0d5bdaecca" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="200-216" hash="3228a0cd1b93" blob="7eec32c17df0" */}
 
 ## 计时器：每响一次把「下次」往后推
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="288-298" hash="bcd62427f370" blob="de0d5bdaecca" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="245-255" hash="959f8a9b7c88" blob="7eec32c17df0" */}
 
 只在起计时器时算一次 `nextRunAt` 的话，跑完不推，状态里显示的就永远是一个已经过去的
 时刻。设置改了频率就停旧的重开（下一轮生效）；间隔没变只推下次时刻，不变着重开——重开
@@ -42,7 +42,7 @@ description: 挂上 gwb 内核的那半——inject 等待语义、两根计时�
 可能带查询串 import 本模块，`createRequire` 拿那种 URL 解析相对路径会炸，先剥 `?` 后面
 那段。
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="180-195" hash="9e0a35d4dc8f" blob="de0d5bdaecca" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="120-133" hash="355b9e1b3677" blob="7eec32c17df0" */}
 
 ## 提供的接口
 
@@ -64,7 +64,7 @@ description: 挂上 gwb 内核的那半——inject 等待语义、两根计时�
 
 ## 局部注入：外壳缺席只是没有界面
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="624-641" hash="046a8430539c" blob="de0d5bdaecca" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="554-572" hash="aeae7c0d9079" blob="7eec32c17df0" */}
 
 `ctx.inject(['gwbShell'], ...)` 走局部注入：headless home（没装外壳）里备份照跑，缺的只是
 看得见的那层界面。列进顶层 inject 却缺席的话，整个插件连同备份本体一起静默 pending——那才是
@@ -78,6 +78,6 @@ runner，证明首检与补跑的时机、命令回包的形状、设置现读�
 ## 代码地图
 
 - **在哪**：`src/index.ts`
-- **先读**：文件头注释（抄的人最容易踩错的几条全在那儿）→ `mount`
+- **先读**：`mount` → `createBackupRuntime`
 - **读序**：[配置与状态](/docs/modules/config-state) → 本页 → 各域库模块页
 - **可跳过**：`todayLocal` / `messageOf` 两个小工具
