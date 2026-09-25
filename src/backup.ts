@@ -85,7 +85,7 @@ export type CompletedBackupResult = {
 export type SkippedBackupResult = {
   ok: false
   skipped: 'locked'
-  /** 占着锁那一轮是什么时候起的；读不出来是 `null`。 */
+  /** 占着锁那一轮是什么时候开始的；读不出来是 `null`。 */
   heldSince: string | null
 }
 
@@ -271,7 +271,7 @@ async function runLocked(ctx: BackupContext): Promise<CompletedBackupResult> {
   return { ok, skipped: null, local, oss, prunedToday, notification }
 }
 
-/** 占锁失败时回一句「那一轮是什么时候起的」，纯粹为了把话说清楚；读不出来就 `null`。 */
+/** 占锁失败时回一句「那一轮是什么时候开始的」，纯粹为了把话说清楚；读不出来就 `null`。 */
 function readLockStartedAt(file: string): string | null {
   return readLock(file)?.startedAt ?? null
 }

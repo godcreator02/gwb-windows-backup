@@ -456,7 +456,7 @@ export function parseLatestSnapshotTime(stdout: string): string | null {
   }
 }
 
-/** 默认的磁盘余量读法：`fs.statfs`，不起子进程、不看系统语言、不碰 WMI。 */
+/** 默认的磁盘余量读法：`fs.statfs`，不启动子进程、不看系统语言、不碰 WMI。 */
 function defaultDiskFree(probePath: string): { freeBytes: number; totalBytes: number } | null {
   try {
     const stat = statfsSync(probePath)

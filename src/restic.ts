@@ -62,7 +62,7 @@ export function pruneArgs(retention: RetentionSection): string[] {
 /**
  * restic 跑起来时的 env：**父进程 env 打底，只叠 GOMAXPROCS 与 OSS 那几键**。
  *
- * 造的是一份给这一次子进程用的副本——父进程的 env 从头到尾没碰过，本进程后续起的
+ * 造的是一份给这一次子进程用的副本——父进程的 env 从头到尾没碰过，本进程后续启动的
  * 任何子进程都不会带着 OSS 密钥。
  */
 export function resticEnv(

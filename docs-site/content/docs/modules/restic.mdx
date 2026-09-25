@@ -5,7 +5,7 @@ description: 参数表两处 SSOT、四条子进程硬规矩——全仓唯一�
 
 # restic 封装与子进程
 
-**本页回答**：restic 的命令行怎么拼、retention 与 OSS 仓库 URL 为什么只有一处定义、起子进程有哪几条不许绕的规矩。
+**本页回答**：restic 的命令行怎么拼、retention 与 OSS 仓库 URL 为什么只有一处定义、启动子进程有哪几条不许绕的规矩。
 
 `src/restic.ts` + `src/process.ts`。参数跟 restic 实际接受的写法绑定，另拼一份就可能再遇到已经解决过的参数问题。
 
@@ -31,13 +31,13 @@ description: 参数表两处 SSOT、四条子进程硬规矩——全仓唯一�
 {/* ref file="../src/process.ts" lines="4-11" */}
 
 超时分两档：restic 备份 / prune 给 6 小时（首次全量几十 GB 是常态），其余子进程（快照
-查询、toast）默认 2 分钟。退出码约定：信号杀掉记 `-1`、起不来记 `-2`——都是非零，调用方
+查询、toast）默认 2 分钟。退出码约定：信号杀掉记 `-1`、启动不了记 `-2`——都是非零，调用方
 按失败处理即可。异常转成可读说明时只取 `message` 不带栈，**栈里可能带着命令行参数**。
 
 ## env 的边界
 
 `resticEnv` 造的是**这一次子进程专用的一份副本**：父进程 env 打底、叠 `GOMAXPROCS`，
-OSS 那次再叠 AccessKey 两键——父进程的 env 从头到尾没碰过，本进程后续起的任何子进程都
+OSS 那次再叠 AccessKey 两键——父进程的 env 从头到尾没碰过，本进程后续启动的任何子进程都
 不会带着 OSS 密钥。
 
 {/* ref file="../src/restic.ts" lines="62-74" */}

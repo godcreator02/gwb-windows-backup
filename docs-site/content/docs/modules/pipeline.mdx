@@ -10,7 +10,7 @@ description: runFullBackup——占锁、本地备份、每日 prune、OSS 推�
 `src/backup.ts`。域库的主体，定时器与命令两条触发路都从 `runFullBackup` 这一个函数进，
 所以锁开在这里而不是各调用方各自加一把。
 
-{/* ref file="../src/backup.ts" lines="137-152" */}
+{/* ref file="../src/backup.ts" lines="141-156" */}
 
 ## 管什么
 
@@ -32,7 +32,7 @@ OSS prune 跟本地同节奏**且 OSS 推送成功才跑**（往刚推失败的�
 （本地仓一份 `lastLocalSnapshot`、OSS 仓一份 `lastOssSnapshot`，两个仓的快照链独立、ID 不
 通用）。不知道什么：不知道那份快照还在不在仓库里——**失效的处置在下面那段回退里**。
 
-为什么要显式递：restic 挑父快照是按 `--group-by`（默认 `host,paths`）分的组，**白名单里
+为什么要显式传入：restic 挑父快照是按 `--group-by`（默认 `host,paths`）分的组，**白名单里
 加了路径就是新组、一个候选都没有**，于是全部文件重读重算（实测：单台机器 51 GiB / 452k 个
 文件，`gomaxprocs: 1` 时约 90 分钟一轮，两次就是三小时）。显式给一份父快照，新路径当新文件
 读、其余路径照旧按父快照比对——同一件事从「整份重读」缩回「只读新增」。
@@ -69,7 +69,7 @@ restic 会硬失败（实测 0.18.1：stderr `no matching ID found for prefix "<
 
 | 接口 | 用来做什么 | 生产实现 | 测试实现 |
 | --- | --- | --- | --- |
-| `RunProcess` | 起每一个 restic 子进程 | `process.ts` 的 `runProcess` | 按子命令前缀分发的假 restic |
+| `RunProcess` | 启动每一个 restic 子进程 | `process.ts` 的 `runProcess` | 按子命令前缀分发的假 restic |
 | `Logger` | 契约行与 restic 原始输出 | `log.ts` 的 `createLogger` | `nullLogger` |
 | `acquire` / `readLock` | 跨进程占锁 | `lock.ts` | 注入 `acquireLock` 造「别人占着」 |
 | `readState` / `writeState` | 读 prune 时间戳与两份父快照 ID、写 lastRun 三项与新快照 ID | `state.ts` | 临时目录真文件 |
@@ -93,4 +93,4 @@ restic 会硬失败（实测 0.18.1：stderr `no matching ID found for prefix "<
 成败都记是这里最容易被「优化」掉的一行——只在成功时记的话，连着失败三天看起来会像
 「三天前刚备过」：
 
-{/* ref file="../src/backup.ts" lines="242-246" */}
+{/* ref file="../src/backup.ts" lines="259-263" */}
