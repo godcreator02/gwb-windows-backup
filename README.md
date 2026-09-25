@@ -1,58 +1,47 @@
 # gwb-windows-backup
 
-gwb 内核线上的 Windows 备份插件：restic 打快照 + 阿里云 OSS 异地副本（restic 的 S3 后端，
-第二次独立 backup 直打 `s3:` 仓）+ 周期自检，跑在 gwb-kernel（单元 `26090705ymz`）上。
+gwb 工作台的 Windows 备份插件：restic 打快照 + 阿里云 OSS 异地副本（restic 的 S3 后端，
+第二次独立 backup 直接写 `s3:` 仓库）+ 周期自检。
 
 ## 现在有什么
 
-* **node 半**（`src/`，零第三方依赖，node 内建 only）：
-  * 定时备份（默认 30 分钟）+ 挂载 30 秒后补跑 + 每日一次 forget+prune + OSS 推送
+* **node 侧**（`src/`，零第三方依赖，只用 node 内置模块）：
+  * 定时备份（默认 30 分钟）+ 加载 30 秒后补跑 + 每日一次 forget+prune + OSS 推送
   * 五项健康检查：上次备份 / 日志尾 / 仓库盘余量 / 快照新鲜度 / 周期维护提醒
-  * 跨进程锁（`backup.lock`，6h 陈旧接管）、凭据永不进日志（`--password-file`）
-  * **改白名单不吃全量重读**：两趟都显式递上一条成功快照当父本（`--parent`），加路径只读
-    新增那条；父本在仓库里没了就丢开它重跑一次，不算故障
-* **命令面**（`windows-backup.*`，MCP 插件会自动开给 agent）：
+  * 跨进程锁（`backup.lock`，持锁方 6 小时没心跳就由新的一轮接管）、凭据永不进日志（`--password-file`）
+  * **改白名单不会整份重读**：本地与 OSS 两次备份都显式传上一条成功快照当父快照（`--parent`），
+    加路径只读新增那条；父快照在仓库里没了就不带它重跑一次，不算故障
+* **命令**（`windows-backup.*`，经 MCP 入口的 `run` 调用）：
   `run` / `check` / `status` / `paths` / `restic`（直通，密钥不出现在参数里）/ `mark`
-* **client 半**：备份窗格（`mountPane`）——灯、五项、按钮、30s 轮询；复核到期挂横幅 + 一键复制复核提示词
-* **设置**：17 个键经 gwb-settings 声明（kebab-case，如 `frequency-minutes`、`local-repo`、`review-interval-days`；`sources` 与 `exclude` 是 string-list 型一行一项，exclude 追加在内置垃圾基线之上）
+* **浏览器侧**：备份窗格（`mountPane`）——状态灯、五项、按钮、30 秒轮询；复核到期显示横幅 + 一键复制复核提示词
+* **设置**：17 个键经 gwb-settings 声明（kebab-case，如 `frequency-minutes`、`local-repo`、`review-interval-days`；`sources` 与 `exclude` 是 string-list 型一行一项，exclude 追加在内置排除基线之上）
 
 ## 怎么跑
 
 ```powershell
 pnpm check     # typecheck ×2 + oxlint + vitest（!slow）
-pnpm build     # tsc node 半 + esbuild client 半 + tailwindcss 前缀直出
+pnpm build     # tsc 构建 node 侧 + esbuild 构建浏览器侧 + tailwindcss 按类名前缀输出样式
 ```
 
-发版走 devkit：开发版 `devkit.dev` 发进隔离 home，正式版 `devkit.release`（构建后自动
-上车检票）——本仓没有自研发版脚本。
+## 怎么装
 
-装进隔离 home（正路）：`pnpm add @godcreator/gwb-windows-backup@<版本>` **加
-`@cordisjs/plugin-timer`（公共 npm，本插件的定时器走它——内核 AGENTS 已认定可用）**，
-cordis.yml 手写两条条目：`id: windows-backup` 与 `id: timer`（name `@cordisjs/plugin-timer`）。
-timer 条目缺了本插件整个挂起等它——宁挂起，不静默不备份。
+在工作台里依次调 `plugin-manager.install {"pkg":"@cordisjs/plugin-timer"}` 与
+`plugin-manager.install {"pkg":"@godcreator/gwb-windows-backup"}`。本插件的定时器用官方的
+`@cordisjs/plugin-timer`（公共 npm），插件管理不替它装，要单独装；home 里没有 timer 条目时本插件
+整个停在等待——宁可等待，不在没有定时器时假装在备份。
 
-## 还没搬的
+## 还没做的
 
-* 四份 AI 手册 + shared 材料（skills/ 局部注入口子已留好）
-* 宿主无关灾难 CLI 入口（`node dist/cli.js --data-root`，连带 config.json 快照）与 gwbNodeCli
-* 市场白名单（gwb-base-plugins 的 market catalog，等 release）
-* 真 OSS 推送的实机验证（单测已盖；真跑要专用 repoPath / 独立凭据）
+* 四份 AI 手册 + shared 材料
+* 不依赖工作台的灾难恢复命令行入口（`node dist/cli.js --data-root`，连带 config.json 快照）与 gwbNodeCli
+* 真 OSS 推送的实机验证（单测已覆盖；真跑要专用 repoPath / 独立凭据）
 
-四笔各在等什么前提，见文档站的[路线](/future/roadmap)。
+各在等什么前提，见文档站的[路线](/future/roadmap)。
 
 ## 文档
 
-文档站在 `docs-site/`（docfirst 六区：现状 / 轨迹 / 交接 / 未来 / 生成正本 / 反馈）：
+文档站在 `docs-site/`：`cd docs-site; pnpm dev`，看 `http://localhost:4318`。
 
-```powershell
-cd docs-site; pnpm dev    # http://localhost:4318
-pnpm exec docfirst check  # 文档门禁，单独跑（不在 pnpm check 里）
-```
+**代码注释只写现状**——为什么这么写、判据怎么来的，都在文档站。
 
-**代码注释只写现状**——为什么这么写、判据怎么来的，全在文档站：机制页用 docfirst 钉在
-对应代码上，代码一改就报黄，得有人复核；[轨迹](/trajectory)一卡一文件记定过的事，纯历史，
-不钉码。
-
-**仓根 `README.md` 与 `AGENTS.md` 都是生成物，别手改**——正本是
-`docs-site/content/outputs/readme.mdx` 与 `agents.mdx`，改完在 `docs-site` 跑
-`pnpm exec docfirst render` 重摆，一起提交。
+这份 README 是生成物，正本是 `docs-site/content/outputs/readme.mdx`。

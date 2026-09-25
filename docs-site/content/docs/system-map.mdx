@@ -1,36 +1,36 @@
 ---
 title: 系统地图
-description: 域库、宿主层、窗格三截，一轮备份的完整路线，盘上的数据目录——一页看全
+description: 域库、宿主层、窗格三部分，一轮备份的完整路线，盘上的数据目录——一页看全
 ---
 
 # 系统地图
 
-**本页回答**：这个插件由哪几截组成、一轮备份从头到尾经过哪些函数与文件、用户的哪些数据住在盘上哪个目录里。
+**本页回答**：这个插件由哪几部分组成、一轮备份从头到尾经过哪些函数与文件、用户的哪些数据住在盘上哪个目录里。
 
-## 三截
+## 三部分
 
-| 截 | 是什么 | 在哪 |
+| 部分 | 是什么 | 在哪 |
 | --- | --- | --- |
-| **域库** | 零第三方依赖、node 内建 only 的纯逻辑：锁、备份管线、五项健康、restic 封装、凭据解析、日志契约、配置收窄。可独立单测，不认识宿主 | `src/`（除 `src/client/` 与 `src/index.ts`） |
-| **宿主层** | 把域库挂上 gwb 内核的那层：设置 15 键、命令六条、两根计时器、30 秒首检与补跑、窗格注册 | `src/index.ts` |
-| **窗格** | 备份窗格（本插件唯一的界面）：灯、五项、按钮、30 秒轮询。headless home 里整截缺席，备份照跑 | `src/client/` |
+| **域库** | 零第三方依赖、只用 node 内置模块的纯逻辑：锁、备份管线、五项健康、restic 封装、凭据解析、日志契约、配置收窄。可独立单测，不认识宿主 | `src/`（除 `src/client/` 与 `src/index.ts`） |
+| **宿主层** | 把域库接到 gwb 内核上的那层：17 个设置键、六条命令、两个定时器、加载 30 秒后的首次自检与补跑、窗格注册 | `src/index.ts` |
+| **窗格** | 备份窗格（本插件唯一的界面）：状态灯、五项、按钮、30 秒轮询。没装外壳的 home 里没有这部分，备份照常运行 | `src/client/` |
 
-判据一句话：**代码只装「没 AI 也在」的事**——定时备份、周期自检、观察面；一次性操作
+判据一句话：**代码只管「没有 AI 也要一直做」的事**——定时备份、周期自检、状态查看；一次性操作
 （装 restic、换盘、USB 离机副本）归手册，不归代码。
 
 {/* ref file="../src/index.ts" lines="4-6" */}
 
 ## 一轮备份的路线
 
-两条触发路（定时器到点、`windows-backup.run` 命令）汇进宿主层的同一个入口，再落进域库
-的 `runFullBackup`——锁开在那里，别的路进不来：
+两种触发（定时器到点、`windows-backup.run` 命令）都进宿主层的同一个入口，再调域库
+的 `runFullBackup`——锁在那里取，别的调用进不去：
 
 ```text
 宿主层 runBackup（busy 挡同进程重入 → 现读配置 → refuseReason 拒跑判定）
   └→ runFullBackup（占 backup.lock，跨进程）
-       ├→ doLocalBackup   restic backup --parent <state 里的本地快照 ID> → 本地仓
+       ├→ doLocalBackup   restic backup --parent <state 里的本地快照 ID> → 本地仓库
        ├→ doPrune         forget+prune（每日一次，成了才记 lastPrune）
-       ├→ doOssPush       第二次独立 restic backup，直打 s3: 仓（ossEnabled 时）
+       ├→ doOssPush       第二次独立 restic backup，直接写 s3: 仓库（ossEnabled 时）
        ├→ doPrune(OSS)    OSS prune（本轮该 prune 且 OSS 推送成功才跑）
        ├→ logger.rotate   日志超阈值轮转
        ├→ writeState      lastRunAt / lastRunOk / lastRunSummary（成败都记）+ 两份父快照 ID
@@ -38,14 +38,14 @@ description: 域库、宿主层、窗格三截，一轮备份的完整路线，�
 ```
 
 本地备份失败就整条停在第一步——本地都没成，OSS 推的是同一批源，多半也是同样的失败。
-每段在日志里落一行契约句（`Backup started` / `Prune FAILED with exit code N` 那一族），
+每一步在日志里写一行契约句（`Backup started` / `Prune FAILED with exit code N` 那一类），
 健康检查的日志尾判定靠 grep 它们，见[日志契约与通知](/docs/modules/log)。
 
-两趟 `restic backup` 都从 `state.json` 取**父快照 ID** 显式递给 restic（本地仓一份、OSS 仓
+两次 `restic backup` 都从 `state.json` 取**父快照 ID** 显式传给 restic（本地仓库一份、OSS 仓库
 一份，ID 不通用）。为什么要显式给：restic 默认按 `host,paths` 挑父快照，**白名单里加了
-路径就是新组、一个候选都没有**，整份数据重读重算；给一份父本，新路径当新文件读、其余路径
-照旧吃比对。记着的 ID 在仓库里没了时（仓库重建、或 state 从更早的备份里恢复回来），撞上
-restic 那句 `no matching ID found for prefix` 就丢开父本重跑一次——**这一跳写的是普通说明
+路径就是新组、一个候选都没有**，整份数据重读重算；给一份父快照，新路径当新文件读、其余路径
+照旧只做比对。记着的 ID 在仓库里没了时（仓库重建、或 state 从更早的备份里恢复回来），撞上
+restic 那句 `no matching ID found for prefix` 就不带父快照重跑一次——**这次重跑写的是普通说明
 行，不是失败契约行**，见[备份管线](/docs/modules/pipeline)。
 
 ## 盘上有什么
@@ -68,9 +68,9 @@ restic 那句 `no matching ID found for prefix` 就丢开父本重跑一次—�
 
 | 什么 | 值 |
 | --- | --- |
-| 包名 | `@godcreator/gwb-windows-backup`，本机 registry（`https://git.tianshen02.online:28377/api/packages/godcreator/npm/`） |
-| 命令面 | `windows-backup.run / check / status / paths / restic / mark`，见[用法](/docs/usage) |
-| 设置面 | 17 键 kebab-case，经 gwb-settings 声明，每次现读不缓存 |
-| 定时器 | 官方 `@cordisjs/plugin-timer`（`inject: ['timer']`），home 的 cordis.yml 没这条条目本插件整个挂起 |
+| 包名 | `@godcreator/gwb-windows-backup`，已发的版本在 gitea 团队源（`https://git.tianshen02.online:28377/api/packages/godcreator/npm/`） |
+| 命令 | `windows-backup.run / check / status / paths / restic / mark`，见[用法](/docs/usage) |
+| 设置 | 17 个键，kebab-case，经 gwb-settings 声明，每次现读不缓存 |
+| 定时器 | 官方 `@cordisjs/plugin-timer`（`inject: ['timer']`），home 里没有 timer 条目时本插件整个停在等待 |
 | 文档站 | `docs-site/`，dev 端口 4318 |
-| 门禁 | `pnpm check`（typecheck ×2 + oxlint + vitest）；`docfirst check` 在 docs-site 单独跑 |
+| 检查 | `pnpm check`（typecheck ×2 + oxlint + vitest） |
