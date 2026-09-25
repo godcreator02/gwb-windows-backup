@@ -1,0 +1,30 @@
+---
+title: '审查报告三条（本轮失败回上轮成功 P1/锁非原子可活锁/长任务无取消恢复面）'
+description: '来源：《gwb 全系统审查报告》（2026-09-19），编号沿用 GWB-xx；完整证据链见原报告 `gwb-system-review.md（原报告在本机，未入库）`'
+docfirst: none
+---
+
+* **目标仓**：`D:\unitfolders\26090814sgu\gwb-windows-backup`（26090916wbk 下同名目录不是 git 仓，非正本）
+* **来源**：《gwb 全系统审查报告》（2026-09-19），编号沿用 GWB-xx；完整证据链见原报告
+  `gwb-system-review.md（原报告在本机，未入库）`
+* **基准**：仓 main `eb257bb`（HEAD 0.1.1）；发行 0.2.1 的对应行号已注明
+* **优先级**：GWB-35 进「最该先修的 10 条」(#9)；三条均 P1
+
+### GWB-35 本轮备份抛错，命令却可能回上轮成功（P1｜已验证 HEAD 0.1.1 与发行 0.2.1 均复现）——✅ 已修 @gwb-windows-backup 8750683（2026-09-20，未发版）
+* 位置：`src/index.ts:335-337,435-441` @eb257bb；发行 `0.2.1/src/index.ts:340-342,440-446`
+* 现象：runBackup catch 只 warn 后返回 done；命令随后从 state.json 读 lastRunOk/summary，把旧值当本轮结果。日志写入、轮转、状态写入等都会抛错（backup.ts 并未全面 catch）
+* 复现：隔离 state.json 预置上轮 `lastRunOk:true` + runBackup 立即抛 I/O 错 → 命令回 `ok:true, summary:"previous run only"`
+* 期望：每次执行产生独立 run id 与明确结果；异常路径返回本轮 failed 并尽力记录错误；历史状态仅作「上次记录」展示、不替代当前返回值；先保存本轮核心结果再执行日志轮转/通知等辅助流程
+
+### GWB-34 跨进程锁不是原子获取，且六小时后可抢活锁（P1｜已验证受控交错与活 PID 超时判定；未跑并发 restic）——✅ 已修 @gwb-windows-backup 8750683（wx 原子占锁 + lease 租约 + 5 分钟心跳，2026-09-20，未发版）
+* 位置：`src/lock.ts:57-79,93-97`、`src/process.ts:44`、`src/backup.ts:163-224`；发行 0.2.1 的 lock/process 一致
+* 现象：acquire 是 read/check 后无条件 writeFile，没有 `wx`/原子占用——受控插入 A 读旧锁→B acquire→A write，两者都拿到释放函数。6 小时是每个 restic 子进程上限，整轮可依次含 backup、prune、OSS backup、OSS prune，锁却把整轮总时长超 6 小时当陈旧（`alive:()=>true` 且锁龄 6h1s 仍判 stale）。释放只比较 PID，识别不了同进程两代任务
+* 期望：原子锁创建 + 唯一租约 ID；活跃任务刷心跳；陈旧接管同时校验真实任务存活；锁覆盖整轮而非把某个子步骤超时当整轮超时；释放校验租约；所有可写入口纳入同一协调器
+
+### GWB-36 备份长操作同步挂在命令上，缺作业取消/恢复面（P1｜读码推断；发行 0.2.1 同逻辑）
+* 位置：`src/index.ts:435,513-518`、`src/process.ts:70-96`；发行 0.2.1 `index.ts:440,517-522`
+* 现象：run 和 restic 一直 await 子进程链（单个 backup/prune 可六小时），无 job id、取消、重连恢复；通用 restic 入口不经 state.backing/acquire，restore/forget 等写动作绕过本插件协调器；客户端断开不传 AbortSignal 到子进程；现有超时只 `child.kill()`。另：仓文案「总线 120 秒红线」无代码支持——commands HEAD 与 latest 都直接 await handler，mcp 客户端实际默认 130s，客户端请求超时不能证明任务已停
+* 期望：复用/建立持久化作业接口（submit/status/wait/cancel）；短只读 restic 查询可同步，长写动作进同一作业与锁协调层；恢复操作显式目标目录与覆盖策略。**跨件公共作业契约需拍板**（与 gwb-mineru 的作业模式对齐）
+
+### 附：恢复手册缺口（冷启动表）
+三栈描述含外部手工配套；四份手册与宿主无关的恢复入口缺统一随包路径——灾难恢复从哪做、开始备份前要备哪些工具/凭据/仓库，需一份安装/恢复正本
