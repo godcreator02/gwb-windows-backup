@@ -37,7 +37,7 @@
 import { mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { isRecord } from './vocab.js'
-import type { GwbContext } from '@godcreator/gwb-plugin-api'
+import type { GwbContext } from '@godcreator/gwb-kernel-desktop'
 // 只为激活 commands / settings / data / shell 四个插件与官方 timer 插件给 cordis
 // Context 加的名字；全是 type import，构建产物里不留任何代码
 import type {} from '@cordisjs/plugin-timer'

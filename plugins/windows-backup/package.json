@@ -1,0 +1,74 @@
+{
+  "name": "@godcreator/gwb-windows-backup",
+  "version": "0.2.5",
+  "author": {
+    "name": "godcreator"
+  },
+  "description": "Windows 备份插件：定时把白名单目录做成 restic 快照、同步到阿里云 OSS 异地库并周期自检，没装外壳的 home 里照样备份，装了外壳多一个备份窗格。",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "config"
+  ],
+  "gwb": {
+    "title": "Windows 备份"
+  },
+  "keywords": [
+    "gwb-plugin"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://git.tianshen02.online:28377/godcreator/gwb-windows-backup.git"
+  },
+  "publishConfig": {
+    "registry": "https://git.tianshen02.online:28377/api/packages/godcreator/npm/"
+  },
+  "scripts": {
+    "build": "node build.ts && tsc -p tsconfig.build.json && tailwindcss -i src/client/styles.css -o dist/style.css",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/client/tsconfig.json",
+    "lint": "oxlint . --deny-warnings",
+    "test": "vitest run --passWithNoTests --tags-filter=!slow",
+    "test:all": "vitest run --passWithNoTests",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run test"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "peerDependencies": {
+    "@godcreator/gwb-kernel-desktop": "^0.7.2",
+    "@godcreator/gwb-commands": "^0.5.2",
+    "@godcreator/gwb-data": "^0.1.9",
+    "@godcreator/gwb-settings": "^0.3.5",
+    "@godcreator/gwb-shell": "^0.14.1"
+  },
+  "peerDependenciesMeta": {
+    "@godcreator/gwb-shell": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@cordisjs/plugin-timer": "1.1.3",
+    "@tailwindcss/cli": "^4.3.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "cordis": "4.0.0-rc.10",
+    "esbuild": "^0.28.2",
+    "oxlint": "1.76.0",
+    "oxlint-tsgolint": "7.0.2001",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "tailwindcss": "^4.3.0",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

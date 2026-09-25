@@ -6,8 +6,9 @@
  * `styles.css`，那几行 import 每一条都不能省，注释在那边。
  */
 
+import type { HostBridge } from '@godcreator/gwb-shell/pane'
 import { useState, type ReactElement } from 'react'
-import { Dot, headlineOf, lastRunLine, useStatus, type HostBridge } from './hooks'
+import { Dot, headlineOf, lastRunLine, useStatus } from './hooks'
 import { clockOf, ITEM_LABELS, toneOf } from './view'
 
 /**
@@ -92,7 +93,7 @@ export function BackupPane({ host }: { host: HostBridge }): ReactElement {
       {/* 上次备份与计划 */}
       <div className="windowsbackup:grid windowsbackup:gap-1 windowsbackup:text-sm">
         <p
-          className={`windowsbackup:m-0 ${last.ok === false ? 'windowsbackup:text-destructive' : last.ok === true ? 'windowsbackup:text-emerald-600' : 'windowsbackup:text-muted-foreground'}`}
+          className={`windowsbackup:m-0 ${last.ok === false ? 'windowsbackup:text-destructive' : last.ok === true ? 'windowsbackup:text-success' : 'windowsbackup:text-muted-foreground'}`}
         >
           上次备份：{last.text}
         </p>

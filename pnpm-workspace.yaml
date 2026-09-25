@@ -1,12 +1,16 @@
-# pnpm 11 的设置家就是这个文件（package.json 的 pnpm 字段已不读）。
-# 独立单包仓也认它——没有 packages 列表就是「自己一个包的 workspace」。
+# pnpm 11 起，设置都写在这个文件里（package.json 的 pnpm 字段已不再读取）。
+#
+# 仓是 workspace 布局：仓根是不发布的 private 包，插件放在 plugins/<短名>/。
+# 实验材料 probes/ 不进 workspace：每个实验目录自带依赖、能单独运行。
 
 packages:
-  # 文档站：自己的依赖树与门禁，不进根 build/test（照 gwb-kernel 仓的接法）
+  # 插件：Windows 备份 windows-backup
+  - plugins/*
+  # 文档站：自己的依赖，不进仓根 build；仓根 check 对它不做事（它没有 check 脚本）
   - docs-site
 
 allowBuilds:
-  # @tailwindcss/node 拖进来的，构建脚本不需要跑
+  # @tailwindcss/node 间接依赖的包，它的安装脚本不需要运行
   '@parcel/watcher': false
-  # 浏览器半的打包器要下二进制——不批它，pnpm build 当场死
+  # 浏览器侧的打包器，安装脚本要下载二进制——不允许它运行，pnpm build 直接失败
   esbuild: true
