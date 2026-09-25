@@ -1,0 +1,46 @@
+---
+title: 迁成 workspace 布局，用到的插件写进 peer
+born-at: 2026-09-26T02:40
+type: choice
+parent: [2026-09-08-backup-line]
+label: workspace 布局
+domain: 依赖
+---
+
+## 背景
+
+本仓一直是单包布局：仓根 `package.json` 就是插件。devkit 0.21 起 `devkit.dev` 与 `devkit.release` 只收 `packages` 里列出的包目录、
+只认 workspace 布局，本仓因此既装不进隔离 home、也发不了版；这期间收件页攒了七条上游通知（内核 0.5、0.6、0.7，用到的插件写 peer，
+devkit 0.21，外壳 0.14，devkit 0.23.3 把样式检查收回 devkit），都卡在同一件事上。peer 里的内核包还写着 `^0.4.1`，
+0.x 下不包含现在的 0.7.2；9 月 25 日那次 prune 修复写进了代码，却一直发不出去。
+
+## 结论与边界
+
+supersedes:: [跟内核 0.4](2026-09-24-kernel-0-4-deps.md)
+
+**采纳 devkit 模板的 workspace 布局**：插件包用 `git mv` 整体搬进 `plugins/windows-backup/`，仓根改成 `private` 的 workspace 包，
+`pnpm-workspace.yaml` 列 `plugins/*` 与 `docs-site`（文档站留在 workspace 里，和生命周期插件仓一样）；`probes/` 留在仓根、不进 workspace。
+
+**用到的插件写进 peer**，推翻上一张卡「别的插件一律写 dev」：内核包 `^0.7.2`，命令总线 `^0.5.2`、设置 `^0.3.5`、数据 `^0.1.9`
+（都在顶层注入里，普通 peer），外壳 `^0.14.1`（只在局部注入里用，`optional: true`），下限都取源上当天的 latest；不另写 dev，
+pnpm 会把 peer 装进包目录的 `node_modules`，类型从那里取。`@cordisjs/plugin-timer` 不是 gwb 插件，devkit 不许它进 peer，留在 dev 只取类型。
+词汇表包 `gwb-plugin-api` 删掉，`GwbContext` 改从内核包取。
+
+**node 侧仍由 tsc 逐个文件输出，不改成模板的 esbuild 单文件**：本插件不 import 任何运行时依赖，逐个文件输出与打包出来的东西一样能装；
+保留它，`artifact.test.ts` 里「命令名、插件名、注入清单在产物里」这几条按单引号字面量找的用例不用改，`dist/index.d.ts` 也照旧输出。
+浏览器侧的外置名单改成模板的做法，从内核包页面入口的 importmap 读，不再手写四个名字。
+
+**样式照 devkit 的样式检查改**：出厂调色板的 `emerald` 换成本插件自己的成功色令牌（`src/client/tokens.css`，亮暗各一套，
+外壳的令牌里没有成功色），手写的 `.windowsbackup\:pulse` 规则换成样式入口 `@theme` 里的 `animate-breathe`，样式入口补上 `tw-animate-css`。
+
+**模板测试副本删掉**：`prefix.test.ts` 整份是模板原样，删；`artifact.test.ts` 里样式三条与包名 import、相对 import 两条跟 devkit 的检查重复，删；
+只留本插件自己的四条。删之前按 devkit 样式检查的源码离线跑过一遍（无问题），又故意写一个漏前缀、一个前缀排在变体后面的类名，
+确认它报得出来。代价：本仓的 `pnpm check` 不再查类名前缀，漏写要到 `devkit.dev` / `devkit.release` 才被拦下。
+
+**边界**：这张卡只管布局与依赖写法，不改任何命令、设置键、回执字段与磁盘上的文件格式；版本号没升，发版由主会话统一做。
+
+## 代价与遗留
+
+- 大改过的几个文件（`build.ts`、`src/client/index.tsx`、`styles.css`、`artifact.test.ts`）在 git 里显示成删掉再新建，看历史要用 `git log --follow`
+- 浏览器侧没有按外壳说明书用 `onVisibility` 在切走桌面时暂停 30 秒轮询，行为照旧
+- 这次改动没有在隔离 home 里装过；装进 home 验证由主会话统一做

@@ -20,5 +20,12 @@ export default {
   },
   components: {
     ...fumadocs.defaultRoster,
+    // 首页的接缝图：图本身在机读版里看不见，正文「接缝逐条」按同一套编号把每条接缝写全了
+    BackupSeams: (node, h) =>
+      h.paragraph(
+        '[图] 接缝图：宿主层、域库、窗格三部分，注入的五个工作台插件，restic.exe 与 PowerShell 两个外部程序，数据目录里的四样文件；14 条跨边界的接缝按编号在正文里逐条讲',
+      ),
+    // 备份管线页的推演：拨条件看哪几段跑，机读版只剩一句话，判据在正文的列表里
+    PipelineRound: (node, h) => h.paragraph('[演示] 拨本地备份、今天是否 prune 过、本地 prune、OSS 开关、OSS 备份几个条件，看一轮里哪几段跑、state.json 记下什么、通知说什么'),
   },
 }

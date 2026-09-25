@@ -1,5 +1,5 @@
 /**
- * 站的三个集合与全局 mdxOptions（格式包给：remark 链末尾挂 docfirst 的插件，meta 白名单放行 title / lineNumbers / data-dot）。
+ * 站的三个集合与全局 mdxOptions（格式包给：remark 链末尾加上 docfirst 的插件，meta 白名单放行 title / lineNumbers / data-dot）。
  *   docs        现状：进 check；生成正本（AGENTS、README、CLAUDE 的 mdx）在它的 outputs/ 下
  *   trajectory  轨迹：卡只增不改；卡的 frontmatter 由 cardSchema 认（label 派生 title），
  *               正文里 `supersedes::` / `pivots-from::` 关系由 remarkTrajectoryLinks 标出；不进 check
@@ -17,7 +17,7 @@ export const docs = defineDocs({
   },
 })
 
-// 集合级 mdxOptions 会去掉 fumadocs 的全部默认插件，所以用 applyMdxPreset 把默认插件加回来，再挂 remarkTrajectoryLinks；
+// 集合级 mdxOptions 会去掉 fumadocs 的全部默认插件，所以用 applyMdxPreset 把默认插件加回来，再加上 remarkTrajectoryLinks；
 // 全局那份 docfirst 插件不会用在这个集合上
 export const trajectory = defineDocs({
   dir: 'content/trajectory',

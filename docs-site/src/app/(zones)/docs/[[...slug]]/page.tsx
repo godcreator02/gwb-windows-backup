@@ -1,5 +1,5 @@
 import { source } from '@/lib/source'
-import { DocsBody, DocsPage, DocsTitle } from 'fumadocs-ui/layouts/docs/page'
+import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/layouts/docs/page'
 import { getMDXComponents } from '@/components/mdx'
 import { notFound } from 'next/navigation'
 
@@ -12,6 +12,7 @@ export default async function Page({ params }: { params: Promise<{ slug?: string
   return (
     <DocsPage toc={page.data.toc}>
       <DocsTitle>{page.data.title}</DocsTitle>
+      <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>
         <MDX components={getMDXComponents()} />
       </DocsBody>
