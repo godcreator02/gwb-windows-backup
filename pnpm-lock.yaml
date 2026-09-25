@@ -33,8 +33,8 @@ importers:
         specifier: 0.1.1
         version: 0.1.1(react@19.2.8)
       '@godcreator/docfirst-workflow':
-        specifier: 0.2.4
-        version: 0.2.4(9731d1d50e82d6769b496cb06cc97c8f)
+        specifier: 0.3.1
+        version: 0.3.1(@fumadocs/base-ui@16.15.1(@types/mdx@2.0.14)(@types/react@19.2.18)(fumadocs-core@16.15.1(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.2.18)(lucide-react@1.44.0(react@19.2.8))(next@16.3.0(@types/node@26.5.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.6.2))(next@16.3.0(@types/node@26.5.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3))(fumadocs-core@16.15.1(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.2.18)(lucide-react@1.44.0(react@19.2.8))(next@16.3.0(@types/node@26.5.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.6.2))(react@19.2.8)
       '@tailwindcss/postcss':
         specifier: ^4.3.3
         version: 4.3.3
@@ -560,18 +560,15 @@ packages:
       react:
         optional: true
 
-  '@godcreator/docfirst-workflow@0.2.4':
-    resolution: {integrity: sha512-RU5d2ekSNS12l+cPNE1JZGy2/UXdtlzE6RcV7Cehk5PLjuFb4p5pxoq9L3p+YB/p0UfNTJwndq3bhiVCmAaOtw==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fdocfirst-workflow/-/0.2.4/docfirst-workflow-0.2.4.tgz}
+  '@godcreator/docfirst-workflow@0.3.1':
+    resolution: {integrity: sha512-meRcOWdULFhEhd4duyvHIC3vu4U4fXosr+YjH65xppdts0qME3p2zqKq5ktfeNRzwbYOKgVmpUioiZUdMxL+QA==, tarball: https://git.tianshen02.online:28377/api/packages/godcreator/npm/%40godcreator%2Fdocfirst-workflow/-/0.3.1/docfirst-workflow-0.3.1.tgz}
     hasBin: true
     peerDependencies:
       fumadocs-core: '>=16'
-      fumadocs-mdx: '>=15'
       fumadocs-ui: '>=16'
       react: '>=19'
     peerDependenciesMeta:
       fumadocs-core:
-        optional: true
-      fumadocs-mdx:
         optional: true
       fumadocs-ui:
         optional: true
@@ -3123,7 +3120,7 @@ snapshots:
     optionalDependencies:
       react: 19.2.8
 
-  '@godcreator/docfirst-workflow@0.2.4(9731d1d50e82d6769b496cb06cc97c8f)':
+  '@godcreator/docfirst-workflow@0.3.1(@fumadocs/base-ui@16.15.1(@types/mdx@2.0.14)(@types/react@19.2.18)(fumadocs-core@16.15.1(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.2.18)(lucide-react@1.44.0(react@19.2.8))(next@16.3.0(@types/node@26.5.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.6.2))(next@16.3.0(@types/node@26.5.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3))(fumadocs-core@16.15.1(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.2.18)(lucide-react@1.44.0(react@19.2.8))(next@16.3.0(@types/node@26.5.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.6.2))(react@19.2.8)':
     dependencies:
       '@godcreator/docfirst-trajectory': 0.1.1(react@19.2.8)
       remark-frontmatter: 5.0.0
@@ -3132,7 +3129,6 @@ snapshots:
       unified: 11.0.5
     optionalDependencies:
       fumadocs-core: 16.15.1(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.2.18)(lucide-react@1.44.0(react@19.2.8))(next@16.3.0(@types/node@26.5.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.6.2)
-      fumadocs-mdx: 15.3.1(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react@19.2.18)(fumadocs-core@16.15.1(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.2.18)(lucide-react@1.44.0(react@19.2.8))(next@16.3.0(@types/node@26.5.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.6.2))(next@16.3.0(@types/node@26.5.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(rolldown@1.2.7)(vite@8.2.2(@types/node@26.5.1)(esbuild@0.27.7)(jiti@2.7.0)(yaml@2.9.0))
       fumadocs-ui: '@fumadocs/base-ui@16.15.1(@types/mdx@2.0.14)(@types/react@19.2.18)(fumadocs-core@16.15.1(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.2.18)(lucide-react@1.44.0(react@19.2.8))(next@16.3.0(@types/node@26.5.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.6.2))(next@16.3.0(@types/node@26.5.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)'
       react: 19.2.8
     transitivePeerDependencies:

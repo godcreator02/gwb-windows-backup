@@ -10,7 +10,7 @@ description: runFullBackup——占锁、本地备份、每日 prune、OSS 推�
 `src/backup.ts`。域库的主体，定时器与命令两条触发路都从 `runFullBackup` 这一个函数进，
 所以锁开在这里而不是各调用方各自加一把。
 
-{/* ref file="../src/backup.ts" lines="141-156" */}
+{/* ref file="../plugins/windows-backup/src/backup.ts" lines="141-156" hash="16b6bcd53128" blob="0a5d75aac6f8" */}
 
 ## 管什么
 
@@ -93,4 +93,4 @@ restic 会硬失败（实测 0.18.1：stderr `no matching ID found for prefix "<
 成败都记是这里最容易被「优化」掉的一行——只在成功时记的话，连着失败三天看起来会像
 「三天前刚备过」：
 
-{/* ref file="../src/backup.ts" lines="259-263" */}
+{/* ref file="../plugins/windows-backup/src/backup.ts" lines="259-263" hash="589481662df0" blob="0a5d75aac6f8" */}

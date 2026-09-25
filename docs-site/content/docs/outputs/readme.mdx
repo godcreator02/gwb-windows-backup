@@ -1,6 +1,6 @@
 ---
 title: README（仓根正本）
-description: 仓根 README.md 由这一页生成——改这里，跑 docfirst render，一起提交
+description: 仓根 README.md 由这一页生成——改这里，在站目录运行 pnpm doc:render，一起提交
 ---
 
 # gwb-windows-backup
@@ -10,7 +10,7 @@ gwb 工作台的 Windows 备份插件：restic 打快照 + 阿里云 OSS 异地�
 
 ## 现在有什么
 
-- **node 侧**（`src/`，零第三方依赖，只用 node 内置模块）：
+- **node 侧**（`plugins/windows-backup/src/`，零第三方依赖，只用 node 内置模块）：
   - 定时备份（默认 30 分钟）+ 加载 30 秒后补跑 + 每日一次 forget+prune + OSS 推送
   - 五项健康检查：上次备份 / 日志尾 / 仓库盘余量 / 快照新鲜度 / 周期维护提醒
   - 跨进程锁（`backup.lock`，持锁方 6 小时没心跳就由新的一轮接管）、凭据永不进日志（`--password-file`）
@@ -24,8 +24,8 @@ gwb 工作台的 Windows 备份插件：restic 打快照 + 阿里云 OSS 异地�
 ## 怎么跑
 
 ```powershell
-pnpm check     # typecheck ×2 + oxlint + vitest（!slow）
-pnpm build     # tsc 构建 node 侧 + esbuild 构建浏览器侧 + tailwindcss 按类名前缀输出样式
+pnpm build     # 仓根运行：esbuild 构建浏览器侧 + tsc 构建 node 侧 + tailwindcss 按类名前缀输出样式
+pnpm check     # 仓根运行：typecheck ×2 + oxlint + vitest（!slow）
 ```
 
 ## 怎么装
@@ -49,4 +49,4 @@ pnpm build     # tsc 构建 node 侧 + esbuild 构建浏览器侧 + tailwindcss 
 
 **代码注释只写现状**——为什么这么写、判据怎么来的，都在文档站。
 
-这份 README 是生成物，正本是 `docs-site/content/outputs/readme.mdx`。
+这份 README 是生成物，正本是 `docs-site/content/docs/outputs/readme.mdx`。

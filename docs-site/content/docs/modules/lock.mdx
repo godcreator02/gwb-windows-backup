@@ -20,11 +20,11 @@ home、另一个入口同时起一轮，谁也不认识谁。两层并发保护�
 
 ## 数据结构与判据
 
-{/* ref file="../src/lock.ts" lines="39-41" */}
+{/* ref file="../plugins/windows-backup/src/lock.ts" lines="39-41" hash="9ece4c2a7547" blob="3f55264212ba" */}
 
 陈旧判据两支，命中任一就当无主：
 
-{/* ref file="../src/lock.ts" lines="79-86" */}
+{/* ref file="../plugins/windows-backup/src/lock.ts" lines="79-86" hash="720bd489f399" blob="3f55264212ba" */}
 
 进程不在（`process.kill(pid, 0)` 抛 `ESRCH`）= 上一轮崩了或断电了，锁文件留在那儿没人删
 ——不认这一支，一次崩溃让备份永久停摆且毫无症状。`EPERM` 算活着（进程在，只是没权限碰）。

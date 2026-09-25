@@ -27,14 +27,14 @@ description: 本插件唯一的界面——灯、五项、按钮、30 秒轮询�
 外壳调 `mountPane` 时给 `host`（调命令的接口）与 `pane`（窗格身份）；契约要求**同步**返回
 `{ dispose }`——返回 promise 或返回函数都算违约。未知窗格 id 显示一行错误而不是白屏。
 
-{/* ref file="../src/client/index.tsx" lines="32-42" */}
+{/* ref file="../plugins/windows-backup/src/client/index.tsx" lines="16-32" hash="1012cd8b05a9" blob="931744f56428" */}
 
 ## 轮询跟挂载走
 
 取数走 `host.call('windows-backup.status')`，30 秒一轮；窗格被关掉时 `dispose` 清掉
 定时器。调命令失败不会让窗格崩掉：连接断了窗格还在，留着上一次的结论，下一轮轮询自然带回最新状态。
 
-{/* ref file="../src/client/hooks.tsx" lines="30-42" */}
+{/* ref file="../plugins/windows-backup/src/client/hooks.tsx" lines="27-39" hash="fe1eafc85bb1" blob="bc0a075c6557" */}
 
 ## 灰灯的口径
 
@@ -42,7 +42,7 @@ description: 本插件唯一的界面——灯、五项、按钮、30 秒轮询�
 据此画灰灯；五项里的 `unknown` / `skipped` 同理画灰不画红。颜色只表示状态，「正在跑」
 用灯的呼吸动画表示，不改变颜色。
 
-{/* ref file="../src/client/view.ts" lines="112-118" */}
+{/* ref file="../plugins/windows-backup/src/client/view.ts" lines="112-118" hash="cf533b5e3734" blob="5e0b3551f0f3" */}
 
 ## 提供的接口
 
