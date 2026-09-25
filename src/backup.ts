@@ -405,9 +405,22 @@ type PruneArgs = {
   run: RunProcess
 }
 
-/** 对某个仓库跑 forget+prune。 */
+/**
+ * 对某个仓库跑 forget+prune。
+ *
+ * 先 `restic unlock`：它只删陈旧锁（持有进程已不在，或半小时没续期）。被打断的 backup 留下
+ * 的非排他锁不挡后续 backup，却让要排他锁的 prune 每天退出码 11（2026-09-25 实测连败两天）。
+ * unlock 自己的输出照原样进日志，成败交给紧接着的 prune 判。
+ */
 export async function doPrune(args: PruneArgs): Promise<boolean> {
   args.logger.line(startedLine(args.label))
+  const unlock = await runRestic(args.exe, args.repo, ['unlock'], {
+    passwordFile: args.passwordFile,
+    env: args.env,
+    run: args.run,
+  })
+  args.logger.raw(unlock.stdout)
+  args.logger.raw(unlock.stderr)
   const result = await runRestic(args.exe, args.repo, pruneArgs(args.retention), {
     passwordFile: args.passwordFile,
     env: args.env,

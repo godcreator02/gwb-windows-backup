@@ -18,10 +18,11 @@ description: 参数表两处 SSOT、四条子进程硬规矩——全仓唯一�
 两串参数是 SSOT：透传命令（`windows-backup.restic`）、全流程备份、健康检查的快照项都从
 这两个函数取，改 retention 字段只改一处。
 
-{/* ref file="../src/restic.ts" lines="34-53" */}
+{/* ref file="../src/restic.ts" lines="34-60" */}
 
 保留窗口的默认口径：72 小时内全留、按日留 14 天、周 8 份、月 12 份（`DEFAULT_FLAT`，
-可在设置里改）。
+可在设置里改）。forget 按主机分组（`--group-by host`），不用 restic 默认的主机加路径：白名单每改
+一次就会多出一组，每组各自留满保留窗口，旧组永远删不掉（轨迹卡 `2026-09-25-prune-group-by-host`）。
 
 ## 子进程四条硬规矩
 
@@ -39,7 +40,7 @@ description: 参数表两处 SSOT、四条子进程硬规矩——全仓唯一�
 OSS 那趟再叠 AccessKey 两键——父进程的 env 从头到尾没碰过，本进程后续起的任何子进程都
 不会带着 OSS 密钥。
 
-{/* ref file="../src/restic.ts" lines="55-67" */}
+{/* ref file="../src/restic.ts" lines="62-74" */}
 
 ## 提供的接口
 

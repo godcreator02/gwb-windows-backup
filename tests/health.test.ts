@@ -98,6 +98,44 @@ describe('① lastRun', () => {
     })
     expect(report.items.lastRun.status).toBe('ok')
   })
+
+  it('备份照常成功、prune 连着两天没成功 → problem，把上次 prune 的时间念出来', async () => {
+    const now = new Date()
+    const twoDaysAgo = localTs(new Date(now.getTime() - 2 * 86_400_000))
+    const report = await runHealthCheck(tmpPaths(), config(), {
+      now,
+      run: okSnapshots,
+      diskFree: diskOf(0.9),
+      state: { ...healthyState(now), lastPrune: twoDaysAgo },
+    })
+    expect(report.items.lastRun.status).toBe('problem')
+    expect(report.items.lastRun.pruneAgeDays).toBe(2)
+    expect(report.items.lastRun.message).toContain(twoDaysAgo)
+  })
+
+  it('备份成功但 prune 从没成功过 → problem', async () => {
+    const now = new Date()
+    const report = await runHealthCheck(tmpPaths(), config(), {
+      now,
+      run: okSnapshots,
+      diskFree: diskOf(0.9),
+      state: { ...healthyState(now), lastPrune: undefined },
+    })
+    expect(report.items.lastRun.status).toBe('problem')
+    expect(report.items.lastRun.message).toContain('还没成功过')
+  })
+
+  it('prune 昨天成功、今天还没轮到 → ok', async () => {
+    const now = new Date()
+    const yesterday = localDate(new Date(now.getTime() - 86_400_000))
+    const report = await runHealthCheck(tmpPaths(), config(), {
+      now,
+      run: okSnapshots,
+      diskFree: diskOf(0.9),
+      state: { ...healthyState(now), lastPrune: yesterday },
+    })
+    expect(report.items.lastRun.status).toBe('ok')
+  })
 })
 
 describe('② log', () => {

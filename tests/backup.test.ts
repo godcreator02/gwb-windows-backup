@@ -94,8 +94,25 @@ describe('runFullBackup', () => {
 
     // 锁跑完即删
     expect(existsSync(paths.lockFile)).toBe(false)
-    // 本地一轮 = backup + forget，各一次
-    expect(calls.length).toBe(2)
+    // 本地一轮 = backup + unlock + forget，各一次；unlock 先于 forget
+    expect(calls.map((args) => args[4])).toEqual(['backup', 'unlock', 'forget'])
+  })
+
+  it('unlock 清不掉锁也照跑 forget：prune 的成败只看 forget', async () => {
+    const paths = tmpPaths()
+    const { run, calls } = fakeRestic([
+      { when: ['backup'], result: { stdout: OK_STDOUT } },
+      { when: ['unlock'], result: { code: 1, stderr: 'Fatal: unable to open config file' } },
+      { when: ['forget'], result: { code: 11, stderr: 'unable to create lock in backend' } },
+    ])
+    const logger = createLogger(paths.logFile, () => new Date(2026, 8, 8, 10, 0, 0))
+    await runFullBackup({ paths, config: configured(), logger, run, now: () => new Date(2026, 8, 8, 10, 0, 0) })
+
+    expect(calls.map((args) => args[4])).toEqual(['backup', 'unlock', 'forget'])
+    const text = readFileSync(paths.logFile, 'utf8')
+    expect(text).toContain('unable to open config file')
+    expect(text).toContain('Prune FAILED with exit code 11')
+    expect(readState(paths.stateFile).lastPrune).toBeUndefined()
   })
 
   it('今天已经 prune 过 → 这轮不再 prune', async () => {
@@ -156,8 +173,8 @@ describe('runFullBackup', () => {
     if (result.skipped !== null) throw new Error('这轮不该被跳过')
     expect(result.oss?.ok).toBe(false)
     expect(result.notification.title).toBe('Restic Backup partial - OSS push FAILED')
-    // backup×2（本地+OSS）+ forget×1（本地 prune）——OSS prune 不跑
-    expect(allCalls.length).toBe(3)
+    // backup×2（本地+OSS）+ unlock、forget 各一次（本地 prune）——OSS prune 不跑
+    expect(allCalls.length).toBe(4)
     expect(readState(paths.stateFile).lastRunOk).toBe(false)
   })
 

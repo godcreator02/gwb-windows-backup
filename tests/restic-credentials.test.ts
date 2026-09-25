@@ -50,7 +50,7 @@ describe('参数表 SSOT', () => {
   it('pruneArgs 一字不差（跟 restic 的实际接受度绑死）', () => {
     expect(
       pruneArgs({ keepWithin: '72h', keepWithinDaily: '14d', keepWeekly: 8, keepMonthly: 12 }),
-    ).toEqual(['forget', '--keep-within', '72h', '--keep-within-daily', '14d', '--keep-weekly', '8', '--keep-monthly', '12', '--prune'])
+    ).toEqual(['forget', '--group-by', 'host', '--keep-within', '72h', '--keep-within-daily', '14d', '--keep-weekly', '8', '--keep-monthly', '12', '--prune'])
   })
 })
 

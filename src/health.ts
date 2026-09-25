@@ -40,6 +40,10 @@ export type LastRunItem = {
   ageMinutes: number | null
   /** 容忍上限 = `frequencyMinutes` × 2。 */
   toleranceMinutes: number
+  /** 上次 forget+prune 成功的时间（`state.lastPrune` 原文）；从没成功过是 `null`。 */
+  lastPruneAt: string | null
+  /** 距上次 prune 成功几个日历日。 */
+  pruneAgeDays: number | null
   message: string
 }
 
@@ -125,6 +129,8 @@ export type HealthOptions = {
 export const USB_COPY_DUE_DAYS = 7
 /** exclude 误伤扫描的提醒阈值：≥ 30 天。 */
 export const EXCLUDE_AUDIT_DUE_DAYS = 30
+/** prune 每日一次；隔了这么多个日历日还没成功就报问题（容忍一天，同两个周期的口径）。 */
+export const PRUNE_OVERDUE_DAYS = 2
 /** 日志尾看多少行搜失败关键词。 */
 export const LOG_TAIL_LINES = 30
 /** 找「最后一轮」时往回翻多少行——一轮的完整输出（四段 restic）比 30 行长。 */
@@ -162,6 +168,9 @@ export async function runHealthCheck(
  * - 上次失败：那一轮的小结原样念出来，人一眼看见是哪一段挂了；
  * - 太久没成功：容忍两个周期（跟快照新鲜度同一个口径），一个周期的话备份跑了 3 分钟、
  *   自检又晚到 1 分钟就会误报。
+ *
+ * 备份本身没问题时再看 prune：prune 失败不影响 `lastRunOk`，它的失败行又会被同一轮后面的
+ * OSS 推送成功行「翻篇」，日志那项看不见，只能靠 `state.lastPrune` 的新旧来判。
  */
 function checkLastRun(state: BackupState, config: BackupConfig, now: Date): LastRunItem {
   const toleranceMinutes = config.schedule.frequencyMinutes * 2
@@ -169,7 +178,9 @@ function checkLastRun(state: BackupState, config: BackupConfig, now: Date): Last
   const lastRunOk = state.lastRunOk ?? null
   const lastRunSummary = state.lastRunSummary ?? null
   const ageMinutes = minutesSince(state.lastRunAt, now)
-  const base = { lastRunAt, lastRunOk, lastRunSummary, ageMinutes, toleranceMinutes }
+  const lastPruneAt = state.lastPrune ?? null
+  const pruneAgeDays = daysSince(state.lastPrune, now)
+  const base = { lastRunAt, lastRunOk, lastRunSummary, ageMinutes, toleranceMinutes, lastPruneAt, pruneAgeDays }
 
   if (lastRunAt === null || ageMinutes === null) {
     return { status: 'problem', ...base, message: '还没备份过——定时那轮还没轮到，或者宿主一直没起来' }
@@ -186,6 +197,16 @@ function checkLastRun(state: BackupState, config: BackupConfig, now: Date): Last
       status: 'problem',
       ...base,
       message: `已经 ${ageMinutes} 分钟没成功备份了（超过两个周期 ${toleranceMinutes} 分钟）`,
+    }
+  }
+  if (pruneAgeDays === null) {
+    return { status: 'problem', ...base, message: `上次备份 ${ageMinutes} 分钟前成功，但 forget+prune 还没成功过` }
+  }
+  if (pruneAgeDays >= PRUNE_OVERDUE_DAYS) {
+    return {
+      status: 'problem',
+      ...base,
+      message: `上次备份 ${ageMinutes} 分钟前成功，但 forget+prune 已经 ${pruneAgeDays} 天没成功了（上次 ${lastPruneAt}）`,
     }
   }
   return { status: 'ok', ...base, message: `上次备份 ${ageMinutes} 分钟前成功` }

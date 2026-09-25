@@ -11,7 +11,7 @@ description: runHealthCheck——观察面的权威判据；窗格与 check 命�
 `windows-backup.check` 命令调的是同一个 `runHealthCheck`，输出纯 JSON（`HealthReport`），
 不打印不弹窗——怎么呈现由调用方决定。
 
-{/* ref file="../src/health.ts" lines="134-154" */}
+{/* ref file="../src/health.ts" lines="140-160" */}
 
 ## 管什么
 
@@ -23,13 +23,13 @@ description: runHealthCheck——观察面的权威判据；窗格与 check 命�
 备份跑了 3 分钟、自检又晚到 1 分钟就误报；给两个周期，漏报的代价（晚一个周期发现）比
 天天误报小得多——误报比漏报更伤，天天喊狼来了，真出事那次一起被忽略。
 
-{/* ref file="../src/health.ts" lines="166-174" */}
+{/* ref file="../src/health.ts" lines="175-185" */}
 
 ## 五项各判什么
 
 | 项 | 判据 | 判不了时 |
 | --- | --- | --- |
-| ① 上次备份 | `state.json` 三个字段：跑过 + 上次成了 + 距上次成功 ≤ 两周期 | 没跑过是 problem（「还没备份过」），不是 unknown |
+| ① 上次备份 | `state.json` 三个字段：跑过 + 上次成了 + 距上次成功 ≤ 两周期；备份正常时再看 `lastPrune`，隔了 2 个日历日还没 prune 成功（或从没成功过）也是 problem | 没跑过是 problem（「还没备份过」），不是 unknown |
 | ② 日志尾 | 最后一轮（从最后一条 `Backup started` 往后）有没有成功行 + 尾 30 行里**晚于最近一次成功**的失败关键词（翻篇的不算） | 上一轮还在跑记 unknown |
 | ③ 磁盘余量 | **`local-repo` 所在的那个盘**，`<20%` notice、`<10%` alert | 读不到盘记 unknown |
 | ④ 快照新鲜度 | `restic snapshots --latest 1 --json`，距最新快照 ≤ 两周期 | restic 不在 / 仓库锁着 / 盘没插，一律 unknown 不算失败 |
@@ -41,7 +41,7 @@ description: runHealthCheck——观察面的权威判据；窗格与 check 命�
 
 ## 日志尾为什么按轮判
 
-{/* ref file="../src/health.ts" lines="219-233" */}
+{/* ref file="../src/health.ts" lines="240-254" */}
 
 「末两行」式判定在真实日志里几乎永不成立：restic 自己的 stdout 夹在两条契约行中间，
 轮到 prune 的那轮末尾还是 prune 的行。所以从最后一条 `Backup started` 往后算作一轮，

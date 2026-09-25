@@ -19,7 +19,8 @@ description: runFullBackup——占锁、本地备份、每日 prune、OSS 推�
 prune → 日志轮转 → 记 `state.lastRun*` → 可选 toast。顺序里有三条依赖判据：本地失败就整条停
 （本地都没成，OSS 推的是同一批源）；**prune 只有真成功才记时间戳**（失败下一轮再试）；
 OSS prune 跟本地同节奏**且 OSS 推送成功才跑**（往刚推失败的仓库上跑 forget，等于拿不完整
-的快照集算保留策略）。
+的快照集算保留策略）。每次 forget 之前先跑 `restic unlock` 清掉陈旧锁：被打断的备份留下的锁
+不影响后续备份，却会让需要排他锁的 prune 天天失败（轨迹卡 `2026-09-25-prune-group-by-host`）。
 
 **不知道什么**：不知道是谁触发的（定时还是命令）；不知道 restic 二进制在哪、密码是什么
 （路径由 `paths.ts` 摊开，密码只经 `--password-file` 路径过手）；不知道 OSS 凭据内容

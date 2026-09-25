@@ -21,7 +21,7 @@ const greenReport: HealthReport = {
   ok: true,
   problems: [],
   items: {
-    lastRun: { status: 'ok', lastRunAt: 'x', lastRunOk: true, lastRunSummary: null, ageMinutes: 1, toleranceMinutes: 60, message: '' },
+    lastRun: { status: 'ok', lastRunAt: 'x', lastRunOk: true, lastRunSummary: null, ageMinutes: 1, toleranceMinutes: 60, lastPruneAt: 'x', pruneAgeDays: 0, message: '' },
     log: { status: 'ok', exists: true, localOk: true, ossOk: null, errorLines: [], message: '' },
     disk: { status: 'ok', drive: 'D:', freeBytes: 1, totalBytes: 2, freeRatio: 0.5, level: 'ok', message: '' },
     snapshots: { status: 'ok', latestAt: 'x', ageMinutes: 1, toleranceMinutes: 60, message: '' },

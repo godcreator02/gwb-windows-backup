@@ -36,10 +36,17 @@ export function ossRepoUrl(oss: Pick<OssSection, 'endpoint' | 'bucket' | 'repoPa
   return `s3:${oss.endpoint}/${oss.bucket}/${oss.repoPath}`
 }
 
-/** SSOT：forget+prune 的参数清单，本地 / OSS prune 共用。 */
+/**
+ * SSOT：forget+prune 的参数清单，本地 / OSS prune 共用。
+ *
+ * `--group-by host`：restic 默认按 `host,paths` 分组，白名单每改一次就多一组，每组各自留满
+ * 保留窗口、永远删不掉（2026-09-25 实测：1052 个快照按默认分组只删 36 个）。
+ */
 export function pruneArgs(retention: RetentionSection): string[] {
   return [
     'forget',
+    '--group-by',
+    'host',
     '--keep-within',
     retention.keepWithin,
     '--keep-within-daily',
