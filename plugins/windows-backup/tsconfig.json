@@ -3,7 +3,7 @@
     "target": "ES2023",
     "lib": ["ES2023"],
     "module": "ESNext",
-    // 只能是 bundler，不能是 nodenext（cordis 的 .d.ts 不兼容）。见内核文档站
+    // 只能是 bundler，不能是 nodenext：cordis 的 .d.ts 在 nodenext 下类型检查不过
     "moduleResolution": "bundler",
     "types": ["node"],
     "strict": true,
@@ -12,7 +12,6 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  // include 里每个 node 半文件都要是根文件：tsc 认 import 图，oxlint 的 type-aware
-  // 程序只认 include——漏列的文件全体变「error 类型」，no-unsafe-* 全线红
+  // node 侧每个文件都要列进 include：oxlint 的 type-aware 只认 include，漏列的文件全变成 error 类型，no-unsafe-* 全部报错
   "include": ["src/*.ts", "build.ts", "tests/**/*.ts"]
 }

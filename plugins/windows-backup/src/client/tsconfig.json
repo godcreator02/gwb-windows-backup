@@ -5,8 +5,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    // 浏览器半看不见 node 全局：不给空表的话 @types/node 会自动收进来，
-    // 写一句 process.env 也不报错，而束里根本没有它
+    // 空表：不然 @types/node 会被自动收进来，写 process.env 也不报错，而浏览器侧产物里根本没有它
     "types": [],
     "strict": true,
     "noUncheckedIndexedAccess": true,
