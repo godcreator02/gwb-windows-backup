@@ -121,3 +121,42 @@ docfirst: none
 本仓的情况：
 
 - `@godcreator/gwb-windows-backup`（`package.json` 第 53 行）：dev 里写的是 `^0.13.7`；收件页里「用到的插件写 peer」那条要把它挪进 peer，挪的时候直接写 `^0.14.0`
+
+## 2026-09-25 devkit 0.23.3：样式与产物检查收回 devkit，模板测试副本可以删
+
+来源：gwb-lifecycle-plugins（生命周期插件仓 `D:\unitfolders\igldu-gwbkernel\gwb-lifecycle-plugins`），提交 `1544088`，2026-09-25；总控台会话代为投递。
+
+`@godcreator/gwb-devkit` 0.23.3 起，新建仓的模板不再带 `tests/artifact.test.ts`、`tests/prefix.test.ts`，样式检查只在 devkit 里有一份（`plugins/devkit/src/style-check.ts`）：`devkit.dev` 构建之后、`devkit.release` 发之前，对构建后有 `dist/style.css` 的插件查下面几条，没过的 `devkit.dev` 不装进 home，`devkit.release` 一个包都不发：
+
+- 类选择器都带本插件的前缀（`.dark` 放行），也不写 `data-gwb-plugin` 选择器
+- 前缀排在所有变体前面：写 `<前缀>:hover:…`，不写 `hover:<前缀>:…`
+- 颜色类只用主题令牌：外壳 `theme.reference.css` 里的色名与本插件样式入口里声明的 `--color-<名>`，不用 Tailwind 出厂调色板
+- `var()` 的 fallback 不写死值
+- 源码 `.tsx` 里没有漏掉前缀的类名
+
+检查用的 Tailwind 从被检查包自己的 `@tailwindcss/cli` 旁边找，devkit 不自带。样式入口是 `src/` 下唯一一个写了 `prefix(<名>)` 的 css（注释里的不算），有 `dist/style.css` 却找不到这个入口也算没过；色名从包目录 `node_modules` 里装的外壳 `@godcreator/gwb-shell` 读，没装外壳同样算没过。
+
+模板产物测试里的另外几条：两侧的包名 import 由 `devkit.release` 的发版前检查查；「node 侧相对 import 带扩展名」从规矩里删了，因为新模板的 node 侧用 esbuild 打成一个文件。node 侧还是 tsc 逐个文件输出的包，产物里漏了 `.js` 照样加载失败，这条用例删之前先确认 tsconfig 用的是 `nodenext`（类型检查时就会报漏写的扩展名）。
+
+对已有仓的影响：
+
+- 从模板复制来的测试是旧副本，不会跟着 devkit 更新（容器里 11 份 `prefix.test.ts`，没有一份带「前缀排在变体后面」这条），可以删，删不删由本仓定。副本里本仓自己加的用例不在 devkit 的检查里，删的话留下它们
+- 下次 `devkit.release` 会多过这道样式检查，副本没查到的问题会在发版时被拦下；可以先用 `devkit.dev` 在隔离 home 里看看报不报
+
+顺带可做（不做也不影响发版）：
+
+- 插件清单的 `keywords` 只留 `gwb-plugin`：`gwb` 没有工具读，是不是插件只看 `gwb-plugin`
+- 删掉 `scripts.prepublishOnly`：发版只走 `devkit.release`，它从没有 `scripts` 的临时目录发，这条脚本不会运行
+
+规矩总表见 gwb-lifecycle-plugins 仓 `docs-site/content/docs/rules/index.mdx`，这次删规矩的取舍见同仓轨迹卡 `docs-site/content/trajectory/2026-09-25-rules-only-checked-ones.mdx`。
+
+本仓的情况：
+
+- 模板副本：仓根 `tests/prefix.test.ts`（模板原样，前缀换成 `windowsbackup`）、`tests/artifact.test.ts`（照模板改写，样式三条与 devkit 重复；命令名六条、插件名与注入清单、`mountPane` 导出、轮询的命令名这几条是本仓自己的，删的话留下）
+- 本仓是单包布局（仓根 `package.json` 就是插件），`devkit.dev` / `devkit.release` 要的是 workspace 布局（插件在 `plugins/<短名>/`），迁移做法见说明书 gwb-devkit 的「改已有插件」（`run skill.read {"name":"gwb-devkit"}`），收件页里「要跟 devkit 0.21」那条讲的是同一件事。迁完之前 devkit 的样式检查跑不到本仓，副本先别删
+- 顺带项：仓根 `package.json` 的 `keywords` 有 `gwb`，也有 `prepublishOnly`
+
+要做的：
+
+1. 迁成 workspace 布局以后，再决定删不删这两份副本；迁完先用 `devkit.dev` 在隔离 home 里过一遍样式检查
+2. 顺带项随迁移一起做
