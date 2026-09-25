@@ -47,7 +47,7 @@ plugin-manager.install {"pkg":"@godcreator/gwb-windows-backup"}
 临时文件等，随版本走）总在生效；`exclude` 设置键追加自己的规则（一行一条 restic 模式，
 `#` 开头的行是注释）。数据目录里的 `restic-exclude.txt` 不读，规则要写进 `exclude` 设置键。
 
-{/* ref file="../plugins/windows-backup/src/backup.ts" lines="117-133" hash="0e33fcb7fa9e" blob="0a5d75aac6f8" */}
+{/* ref file="../plugins/windows-backup/src/backup.ts" lines="85-104" hash="509dd750dea0" blob="2a26d31281b0" */}
 
 OSS 三项（`oss-bucket` / `oss-endpoint` / `oss-repo-path`）只在 `oss-enabled` 开着时才被
 要求；凭据不进设置——`credentials/oss-credentials.txt`（KEY=VALUE，支持 `export ` 前缀、

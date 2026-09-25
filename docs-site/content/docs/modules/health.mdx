@@ -11,7 +11,7 @@ description: runHealthCheck——备份是否正常的权威判据；窗格与 c
 `windows-backup.check` 命令调的是同一个 `runHealthCheck`，输出纯 JSON（`HealthReport`），
 不打印不弹窗——怎么呈现由调用方决定。
 
-{/* ref file="../plugins/windows-backup/src/health.ts" lines="140-160" hash="a582d49750a6" blob="a893b83f4dab" */}
+{/* ref file="../plugins/windows-backup/src/health.ts" lines="122-143" hash="6123b967689e" blob="14d5473563fa" */}
 
 ## 管什么
 
@@ -23,7 +23,7 @@ description: runHealthCheck——备份是否正常的权威判据；窗格与 c
 备份跑了 3 分钟、自检又晚到 1 分钟就误报；给两个周期，漏报的代价（晚一个周期发现）比
 天天误报小得多——误报比漏报更伤，告警天天响，人就不再看，真出事那次也一起被忽略。
 
-{/* ref file="../plugins/windows-backup/src/health.ts" lines="175-185" hash="7865d0ac8470" blob="a893b83f4dab" */}
+{/* ref file="../plugins/windows-backup/src/health.ts" lines="145-154" hash="bce445ae9946" blob="14d5473563fa" */}
 
 ## 五项各判什么
 
@@ -41,7 +41,7 @@ description: runHealthCheck——备份是否正常的权威判据；窗格与 c
 
 ## 日志尾为什么按轮判
 
-{/* ref file="../plugins/windows-backup/src/health.ts" lines="240-254" hash="fd0ce1ea4eb8" blob="a893b83f4dab" */}
+{/* ref file="../plugins/windows-backup/src/health.ts" lines="236-250" hash="9c43c8ff54be" blob="14d5473563fa" */}
 
 「末两行」式判定在真实日志里几乎永不成立：restic 自己的 stdout 夹在两条契约行中间，
 轮到 prune 的那轮末尾还是 prune 的行。所以从最后一条 `Backup started` 往后算作一轮，
