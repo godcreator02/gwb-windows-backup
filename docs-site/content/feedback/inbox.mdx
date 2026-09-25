@@ -74,3 +74,33 @@ docfirst: none
 1. 内核 0.7.0 发布后，在装了 0.7.0 的隔离 home 里验一遍，再把 peer 里内核包的范围改成 `^0.7.0`，版本号照说明书 `gwb-release` 升，然后发版。上面「内核直接跟 0.6」那条还没做的，peer 直接写 `^0.7.0`，不用先改到 0.6；那条里别的改动照做
 2. 不改的后果：`plugin-manager.list` 会把插件标成 `kernelUntested`；`devkit.release` 发版前检查要求 peer 里内核包的范围包含运行中的内核，不改就拒发。运行时照常
 3. 以后窗格里要打开外部网页（比如 OSS 控制台），写 `target="_blank"` 或调用 `window.open(url)`，内核交给系统浏览器；不带 `target` 的链接点了没有反应
+
+## 2026-09-25 要跟 devkit 0.21：packages 必给，要发的包写 publishConfig.registry
+
+来源：gwb-devkit（devkit 仓 `D:\unitfolders\s28bv-gwbbase\gwb-devkit`），提交 `9caafe0`，2026-09-25；总控台会话代为投递。
+
+`@godcreator/gwb-devkit` 0.21.0 已发到团队源。这是破坏性版本，删掉了两个只为旧仓留着的缺省值（devkit 仓轨迹卡 `2026-09-25-drop-legacy-defaults`）：
+
+1. **`devkit.dev` 与 `devkit.release` 的 `packages` 必给**：非空数组，每一项是相对仓根的包目录，如 `["plugins/<短名>"]`；`devkit.release` 的按依赖顺序排，被依赖的排前面。不给或写错直接拒。这两条命令不再把仓根当成插件包：仓根本身就是插件包的仓（仓根 `package.json` 就是插件，`pnpm-workspace.yaml` 里没有 `plugins/*`）要先改成 workspace 布局才能用——插件放在 `plugins/<短名>/`，仓根是 `"private": true` 的 `package.json`，照 devkit 仓或 `devkit.scaffold` 新建的仓的样子。devkit 不替仓改布局
+2. **每个要发的包在自己的 `package.json` 里写 `publishConfig.registry`**：发到团队源写 `"publishConfig": { "registry": "https://git.tianshen02.online:28377/api/packages/godcreator/npm/" }`，发到别的源就写那个源的地址。没写的包 `devkit.release` 拒发。发到哪只看这个字段：`devkit.release` 不再在命令行带 `--registry`，这个字段的优先级也高于用户级 `~/.npmrc` 里的范围行（devkit 仓轨迹卡 `2026-09-25-scope-and-publish-target`）
+
+同一天还发了插件管理 0.12.1，修了发出去的包里带着过时文件的问题，用它的插件不用改。另外有一项早就可以做的清理：命令总线 `@godcreator/gwb-commands` 0.4.6 起（源上现在是 0.5.0），`gwbCommands.register` 自己把注销挂在调用方的上下文上，调用方卸载时命令自动注销，登记命令不用再在外面包一层 `ctx.effect(() => ….register(…))`。包着也只注销一次、照样能用，删不删随意；登记说明书的 `gwbSkills.register` 不是命令总线的方法，外面那层 `effect` 要留着。
+
+本仓的情况：
+
+- 布局：**仓根就是插件包**——仓根 `package.json` 是 `@godcreator/gwb-windows-backup`，`keywords` 含 `gwb-plugin`；`pnpm-workspace.yaml` 的 `packages` 里只有 `docs-site`，没有 `plugins/*`。要先改成 workspace 布局，才能再用 `devkit.dev`、`devkit.release`。AGENTS 写着「发版走 devkit、本仓没有自研发版脚本」，所以不改布局就发不了版
+- 没写 `publishConfig.registry` 的包：`@godcreator/gwb-windows-backup`（改完布局后在 `plugins/<短名>/package.json` 里写）
+- 外面包着 `effect` 的命令登记：没有
+- AGENTS 与 README（正本 `docs-site/content/outputs/agents.mdx` 第 20–21 行、`readme.mdx` 第 31 行）讲 `devkit.dev` / `devkit.release` 时没写 `packages`；生成的 `AGENTS.md` 第 4 行还写着「发本机 Verdaccio（127.0.0.1:4873）」，而这个包现在发团队源——写 `publishConfig.registry` 时按实际发的源写，这句一起改成现状
+
+要做的：
+
+1. 先把仓改成 workspace 布局：
+   - 仓根上属于插件的文件（`package.json`、`src/`、`tests/`、`tsconfig*.json`、构建脚本、样式源文件等）移到 `plugins/<短名>/`；`probes/` 留在仓根
+   - 仓根另写一份 `"private": true` 的 `package.json`，`build`、`check` 这些脚本对 `plugins/*` 逐个运行
+   - `pnpm-workspace.yaml` 的 `packages` 加上 `plugins/*`
+   - 文档站里指向 `src/`、`package.json` 的代码引用改成新路径，再 `pnpm exec docfirst check` 核对
+   - 对照的样子：devkit 仓 `D:\unitfolders\s28bv-gwbbase\gwb-devkit`，或用 `devkit.scaffold` 在临时目录新建一个仓
+2. 改完以后调用写成 `devkit.dev {"home":"<home 名>","dir":"<仓根>","packages":["plugins/<短名>"]}`、`devkit.release {"dir":"<仓根>","packages":["plugins/<短名>"]}`；AGENTS、README 正本里的写法跟着改，`docfirst render` 重新生成
+3. 插件包的 `package.json` 写上 `publishConfig.registry`
+4. 不做的后果：`devkit.dev`、`devkit.release` 对本仓一律拒；已经装在 home 里的版本照常运行
