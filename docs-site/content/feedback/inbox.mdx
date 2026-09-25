@@ -35,3 +35,21 @@ docfirst: none
 - 浏览器端构建（`build.ts` 或 `tools/build-plugin.ts`）里从内核包清单读 `gwb.shared` 的那段删掉，`external` 直接写上面四个名字；
   产物测试里读 `gwb.shared` 的名单一样写死。没有浏览器端产物的包只改 peer
 - 等 devkit 发了认 0.6 的新版再发：devkit 现在的发版检查还读内核包的 `gwb.shared`，装上 0.6 会被拒（已投 devkit 收件页）
+
+## 2026-09-25 用到的插件写 peer：从 dev 挪到 peer，gwb.requires 已删
+
+来源：gwb-devkit（devkit 仓交接页「插件之间的运行时要求写 peer」，总控台会话），2026-09-25。插件管理 0.9.0、devkit 0.18.15 起生效，源上现在是插件管理 0.11.0、devkit 0.19.1。
+
+插件运行时用到的别的插件，从 devDependencies 挪到 peerDependencies，范围写 `^x.y.z`，下限写开发、验证时用的那一版；同一个仓里的插件写 `workspace:^`，发版时换成 `^<版本号>`。「用到」指：经 `ctx.inject` 用它的服务、经命令总线 `@godcreator/gwb-commands` 登记命令、用外壳 `@godcreator/gwb-shell` 注册窗格或样式令牌、import 它的类型。只用 `ctx.inject([...], fn)` 局部注入、缺了只少一部分功能的，在 `peerDependenciesMeta` 里标 `optional: true`；只按命令名调它的命令的不用写。写进 peer 的插件不再另写 dev：插件仓里 pnpm 会把 peer 装进 `node_modules`，类型从那里取。
+
+- peer 里只许三类：按值 import 的 `cordis`、内核包 `@godcreator/gwb-kernel-desktop`、别的插件（清单 `keywords` 含 `gwb-plugin`）。库、接口定义包、构建工具照旧写 dev 或 `dependencies`
+- 清单字段 `gwb.requires` 已删：插件管理不再报它，发版检查也不再查
+- 发版检查（devkit 0.18.15 起）：peer 里每个 `@godcreator` 插件的范围要是 `^x.y.z`，并且和源上 `latest` 在同一条线（0.x 比次版本号，≥1 比主版本号），不在同一条线就拒；peer 里有这三类以外的包也拒
+- home 里关掉了 pnpm 自动补装 peer：插件管理、`devkit.home.new`、`devkit.dev` 在 home 里运行 pnpm 时都带环境变量 `pnpm_config_auto_install_peers=false`。peer 里的插件 home 里没装，不会被顺带装上，由 `plugin-manager.list` 每个包的 `unmetPeers`（`{ pkg, range, installed? }`）报出来，只报告、不拦加载；在隔离 home 里验证时，peer 里的插件要自己装上
+- 升级一个插件时，peer 写了它的插件会被 pnpm 装进新目录，插件管理在同一次升级里把它们一起重新加载（回执里的 `dependents`）
+
+本仓要改的：
+
+- `@godcreator/gwb-windows-backup`：dev 里的命令总线、数据 `@godcreator/gwb-data`、设置 `@godcreator/gwb-settings`、外壳挪进 peer；命令总线 dev 里写的是 `^0.4.5`，挪进 peer 时改到 `^0.5.0`（源上 latest 是 0.5.0）
+
+随适配内核 0.6 那一轮一起改、一起发，版本号照说明书 `gwb-release` 升。规矩正本是 devkit 文档站的规则页「用到的插件写 peer」与说明书 `gwb-release`（`run skill.read {"name":"gwb-release"}`）。
