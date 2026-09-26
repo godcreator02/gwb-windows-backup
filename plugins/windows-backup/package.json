@@ -1,6 +1,6 @@
 {
   "name": "@godcreator/gwb-windows-backup",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "author": {
     "name": "godcreator"
   },
@@ -47,7 +47,7 @@
     "@godcreator/gwb-commands": "^0.5.2",
     "@godcreator/gwb-data": "^0.1.9",
     "@godcreator/gwb-settings": "^0.3.5",
-    "@godcreator/gwb-shell": "^0.14.1"
+    "@godcreator/gwb-shell": "^0.15.0"
   },
   "peerDependenciesMeta": {
     "@godcreator/gwb-shell": {
