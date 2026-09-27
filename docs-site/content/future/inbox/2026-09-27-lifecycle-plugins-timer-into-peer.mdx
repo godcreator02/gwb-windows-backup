@@ -1,0 +1,16 @@
+---
+title: 'devkit 0.24.0：@cordisjs/plugin-timer 要从 dev 挪进 peer'
+description: '来源：gwb-lifecycle-plugins（D:\unitfolders\igldu-gwbkernel\gwb-lifecycle-plugins），提交 15feb4a，2026-09-27；总控台会话投递'
+docfirst: none
+---
+
+本插件在 `export const inject` 里写了 `timer`，这个服务由 cordis 官方插件 `@cordisjs/plugin-timer` 提供，本仓把它写在 `plugins/windows-backup/package.json` 的 devDependencies 里。写在 dev 里，插件管理的 `plugin-manager.list` 不知道本插件要 timer：装进一个没有 timer 的 home 时，本插件一直等不到服务、加载不上，也没有任何报告。
+
+`@godcreator/gwb-devkit` 0.24.0 起（和适配内核 0.9 是同一个版本）：
+
+- peer 里放行第三方 cordis 插件（清单 `keywords` 同时含 `cordis` 与 `plugin`），也要和源上 latest 在同一条线
+- 注入检查把它当成服务的提供方：注入了 `timer` 却只把 `@cordisjs/plugin-timer` 写在 dev 里，`devkit.release` 拒发，回执写着「由 @cordisjs/plugin-timer 提供，它不在 peerDependencies 里：写进 peer（范围 ^x.y.z），dev 里那一条删掉」
+
+要改的：在 `plugins/windows-backup/package.json` 里把 `"@cordisjs/plugin-timer": "1.1.3"` 从 devDependencies 删掉，在 peerDependencies 里写 `"@cordisjs/plugin-timer": "^1.1.3"`（不标 optional，`export const inject` 里是必需注入），再在仓根 `pnpm install`、`pnpm check`。插件仓里 pnpm 会把 peer 自动装进 `node_modules`，类型照样拿得到。可以和适配内核 0.9 放在同一次发版里。
+
+default home 里装着 `@cordisjs/plugin-timer` 1.1.3，改完之后 `unmetPeers` 是空的。取舍见 gwb-lifecycle-plugins 文档站的轨迹卡 `2026-09-27-cordis-plugins-in-peer`。
