@@ -44,14 +44,14 @@ description: 本插件提供哪些命令、设置与窗格，注入了哪几个�
 | `timer` | `@cordisjs/plugin-timer`（官方，公共 npm） | 必需 | `^1.1.3`（第三方 cordis 插件，和 gwb 插件一样写 peer） | `ctx.interval` / `ctx.timeout`：两个定时器、加载 30 秒后的首次自检与补跑 | 同上；插件管理不替它装，要单独 `plugin-manager.install`，没装时 `plugin-manager.list` 在本插件的 `unmetPeers` 里报出来 |
 | `gwbShell` | `@godcreator/gwb-shell` | 局部注入 | `^0.15.1`，`optional: true` | 注册窗格、报显示名 | 没有窗格，备份、自检、命令照常 |
 
-内核包 `@godcreator/gwb-kernel-desktop` 的 peer 写 `^0.9.0`：node 侧只取 `GwbContext` 类型，不用 `gwbKernel` 服务；浏览器侧的 react
-由 shell 的代码出口提供、通过内核登记到页面 importmap。本插件不按值 import `cordis`，peer 里没有它。
+内核包 `@godcreator/gwb-kernel-desktop` 的 peer 写 `^0.10.0`：node 侧只取 `GwbContext` 类型，不用 `gwbKernel` 服务；浏览器侧的 react
+由 shell 提供，经内核登记进页面的 importmap。本插件不按值 import `cordis`，peer 里没有它。
 
 {/* has file="../plugins/windows-backup/src/index.ts" text="export const inject = ['gwbCommands', 'gwbSettings', 'gwbData', 'timer']" */}
 
 {/* has file="../plugins/windows-backup/src/index.ts" text="ctx.inject<{ gwbShell: Pick<GwbShellApi, 'registerPane' | 'describeSelf'> }>(['gwbShell'], (scoped) => {" */}
 
-{/* has file="../plugins/windows-backup/package.json" text="&quot;@godcreator/gwb-kernel-desktop&quot;: &quot;^0.9.0&quot;" */}
+{/* has file="../plugins/windows-backup/package.json" text="&quot;@godcreator/gwb-kernel-desktop&quot;: &quot;^0.10.0&quot;" */}
 
 {/* has file="../plugins/windows-backup/package.json" text="&quot;@godcreator/gwb-commands&quot;: &quot;^0.5.6&quot;" */}
 
@@ -71,7 +71,7 @@ description: 本插件提供哪些命令、设置与窗格，注入了哪几个�
 | --- | --- | --- | --- |
 | 子进程 | restic（用户放进数据目录 `bin/`，或设置键 `restic-exe` 指的位置） | `restic --repo <仓> --password-file <路径> <子命令>` | 备份、unlock、forget+prune、查最新快照、透传命令；argv 数组、不经 shell |
 | 子进程 | Windows PowerShell 5.1 | `powershell -NoProfile -Command <WinRT 调用>` | 弹结束通知 |
-| 代码调用 | `@godcreator/gwb-shell/browser-imports` | `browserImports()` | 构建时取浏览器侧外置模块名；与 shell 运行时登记复用同一出口 |
+| 代码调用 | `@godcreator/gwb-shell/browser-imports` | `browserImports()` | 构建时取浏览器侧外置模块名；shell 运行时登记 importmap 也调这个函数 |
 | 读文件 | 本插件自己的包清单 | `../package.json`（相对 `dist/index.js`） | `status` 回执里的版本号 |
 
 {/* has file="../plugins/windows-backup/src/process.ts" text="shell: false," */}

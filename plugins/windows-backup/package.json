@@ -1,6 +1,6 @@
 {
   "name": "@godcreator/gwb-windows-backup",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "author": {
     "name": "godcreator"
   },
@@ -43,7 +43,7 @@
     "node": ">=24"
   },
   "peerDependencies": {
-    "@godcreator/gwb-kernel-desktop": "^0.9.0",
+    "@godcreator/gwb-kernel-desktop": "^0.10.0",
     "@godcreator/gwb-commands": "^0.5.6",
     "@godcreator/gwb-data": "^0.1.9",
     "@godcreator/gwb-settings": "^0.3.5",
