@@ -14,7 +14,7 @@ plugin-manager.install {"pkg":"@cordisjs/plugin-timer"}
 plugin-manager.install {"pkg":"@godcreator/gwb-windows-backup"}
 ```
 
-定时器用官方的 `@cordisjs/plugin-timer`（公共 npm），插件管理不替它装，要单独装。home 里没有它的条目时，本插件整个停在等待：
+定时器用官方的 `@cordisjs/plugin-timer`（公共 npm），写在本插件的 peer 里；插件管理不替它装，要单独装，没装时 `plugin-manager.list` 在本插件的 `unmetPeers` 里报出来。home 里没有它的条目时，本插件整个停在等待：
 
 {/* ref file="../plugins/windows-backup/src/index.ts" lines="41-41" hash="4eb5c1a16e7e" blob="7eec32c17df0" */}
 
