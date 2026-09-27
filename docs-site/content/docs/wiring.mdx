@@ -38,22 +38,22 @@ description: 本插件提供哪些命令、设置与窗格，注入了哪几个�
 
 | 服务 | 提供方包 | 必需 / 局部注入 | peer 写法 | 用来做什么 | 缺了会怎样 |
 | --- | --- | --- | --- | --- | --- |
-| `gwbCommands` | `@godcreator/gwb-commands` | 必需（`export const inject`） | `^0.5.2` | 登记六条命令 | 插件停在等待：cordis 等到它出现才调用 `apply`，备份也不跑 |
+| `gwbCommands` | `@godcreator/gwb-commands` | 必需（`export const inject`） | `^0.5.6` | 登记六条命令 | 插件停在等待：cordis 等到它出现才调用 `apply`，备份也不跑 |
 | `gwbSettings` | `@godcreator/gwb-settings` | 必需 | `^0.3.5` | 声明 17 个设置键，每轮现读 | 同上 |
 | `gwbData` | `@godcreator/gwb-data` | 必需 | `^0.1.9` | 数据目录 `<home>/data/<条目 id>` | 同上 |
 | `timer` | `@cordisjs/plugin-timer`（官方，公共 npm） | 必需 | 不写 peer，写 dev（它不是 gwb 插件，只取类型） | `ctx.interval` / `ctx.timeout`：两个定时器、加载 30 秒后的首次自检与补跑 | 同上；插件管理不替它装，要单独 `plugin-manager.install` |
 | `gwbShell` | `@godcreator/gwb-shell` | 局部注入 | `^0.15.1`，`optional: true` | 注册窗格、报显示名 | 没有窗格，备份、自检、命令照常 |
 
-内核包 `@godcreator/gwb-kernel-desktop` 的 peer 写 `^0.8.0`：node 侧只取 `GwbContext` 类型，不用 `gwbKernel` 服务；浏览器侧的 react
+内核包 `@godcreator/gwb-kernel-desktop` 的 peer 写 `^0.9.0`：node 侧只取 `GwbContext` 类型，不用 `gwbKernel` 服务；浏览器侧的 react
 由 shell 的代码出口提供、通过内核登记到页面 importmap。本插件不按值 import `cordis`，peer 里没有它。
 
 {/* has file="../plugins/windows-backup/src/index.ts" text="export const inject = ['gwbCommands', 'gwbSettings', 'gwbData', 'timer']" */}
 
 {/* has file="../plugins/windows-backup/src/index.ts" text="ctx.inject<{ gwbShell: Pick<GwbShellApi, 'registerPane' | 'describeSelf'> }>(['gwbShell'], (scoped) => {" */}
 
-{/* has file="../plugins/windows-backup/package.json" text="&quot;@godcreator/gwb-kernel-desktop&quot;: &quot;^0.8.0&quot;" */}
+{/* has file="../plugins/windows-backup/package.json" text="&quot;@godcreator/gwb-kernel-desktop&quot;: &quot;^0.9.0&quot;" */}
 
-{/* has file="../plugins/windows-backup/package.json" text="&quot;@godcreator/gwb-commands&quot;: &quot;^0.5.2&quot;" */}
+{/* has file="../plugins/windows-backup/package.json" text="&quot;@godcreator/gwb-commands&quot;: &quot;^0.5.6&quot;" */}
 
 {/* has file="../plugins/windows-backup/package.json" text="&quot;@godcreator/gwb-settings&quot;: &quot;^0.3.5&quot;" */}
 
