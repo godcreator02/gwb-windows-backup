@@ -41,7 +41,7 @@ USB 离机副本、灾后恢复）是人在现场的事，归手册，不写成�
 宿主层 `registerCommands` 登记 `windows-backup.run` / `check` / `status` / `paths` / `restic` / `mark` 六条，每条带一句
 `description` 和写明参数与回执形状的 `usage`，`plugin` 写完整包名。命令名、参数、回执字段是本插件对 agent 和窗格的全部接口，
 由本插件负责，改了就是破坏性变更；检查登记字段、按调用方的包名记下是谁登记的、插件卸载时注销，是命令总线的事。每条命令一个 `ctx.effect`，
-一条撞名不连累别的几条。`tests/plugin.test.ts` 用内存命令表查六条都登记上、`description` 与 `usage` 非空、各条回执的形状；
+一条名字冲突不影响别的几条。`tests/plugin.test.ts` 用内存命令表查六条都登记上、`description` 与 `usage` 非空、各条回执的形状；
 `tests/artifact.test.ts` 查构建产物里六个命令名都在。
 
 ### 2. 设置插件 ⇄ 17 个设置键
@@ -79,7 +79,7 @@ USB 离机副本、灾后恢复）是人在现场的事，归手册，不写成�
 
 外壳先插入 `style.css`，再 import `client.js` 调 `mountPane(args, container)`；本插件**同步**返回 `{ dispose }`，`dispose` 卸载 React 树并清空容器。
 `args` 与返回值的类型从外壳的子路径 `@godcreator/gwb-shell/pane` 引。react 由页面的 importmap 提供，名单写在内核包的页面入口里，
-`build.ts` 从那里读来当外置名单，不打进 `client.js`。样式只作用于本插件，靠的是每个类名都带 `windowsbackup:` 前缀；颜色只用外壳的
+`build.ts` 从那里读来当外置名单，不打进 `client.js`；按钮用的 shadcn 官方组件和它依赖的 `radix-ui` 打包进 `client.js`。样式只作用于本插件，靠的是每个类名都带 `windowsbackup:` 前缀；颜色只用外壳的
 主题令牌，加一个本插件自己的成功色（`src/client/tokens.css`，外壳的令牌里没有成功色）。前缀与令牌由 `devkit.dev` / `devkit.release`
 的样式检查查，本仓的测试不重复查；浏览器侧没有测试，`artifact.test.ts` 只查 `client.js` 里有 `mountPane`。
 
@@ -93,8 +93,8 @@ USB 离机副本、灾后恢复）是人在现场的事，归手册，不写成�
 ### 8. 宿主层 → 域库
 
 宿主层只经 `MountDeps` 的 `runBackup` / `runHealth` 两个函数用备份与自检，生产实现是 `runFullBackup` 与 `runHealthCheck`，测试换成替身；
-另外透传命令直接调 `runRestic`，`mark` 命令调 `writeState`。并发保护分两层，缺一不可：宿主层闭包里的 `backing` 挡同一个进程里的
-重复触发，域库的 `backup.lock` 挡另一个进程同时起的一轮。两个域库函数都不抛，失败写进日志与返回值；宿主层照样各自 catch，
+另外透传命令直接调 `runRestic`，`mark` 命令调 `writeState`。并发保护分两层，缺一不可：宿主层闭包里的 `backing` 阻止同一个进程里的
+重复触发，域库的 `backup.lock` 阻止另一个进程同时开始一轮。两个域库函数都不抛，失败写进日志与返回值；宿主层照样各自 catch，
 一轮中途抛错时由 `recordUnfinishedRun` 把本轮失败记进 `state.json`，`run` 命令按本轮结局回执，不拿 state 里上一轮的成功冒充。
 `plugin.test.ts` 用替身查「配置不全拒跑」「锁被占着」「中途抛错回本轮失败」「备份失败照实回」；域库各模块另有自己的单测。
 
@@ -114,7 +114,7 @@ AccessKey，父进程的环境不改。保留窗口参数（`pruneArgs`）与 OS
 
 ### 11. 日志契约行 ⇢ 备份日志
 
-`logs/restic-backup.log`：备份管线写 `[YYYY-MM-DD HH:MM:SS] <契约行>` 与 restic 的原始输出，五项自检的第②项读它的尾巴判最后一轮成没成。
+`logs/restic-backup.log`：备份管线写 `[YYYY-MM-DD HH:MM:SS] <契约行>` 与 restic 的原始输出，五项自检的第②项读它的末尾几行判最后一轮成没成。
 契约行只在 `src/messages.ts` 一处拼，英文是存量日志里已有的写法——改一个词，健康检查就会把断掉的备份读成正常。超过 10 MB 只留最后
 1000 行。见[日志契约与通知](/docs/modules/log)。
 
@@ -127,7 +127,7 @@ JSON 一份：`lastRunAt` / `lastRunOk` / `lastRunSummary`（上一轮的时间�
 
 ### 13. 锁 ⇢ backup.lock
 
-`{ pid, lease, startedAt, beatAt }`，用 `flag: 'wx'` 原子创建，只有一个赢家；持锁方每 5 分钟刷一次 `beatAt`；进程不在、或心跳停了
+`{ pid, lease, startedAt, beatAt }`，用 `flag: 'wx'` 原子创建，同时创建时只有一个进程成功；持锁方每 5 分钟刷一次 `beatAt`；进程不在、或心跳停了
 6 小时，就当无主锁接管；释放只删租约对得上的那一份。占不到锁的一轮回 `skipped: 'locked'`，不写失败日志、不动 `state.json`——
 另一轮正在跑不是故障。见[锁](/docs/modules/lock)。
 

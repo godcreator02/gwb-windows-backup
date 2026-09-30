@@ -1,0 +1,28 @@
+---
+title: 窗格按钮换成 shadcn 官方组件
+born-at: 2026-09-30T17:10
+type: choice
+parent: [2026-09-08-backup-line]
+label: shadcn 按钮
+domain: 界面
+---
+
+## 背景
+
+窗格里「立即备份」「立即检查」和复核横幅里的「复制复核提示词」三个按钮是手写的 `<button>`，颜色、边框、圆角都写在使用处的
+`className` 上。用户定下的口径：所有可点控件都换成 shadcn 官方组件，组件文件由 CLI 生成、不手改样式，使用处 `className` 只写布局。
+本插件在这之前没有接 shadcn。
+
+## 结论与边界
+
+**采纳**：照外壳说明书 `gwb-shell` 的「接入 shadcn 组件」从头接——包根 `components.json`（前缀 `windowsbackup`），`@/` 别名写进包根
+`tsconfig.json`、`src/client/tsconfig.json` 与 `build.ts` 三处，在插件包目录运行 `pnpm dlx shadcn@latest add button`。CLI 把 `cn`、`radix-ui`
+写进 `dependencies`，挪到 dev；它没装 `class-variance-authority`，手动补进 dev。CLI 还把 peer 按字母重排了，恢复成原顺序。
+
+三个按钮的变体：「立即备份」缺省变体 `sm`，「立即检查」`outline` `sm`，横幅按钮 `outline` `xs`。**代价**：横幅按钮原来是警告色的边框与文字，
+官方变体里没有警告色，换成 `outline` 后是中性色；警告色只留在横幅本身。
+
+离线跑过 devkit 的样式检查源码（`style-check.ts` 的 `styleProblems`，接本机文件与包里的 Tailwind），无问题；又故意放一个漏前缀的类名，
+确认它报得出来。
+
+**边界**：不改命令、设置键、回执字段；没有在隔离 home 里装过，真实点击验收留给主会话。

@@ -41,6 +41,12 @@ description: 本插件唯一的界面——状态灯、五项、两个按钮、3
 类名一律带 `windowsbackup:` 前缀，样式只作用于本插件画出来的元素；颜色只用外壳的主题令牌，加一个本插件的成功色（`tokens.css`，
 亮暗各一套），呼吸动画是样式入口 `@theme` 里的 `animate-breathe`。这些由 `devkit.dev` / `devkit.release` 的样式检查查。
 
+三个按钮都是 shadcn 官方的 `Button`：`src/client/components/ui/` 下的组件文件由 `pnpm dlx shadcn@latest add` 在插件包目录生成
+（配置在包根 `components.json`，`@/` 别名在包根 `tsconfig.json`、`src/client/tsconfig.json`、`build.ts` 三处都指向 `src/client`），
+不手改样式。使用处只选 `variant` 与 `size`：「立即备份」是缺省变体，「立即检查」和横幅里的「复制复核提示词」是 `outline`。
+官方变体里没有警告色，警告色只在横幅的底色、边框与文字上。组件用到的 `radix-ui`、`class-variance-authority`、`cn`
+写在 dev 依赖里，打包进 `client.js`。
+
 ## 测试
 
 浏览器侧没有测试，类型检查用单独一份 `src/client/tsconfig.json`（只带 DOM 类型）。`tests/plugin.test.ts` 查外壳在与不在两种情况都能加载；

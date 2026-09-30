@@ -16,7 +16,7 @@ gwb 工作台的 Windows 备份插件（restic 快照 + OSS 异地副本 + 周�
 ## 检查与构建
 
 ```powershell
-pnpm build      # 仓根运行：esbuild 打浏览器侧 + tsc 输出 node 侧 + tailwindcss 输出样式
+pnpm build      # 仓根运行：esbuild 打包浏览器侧 + tsc 输出 node 侧 + tailwindcss 输出样式
 pnpm check      # 仓根运行：typecheck ×2 + oxlint --deny-warnings + vitest(!slow)
 ```
 
@@ -26,7 +26,10 @@ pnpm check      # 仓根运行：typecheck ×2 + oxlint --deny-warnings + vitest
 
 ## 硬约束
 
-- **`plugins/windows-backup/src/` 零第三方依赖**，只用 node 内置模块；宿主层只认 `HostContext`，不 import 内核运行时
+- **node 侧（`plugins/windows-backup/src/` 下 `client/` 以外）零第三方依赖**，只用 node 内置模块；宿主层只认 `HostContext`，
+  不 import 内核运行时。浏览器侧 `src/client/` 用的 react 由页面提供，其余（shadcn 组件与它依赖的 `radix-ui` 等）写在 dev 依赖里、打包进 `client.js`
+- **按钮等可点控件用 shadcn 官方组件**：`src/client/components/ui/` 下的文件在插件包目录运行 `pnpm dlx shadcn@latest add <组件>` 生成，
+  不手改样式；使用处 `className` 只写布局，颜色与尺寸从组件已有的 `variant` / `size` 里选
 - **凭据纪律**：密码只交路径（`--password-file`）、OSS key 只进子进程 env；永不进设置、
   永不进日志、永不进异常消息
 - **日志契约行只在 `src/messages.ts` 一处拼**——健康检查靠 grep 那几串英文，改一个词就把

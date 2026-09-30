@@ -10,7 +10,11 @@
     "noUncheckedIndexedAccess": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    // 只给 shadcn CLI 看：它按这条 @/ 别名决定把组件放进 src/client；node 侧自己不用 @/
+    "paths": {
+      "@/*": ["./src/client/*"]
+    }
   },
   // node 侧每个文件都要列进 include：oxlint 的 type-aware 只认 include，漏列的文件全变成 error 类型，no-unsafe-* 全部报错
   "include": ["src/*.ts", "build.ts", "tests/**/*.ts"]

@@ -10,9 +10,6 @@ import { build } from 'esbuild'
  */
 const here = path.dirname(fileURLToPath(import.meta.url))
 
-// 浏览器模块名与 shell 运行时登记复用同一个代码出口。
-
-
 // 上一次构建留下的文件会随 files 白名单一起发出去，先清空
 fs.rmSync(path.join(here, 'dist'), { recursive: true, force: true })
 
@@ -20,6 +17,8 @@ await build({
   entryPoints: ['src/client/index.tsx'],
   outfile: 'dist/client.js',
   external: Object.keys(browserImports()),
+  // shadcn 生成的组件写 @/… 别名，与 components.json、两份 tsconfig 的 paths 同指 src/client
+  alias: { '@': path.join(here, 'src', 'client') },
   absWorkingDir: here,
   format: 'esm',
   platform: 'browser',

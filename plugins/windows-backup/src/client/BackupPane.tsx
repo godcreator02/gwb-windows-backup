@@ -1,6 +1,7 @@
 
 import type { HostBridge } from '@godcreator/gwb-shell/pane'
 import { useState, type ReactElement } from 'react'
+import { Button } from '@/components/ui/button'
 import { Dot, headlineOf, ItemBadge, lastRunLine, useStatus } from './hooks'
 import { clockOf, ITEM_LABELS, toneOf } from './view'
 
@@ -67,14 +68,9 @@ export function BackupPane({ host }: { host: HostBridge }): ReactElement {
           <span className="windowsbackup:min-w-0 windowsbackup:flex-1 windowsbackup:text-xs windowsbackup:text-warning">
             该人工复核备份了（跑自检、看快照）——复核完调 windows-backup.mark {"{"}what: "review"{"}"} 销账
           </span>
-          <button
-            type="button"
-            className="windowsbackup:shrink-0 windowsbackup:rounded-md windowsbackup:border windowsbackup:border-warning/40 windowsbackup:px-2.5 windowsbackup:py-1 windowsbackup:text-xs windowsbackup:text-warning windowsbackup:disabled:opacity-50"
-            disabled={copied}
-            onClick={() => void copyPrompt()}
-          >
+          <Button type="button" variant="outline" size="xs" disabled={copied} onClick={() => void copyPrompt()}>
             {copied ? '已复制' : '复制复核提示词'}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -99,22 +95,23 @@ export function BackupPane({ host }: { host: HostBridge }): ReactElement {
       </div>
 
       <div className="windowsbackup:flex windowsbackup:gap-2">
-        <button
+        <Button
           type="button"
-          className="windowsbackup:bg-primary windowsbackup:text-primary-foreground windowsbackup:rounded-md windowsbackup:px-3 windowsbackup:py-1.5 windowsbackup:text-sm windowsbackup:disabled:opacity-50"
+          size="sm"
           disabled={busy !== null || status.backup.running}
           onClick={() => void runCommandThenRefresh('run')}
         >
           {status.backup.running ? '备份中…' : busy === 'run' ? '发起中…' : '立即备份'}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="windowsbackup:border-border windowsbackup:text-foreground windowsbackup:rounded-md windowsbackup:border windowsbackup:px-3 windowsbackup:py-1.5 windowsbackup:text-sm windowsbackup:disabled:opacity-50"
+          variant="outline"
+          size="sm"
           disabled={busy !== null || status.checking}
           onClick={() => void runCommandThenRefresh('check')}
         >
           {status.checking ? '检查中…' : busy === 'check' ? '发起中…' : '立即检查'}
-        </button>
+        </Button>
       </div>
 
       {/* 自检本身出错，和「备份有问题」分开显示 */}
