@@ -1,0 +1,26 @@
+---
+title: 要跟 gwb-commands 0.6：每条命令都写 effect，没写就登记失败
+---
+
+来源：总控台的全生态跟进（2026-09-30）。用户定了：所有命令都标 effect，并且把 effect 改成必填；各文档站升到 docfirst-workflow 0.5.2。除本仓等少数几个外，各插件这次都已做完；本仓 `plugins/windows-backup/src/` 正被别的会话大改、还没提交，这次没有动本仓的文件。
+
+**gwb-commands 0.6.0**（破坏性）：`GwbCommandDef.effect` 必填，取值 `read`（什么都不改，联网只读也算）/ `write`（改本机的文件、设置、数据或界面）/ `external`（影响本机以外或打扰人：推送、发到远端、发消息、弹窗或通知）。没写就在登记时抛错，插件加载失败。一条命令按参数会做几种事的，取最重的。
+
+按 HEAD 已提交的代码给的建议（改完代码后照新代码再核一遍）：
+
+| 命令 | effect | 理由 |
+| --- | --- | --- |
+| `windows-backup.run` | external | 开了 OSS 时推到阿里云；设置 `toast` 开着时每轮结束弹 Windows 通知 |
+| `windows-backup.restic` | external | 透传任意 restic 子命令，能写 OSS 远端 |
+| `windows-backup.check` | read | 只跑 `restic snapshots`、读本机文件 |
+| `windows-backup.status`、`windows-backup.paths` | read | 只读 |
+| `windows-backup.mark` | write | 写 `state.json` |
+
+期望：
+- 每条命令标上 effect；插件包 peer 里 `@godcreator/gwb-commands` 跟到 `^0.6.0`；在隔离 home 里验过后发补丁版。
+- 文档站照同目录 `2026-09-27-god-live-doc-docfirst-0-5.mdx` 升到 docfirst-workflow 0.5.2（`has` 记号大多钉在正在改的文件上，等代码改完再换成行段）；`AGENTS.md` 里「dev 端口 4318」看站的说法改成先 build 再 start。
+- **在本仓跟上之前，default 不升 commands 0.6**，否则 windows-backup 在 default 里加载失败。
+
+处理完删掉这条和同目录的 effect、docfirst-0-5 两条反馈。
+
+证据：gwb-base-plugins 仓 `plugins/commands/src/registry.ts` 的 `checkedCommandDef`。
