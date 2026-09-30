@@ -1,0 +1,49 @@
+---
+title: 定时
+description: 只有一个每分钟一跳的定时器——每一跳先看锁、再现读设置、再看距上一轮结束满没满一个周期；改周期下一分钟生效，重启后第一跳自然补上
+---
+
+`src/index.ts` 的 `tick`。插件里只有这一个定时器，什么时候跑备份、加载后什么时候读仓库，都由它每一跳现场判断。
+下面同一个场景从加载演到第 30 分钟，每一跳的判断都是按规则算出来的：
+
+<TickTimeline />
+
+## 每一跳做什么
+
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="178-195" hash="f45031e6aa58" blob="5dfc3c4eb6fa" */}
+
+1. **先看锁**：数据目录的 `backup.lock` 被一轮还活着的备份持着，这一跳什么都不做。不会叠一轮上去，也不写日志
+2. **现读设置**：读不出（某个值不合法）就拒跑，理由写进日志——同一句理由只写一次，不会每分钟刷一行
+3. **看到期没有**：`state.json` 的 `lastRunAt` 是上一轮**结束**的时刻，距它满 `frequency-minutes` 就跑下一轮；从没跑过也算到期
+4. **没到期、而且还没读过仓库**：读一次本地仓库的最新快照，让健康结论里「快照新鲜度」这一项在加载后一分钟就有读数
+
+到期的判据与「下一轮最早什么时候」都只看 `lastRunAt` 与此刻的周期：
+
+{/* ref file="../plugins/windows-backup/src/state.ts" lines="46-58" hash="01f8e730e56b" blob="ae9258b3f8b2" */}
+
+由此得到三件不用另写代码的事：
+
+- **改周期下一分钟生效**：每一跳都现读设置
+- **工作台重启后自然补上**：关了几天再打开，第一跳看到 `lastRunAt` 早就过期，马上跑一轮
+- **状态里的「下次」永远对**：`nextRunAt` 由 `lastRunAt` 加周期算出，不是某个计时器里记的时刻
+
+周期是按上一轮**结束**算的，所以一轮本身要跑几分钟时，两轮开始的间隔会比 `frequency-minutes` 略长。
+
+## 拒跑理由只写一次
+
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="128-135" hash="70bdc691dc42" blob="5dfc3c4eb6fa" */}
+
+白名单没填、本地仓库没填、OSS 开着没配全、某个值不合法——这些情况下每一跳都会拒跑。记住上一次写进日志的那句理由，
+一样就不再写；真的跑起一轮时清掉，以后再出同样的问题还会再写一次。`windows-backup.status` 的 `refuseReason` 任何时候都给出当下的理由。
+
+## 同一时间只有一轮
+
+`windows-backup.run` 命令与定时那一跳调的是同一个 `runBackup`。两条路同时触发时由 `backup.lock` 挡住后来的那个：
+后来的回 `locked`，`run` 命令回执里说「另一轮正在跑」。「正在跑」也只从锁文件读，插件被重新加载之后照样对。锁的细节见[锁](/docs/windows-backup/lock)。
+
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="145-176" hash="e7be5a07fa13" blob="ecd752e21847" */}
+
+## 测试
+
+`tests/plugin.test.ts` 用假时钟跑「每分钟一跳」：加载当场什么都不跑、一分钟后从没跑过就跑一轮且跑完读一次仓库、十分钟前刚跑过只读仓库不备份、
+改了周期下一跳生效、另一轮持着锁时这一跳不启动、拒跑理由五分钟里只写一次日志。`tests/state.test.ts` 查到期判断与「下一轮最早」的边界。

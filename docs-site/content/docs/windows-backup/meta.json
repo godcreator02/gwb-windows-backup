@@ -1,0 +1,4 @@
+{
+  "title": "插件包",
+  "pages": ["round", "schedule", "lock", "health", "config", "credentials", "restic", "pane"]
+}

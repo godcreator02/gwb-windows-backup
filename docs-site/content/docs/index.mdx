@@ -1,161 +1,45 @@
 ---
 title: Windows 备份
-description: 定时把白名单目录做成 restic 快照、再独立备份一份到阿里云 OSS，并周期自检的 gwb 插件——一张接缝图讲清它由哪几部分组成、各部分之间传什么
+description: 定时把白名单目录做成 restic 快照、再独立备份一份到阿里云 OSS，并随时回答「备份还在正常运行吗」的 gwb 插件——一张接缝图讲清它碰到了什么、每条连接传什么
+full: true
 ---
 
-**本页回答**：这个插件做什么、由哪几部分组成、各部分之间靠什么连着、依赖谁、刻意不做什么。
+插件包 `@godcreator/gwb-windows-backup` 在仓里的 `plugins/windows-backup/`。它只做三件事：
 
-插件包 `@godcreator/gwb-windows-backup` 在仓里的 `plugins/windows-backup/`，下文的 `src/…` 都相对这个目录。
-它每 30 分钟（设置键 `frequency-minutes`）把白名单目录备份进本地 restic 仓库；开了 OSS，就对阿里云 OSS 上的
-另一个 restic 仓库**再独立备份一次**（不是从本地仓拷快照，两个仓各有一条快照链）；每天第一轮顺带按保留窗口删旧快照；
-每 8 小时跑一次五项自检。备份只在工作台运行时进行，工作台启动 30 秒后补上错过的那一轮。
+- **每分钟一跳**：定时器每 60 秒醒一次，距上一轮结束满 `frequency-minutes`（默认 30）分钟就跑下一轮
+- **跑一轮备份**：把白名单目录备份进本地 restic 仓库；开了 OSS，就对 OSS 上的另一个 restic 仓库**再独立备份一次**；每天第一轮同时按保留窗口删旧快照
+- **回答「备份还在正常运行吗」**：上次备份、磁盘余量、快照新鲜度三项，每次问都现算
 
-怎么装、怎么配、怎么确认它在跑，见[用法](/docs/usage)。
+备份只在工作台运行时进行。怎么装、怎么配、怎么确认它在跑，见[用法](/docs/usage)；包内部怎么分工，见[插件包](/docs/windows-backup)。
 
-## 这个插件为什么是这个形状
+## 判据
 
-一句话判据：**代码只做没人盯着也要一直做的事**——定时备份、周期自检、给人和 agent 看状态；一次性操作（装 restic、首次配置、
-USB 离机副本、灾后恢复）是人在现场的事，归手册，不写成代码。由它推出三条：
+一句话：**代码只做没人盯着也要一直做的事**——定时备份、给人和 agent 看状态；一次性操作（装 restic、首次配置、USB 离机副本、灾后恢复）是人在现场的事，归手册。由它推出三条：
 
-- **状态和备份本体一样重要**：备份断了三个月没人发现，等于没有备份。所以五项自检、窗格、日志契约行都是一等功能
-- **凭据纪律比便利重要**：仓库密码只把文件路径交给 restic，OSS AccessKey 只进子进程的环境变量，永不进设置、日志、异常消息
-- **误报比漏报更伤**：告警天天响，人就不看了，真出事那次也一起被忽略。所以时间类判据一律容忍两个周期
+- **状态和备份本体一样重要**：备份断了三个月没人发现，等于没有备份。所以状态每次现算，一轮失败，下一次问就是黄灯
+- **凭据纪律比便利重要**：仓库密码只把文件路径交给 restic，OSS 的密钥只进子进程的环境变量，永不进设置、日志、报错消息
+- **误报比漏报更伤**：告警天天响，人就不看了。时间类判据一律容忍两个周期；判不了的项画灰、不算失败；要人去做的维护单独提醒，不让状态灯变黄
 
 ## 接缝图
 
-插件自己分三部分：**宿主层**（`src/index.ts`，把备份接到工作台上）、**域库**（`src/` 下其余 `.ts`，只用 node 内置模块，
-不认识工作台）、**窗格**（`src/client/`，浏览器里的界面）。图的上方是它注入的工作台插件，左边是它启动的两个外部程序，
-下方是它在数据目录里读写的四样文件。
+<SeamMap />
 
-<BackupSeams />
+## 接缝总表
 
-依赖方向从上往下：宿主层认识工作台插件和域库，域库只认识 node 内置模块、外部程序和数据目录。换一个宿主，只重写宿主层；
-测试里把域库的两个入口换成替身，宿主层就能不启动任何进程地测。
+| 编号 | 名称 | 连接 | 接口 | 不负责的事 | 详见 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 命令总线 → 六条命令 | 命令总线 ↔ 插件 | `windows-backup.run` / `check` / `status` / `paths` / `restic` / `mark`，每条带 `effect` | 按调用方记登记、卸载时注销是命令总线的事 | [用法](/docs/usage) |
+| 2 | 外壳 → 窗格 | 外壳 ↔ 窗格 | 局部注入里 `registerPane({ id: 'main' })`，外壳调 `mountPane` | 窗格放在哪、开几份归外壳 | [窗格](/docs/windows-backup/pane) |
+| 3 | 设置 → 设置表 | 设置插件 ↔ 插件 | 十六个键 `define`，每次 `get` 现读 | 设置插件不校验值，本插件拒跑并说清是哪个键 | [设置与状态文件](/docs/windows-backup/config) |
+| 4 | 定时器 → 每分钟一跳 | 官方定时器 ↔ 插件 | `ctx.interval(tick, 60_000)` | 工作台没运行就没有定时器，也就不备份 | [定时](/docs/windows-backup/schedule) |
+| 5 | 数据服务 → 数据目录 | 数据插件 ↔ 插件 | `ctx.gwbData.dir` | 目录归哪个条目是数据插件的事 | [设置与状态文件](/docs/windows-backup/config) |
+| 6 | 数据目录里的四样文件 | 插件 ↔ 磁盘 | `backup.lock`、`state.json`、`credentials/`、`logs/restic-backup.log` | 日志只给人看，程序不读 | [锁](/docs/windows-backup/lock)、[设置与状态文件](/docs/windows-backup/config) |
+| 7 | restic 子进程 | 插件 ↔ restic.exe | `restic --repo <仓库> --password-file <路径> <子命令>`，argv、不经 shell、一定有超时 | 仓库格式与加密归 restic | [restic 与子进程](/docs/windows-backup/restic) |
+| 8 | PowerShell 通知 | 插件 ↔ PowerShell 5.1 | `powershell -NoProfile -Command <WinRT 调用>` | 弹不出来不影响一轮的结论 | [restic 与子进程](/docs/windows-backup/restic) |
+| 9 | 磁盘余量 | 健康结论 ↔ 本地仓库那块盘 | `fs.statfsSync` | 不清理磁盘，只报剩多少 | [健康结论](/docs/windows-backup/health) |
+| 10 | restic 写仓库 | restic.exe ↔ 两个仓库 | restic 的仓库格式、S3 接口 | 本插件不读仓库里的任何文件 | [一轮备份](/docs/windows-backup/round) |
 
-## 接缝逐条
-
-每条写：连着哪两端、中间传什么、哪一边负责、不归本插件管的是谁的、测试怎么覆盖。
-
-### 1. 命令总线 ⇄ 六条命令
-
-宿主层 `registerCommands` 登记 `windows-backup.run` / `check` / `status` / `paths` / `restic` / `mark` 六条，每条带一句
-`description` 和写明参数与回执形状的 `usage`，`plugin` 写完整包名。命令名、参数、回执字段是本插件对 agent 和窗格的全部接口，
-由本插件负责，改了就是破坏性变更；检查登记字段、按调用方的包名记下是谁登记的、插件卸载时注销，是命令总线的事。每条命令一个 `ctx.effect`，
-一条名字冲突不影响别的几条。`tests/plugin.test.ts` 用内存命令表查六条都登记上、`description` 与 `usage` 非空、各条回执的形状；
-`tests/artifact.test.ts` 查构建产物里六个命令名都在。
-
-### 2. 设置插件 ⇄ 17 个设置键
-
-`declareSettings` 把 `SETTING_KEYS` 里 17 个 kebab-case 键逐个 `define`，默认值取 `src/config.ts` 的 `DEFAULT_FLAT`。每轮备份、
-每次自检、每次透传命令都用 `get(key)` **现读**，不缓存：设置插件没有变更通知，缓存一份就会「设置改了，跑的还是旧值」。
-读回来的值经 `pickFlat` 收窄：缺字段、类型不对、该是正数却不是的一律用默认值，不报错——设置插件不校验写进来的值，
-本插件是唯一把关的一方。值存在哪、设置界面长什么样是设置插件的事。测试：`plugin.test.ts` 查 17 个键、类型与默认值，
-`config.test.ts` 查收窄。
-
-### 3. 数据插件 → 数据目录
-
-`ctx.gwbData.dir` 给出 `<home>/data/<条目 id>`；`ensureDataDir` 建这个目录（建不出只记一行 warn，命令照常可用），
-`layout(dir)` 算出锁、状态、凭据、日志、`bin/` 的全部路径。目录归哪个条目是数据插件的事；目录里每个文件的格式归本插件
-（接缝 11–14）。用户数据与凭据全在这里，代码树里一个字节都没有，隔离 home 有自己的数据目录，开发时碰不到真凭据。
-`plugin.test.ts` 用临时目录当数据目录，查 `paths` 命令的回执。
-
-### 4. 定时器插件 → 定时备份与自检
-
-官方 `@cordisjs/plugin-timer` 给 `ctx` 加上 `interval` 与 `timeout`。`createBackupRuntime` 按 `frequency-minutes` 开备份定时器、
-按 `health-check-interval-hours` 开自检定时器，**每次触发都把「下次」往后推**，否则状态里一直显示一个已经过去的时刻；
-每轮开跑时用现读的配置核对一次，频率变了才重建定时器（重建会让当前这一轮的计时清零）。加载时 `timeout(30 秒)` 排第一次自检，
-上一轮备份离现在满一个周期（或从没跑过）就一起补跑一轮——不在加载当时跑，那时所有插件都在启动，restic 的磁盘读写会拖慢启动。
-`timer` 写在顶层注入里，home 里没有它的条目，整个插件停在等待：宁可等，也不在没有定时器时显得在备份。
-`plugin.test.ts` 用假时钟查首检与补跑的时机、`nextRunAt` 往后推、改了频率后重建。
-
-### 5. 注册窗格 → 外壳
-
-`registerPaneWhenShellIsPresent` 在**局部注入** `ctx.inject(['gwbShell'], …)` 里调 `registerPane({ id: 'main', title: '备份', icon: 'shield-check', client, style })`
-与 `describeSelf`，`client` / `style` 是按本模块地址算出的 `dist/client.js`、`dist/style.css` 的 `file://` 地址。外壳不在，这个回调就不跑，
-只少一个窗格，备份照常；把外壳写进顶层注入的话，没装外壳的 home 里整个插件（连同备份）都会停在等待。窗格放在哪、开几份、
-切桌面是外壳的事。`plugin.test.ts` 查外壳在与不在两种情况都能加载、命令都在。
-
-### 6. 外壳 → 挂载窗格
-
-外壳先插入 `style.css`，再 import `client.js` 调 `mountPane(args, container)`；本插件**同步**返回 `{ dispose }`，`dispose` 卸载 React 树并清空容器。
-`args` 与返回值的类型从外壳的子路径 `@godcreator/gwb-shell/pane` 引。react 由页面的 importmap 提供，名单写在内核包的页面入口里，
-`build.ts` 从那里读来当外置名单，不打进 `client.js`；按钮用的 shadcn 官方组件和它依赖的 `radix-ui` 打包进 `client.js`。样式只作用于本插件，靠的是每个类名都带 `windowsbackup:` 前缀；颜色只用外壳的
-主题令牌，加一个本插件自己的成功色（`src/client/tokens.css`，外壳的令牌里没有成功色）。前缀与令牌由 `devkit.dev` / `devkit.release`
-的样式检查查，本仓的测试不重复查；浏览器侧没有测试，`artifact.test.ts` 只查 `client.js` 里有 `mountPane`。
-
-### 7. 窗格 → 命令总线
-
-`useStatus` 每 30 秒 `host.call('windows-backup.status')`：这个调用经内核转给命令总线，再到接缝 1 登记的处理函数；点「立即备份」
-「立即检查」调 `run` / `check`，之后立刻再取一次。回执 `data` 的形状正本在宿主层的 `snapshot()`，窗格的 `src/client/view.ts` 只收窄
-用得上的字段，认不出就给默认值——所以宿主层改了字段名，窗格不报错，只会显示成灰灯和「—」。`report` 为 `null` 是「还没有结论」，
-不是「没问题」。调命令失败时窗格留着上一次的结论。`status` 的形状在 `plugin.test.ts` 里查；`view.ts` 没有测试。
-
-### 8. 宿主层 → 域库
-
-宿主层只经 `MountDeps` 的 `runBackup` / `runHealth` 两个函数用备份与自检，生产实现是 `runFullBackup` 与 `runHealthCheck`，测试换成替身；
-另外透传命令直接调 `runRestic`，`mark` 命令调 `writeState`。并发保护分两层，缺一不可：宿主层闭包里的 `backing` 阻止同一个进程里的
-重复触发，域库的 `backup.lock` 阻止另一个进程同时开始一轮。两个域库函数都不抛，失败写进日志与返回值；宿主层照样各自 catch，
-一轮中途抛错时由 `recordUnfinishedRun` 把本轮失败记进 `state.json`，`run` 命令按本轮结局回执，不拿 state 里上一轮的成功冒充。
-`plugin.test.ts` 用替身查「配置不全拒跑」「锁被占着」「中途抛错回本轮失败」「备份失败照实回」；域库各模块另有自己的单测。
-
-### 9. 域库 → restic.exe
-
-全插件只有 `src/process.ts` 的 `runProcess` 启动外部程序：argv 数组、不经 shell、不弹窗口、一定有超时（备份与 prune 6 小时，其余 2 分钟）、
-不抛。`runRestic` 补上 `--repo` 与 `--password-file`；OSS 那几次的环境变量是 `resticEnv` 造的副本，在父进程环境上叠 `GOMAXPROCS` 与
-AccessKey，父进程的环境不改。保留窗口参数（`pruneArgs`）与 OSS 仓库地址（`ossRepoUrl`）各只有一处拼法。restic 的输出原样进日志，
-成败只看退出码。仓库的数据格式与加密是 restic 的事。测试：`restic-credentials.test.ts` 用假的启动函数查参数顺序与环境变量，
-`backup.test.ts` 用按子命令分发的假 restic 查整条链路；真 restic 没有自动化测试。细节见[restic 封装与子进程](/docs/modules/restic)。
-
-### 10. 域库 → PowerShell
-
-`sendToast` 用 Windows PowerShell 5.1（任何 Windows 都有，不用 `pwsh`）借 PowerShell 的应用标识弹一条通知，成败都通知；设置键 `toast`
-关掉就不调。XML 要放进 PowerShell 的单引号字符串，所以 `'` 和 `"` 也转成实体。弹不出来只记一行 `Notification failed`，不影响备份结论。
-`log-toast.test.ts` 查转义与失败那一行。
-
-### 11. 日志契约行 ⇢ 备份日志
-
-`logs/restic-backup.log`：备份管线写 `[YYYY-MM-DD HH:MM:SS] <契约行>` 与 restic 的原始输出，五项自检的第②项读它的末尾几行判最后一轮成没成。
-契约行只在 `src/messages.ts` 一处拼，英文是存量日志里已有的写法——改一个词，健康检查就会把断掉的备份读成正常。超过 10 MB 只留最后
-1000 行。见[日志契约与通知](/docs/modules/log)。
-
-### 12. 动作记录 ⇢ state.json
-
-JSON 一份：`lastRunAt` / `lastRunOk` / `lastRunSummary`（上一轮的时间、成败、小结，**成败都记**）、`lastLocalSnapshot` / `lastOssSnapshot`
-（两个仓各自最近一次成功的快照 ID，下一轮当父快照）、`lastPrune`（判每天一次）、`lastUsbCopy` / `lastExcludeAudit` / `lastReview`
-（`mark` 命令写的三个周期动作日期）。时间一律本地时区、不带时区标记。解析不了就当空对象，最坏多跑一次 prune。
-见[配置与状态](/docs/modules/config-state)。
-
-### 13. 锁 ⇢ backup.lock
-
-`{ pid, lease, startedAt, beatAt }`，用 `flag: 'wx'` 原子创建，同时创建时只有一个进程成功；持锁方每 5 分钟刷一次 `beatAt`；进程不在、或心跳停了
-6 小时，就当无主锁接管；释放只删租约对得上的那一份。占不到锁的一轮回 `skipped: 'locked'`，不写失败日志、不动 `state.json`——
-另一轮正在跑不是故障。见[锁](/docs/modules/lock)。
-
-### 14. 凭据 ⇢ credentials/
-
-`restic-password.txt` 的内容永不读进本进程，只把路径交给 restic；`oss-credentials.txt` 按 `KEY=VALUE` 解析，结果只进子进程环境变量，
-坏行只跳过不报错（报错就要说出哪一行坏了，那句话会把凭据带进日志），文件不在就当空（restic 随后失败，日志里留下 `OSS push FAILED`）。
-见[凭据纪律](/docs/modules/credentials)。
-
-## 各部分对外能做什么
-
-**宿主层**对 agent 是六条命令与 17 个设置键，对人是一个窗格，见[用法](/docs/usage)与[宿主层](/docs/modules/host)。
-
-**域库**按模块分页：[备份管线](/docs/modules/pipeline)（一轮备份的顺序与每段成败怎么影响后面）、[五项健康](/docs/modules/health)
-（「备份还在正常运行吗」的判据）、[锁](/docs/modules/lock)、[restic 封装与子进程](/docs/modules/restic)、[凭据纪律](/docs/modules/credentials)、
-[日志契约与通知](/docs/modules/log)、[配置与状态](/docs/modules/config-state)。
-
-**窗格**显示状态灯、五项结论、上次备份与下次计划，有「立即备份」「立即检查」两个按钮，复核到期时显示一条横幅、一键复制复核提示词，
-见[备份窗格](/docs/modules/client)。
-
-## 依赖
-
-**必需**，写在顶层注入里，缺一个整个插件停在等待：命令总线（登记命令）、设置插件（17 个键）、数据插件（数据目录）、
-官方定时器 `@cordisjs/plugin-timer`（两个定时器）。**可选**：外壳，缺了只是没有窗格。**内核包**只提供 `GwbContext` 类型与页面的 react。
-**外部程序**：restic.exe（放在数据目录的 `bin/` 下，或用设置键 `restic-exe` 指到别处），没有它每轮备份都失败、快照新鲜度判不了；
-PowerShell 5.1，没有它只是不弹通知。每一项的 peer 写法、缺了会怎样与钉码见[插件之间怎么连](/docs/wiring)。
-
-## 不做的事
+## 刻意不做的事
 
 每条是决定不做，不是排期没排到，理由见轨迹卡[四件刻意不做的事](/trajectory/2026-09-26-not-doing-four)：
 

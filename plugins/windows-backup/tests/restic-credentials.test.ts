@@ -1,32 +1,31 @@
 import { describe, expect, it } from 'vitest'
-import { parseOssCredentials, readOssEnv } from '../src/credentials.js'
-import { ossRepoUrl, parseProcessedSize, parseSnapshotId, pruneArgs, resticEnv, runRestic } from '../src/restic.js'
+import { parseOssCredentials, readOssCredentials } from '../src/credentials.js'
+import { ossRepoUrl, parentUnusable, parseProcessedSize, parseSnapshotId, pruneArgs, resticEnv, runRestic } from '../src/restic.js'
 import type { RunProcess } from '../src/process.js'
 
 describe('parseOssCredentials', () => {
   it('KEY=VALUE 逐行收，空行与 # 注释跳过', () => {
-    const env = parseOssCredentials('AWS_ACCESS_KEY_ID=abc\n# 注释\n\nAWS_SECRET_ACCESS_KEY=def')
+    const env = parseOssCredentials('AWS_ACCESS_KEY_ID=abc\n# 注释\n\nAWS_SECRET_ACCESS_KEY=def\r\n')
     expect(env).toEqual({ AWS_ACCESS_KEY_ID: 'abc', AWS_SECRET_ACCESS_KEY: 'def' })
   })
 
-  it('export 前缀剥掉', () => {
-    expect(parseOssCredentials('export AWS_ACCESS_KEY_ID=abc')).toEqual({ AWS_ACCESS_KEY_ID: 'abc' })
+  it('格式不对的行报出行号，不带那一行的内容', () => {
+    expect(() => parseOssCredentials('AWS_ACCESS_KEY_ID=abc\nexport SECRET=xyz')).toThrow('OSS 凭据文件第 2 行不是 KEY=VALUE')
+    try {
+      parseOssCredentials('没有等号的秘密')
+    } catch (error) {
+      expect(String(error)).not.toContain('秘密')
+    }
   })
 
-  it('单双引号与反斜杠转义照 shlex 规矩', () => {
-    expect(parseOssCredentials("AWS_SECRET_ACCESS_KEY='a b'")).toEqual({ AWS_SECRET_ACCESS_KEY: 'a b' })
-    expect(parseOssCredentials('K="va\\"lue"')).toEqual({ K: 'va"lue' })
+  it('缺两个必需键之一 → 报缺哪个', () => {
+    expect(() => parseOssCredentials('AWS_ACCESS_KEY_ID=abc')).toThrow('OSS 凭据文件缺 AWS_SECRET_ACCESS_KEY')
   })
 
-  it('坏行静默跳过——报错本身就是泄漏面', () => {
-    expect(parseOssCredentials('没有等号\n"引号不闭合\n=空键')).toEqual({})
-  })
-
-  it('readOssEnv 文件不存在回空对象（部署途中的正常中间态）', () => {
-    expect(readOssEnv('/definitely/not/here.txt')).toEqual({})
+  it('readOssCredentials 文件不在 → 抛错并说出路径', () => {
+    expect(() => readOssCredentials('/definitely/not/here.txt')).toThrow('没有 OSS 凭据文件')
   })
 })
-
 describe('runRestic', () => {
   it('自动补 --repo 与 --password-file，用户参数原样在后', async () => {
     let seen: { exe: string; args: string[] } | undefined
@@ -42,7 +41,7 @@ describe('runRestic', () => {
 
 describe('参数表 SSOT', () => {
   it('ossRepoUrl 拼法', () => {
-    expect(ossRepoUrl({ endpoint: 'oss-cn-beijing.aliyuncs.com', bucket: 'b', repoPath: 'restic-prod' })).toBe(
+    expect(ossRepoUrl({ ossEndpoint: 'oss-cn-beijing.aliyuncs.com', ossBucket: 'b', ossRepoPath: 'restic-prod' })).toBe(
       's3:oss-cn-beijing.aliyuncs.com/b/restic-prod',
     )
   })
@@ -70,5 +69,13 @@ describe('stdout 解析', () => {
     expect(parseProcessedSize('processed 42 files, 4.9 KiB in 0:01')).toBe('4.9 KiB')
     expect(parseProcessedSize('processed 42 files, 120 B in 0:00')).toBe('120 B')
     expect(parseProcessedSize('nope')).toBeNull()
+  })
+})
+
+describe('parentUnusable', () => {
+  it('只认 restic 说父快照找不到的那两句原话', () => {
+    expect(parentUnusable('', 'no matching ID found for prefix "abc"')).toBe(true)
+    expect(parentUnusable('unable to find snapshot abc', '')).toBe(true)
+    expect(parentUnusable('', 'Fatal: unable to open repository')).toBe(false)
   })
 })

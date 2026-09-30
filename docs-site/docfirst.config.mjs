@@ -1,31 +1,42 @@
 /**
- * 这个站的 docfirst 配置：用哪个格式包、生成文件写到哪、组件规则表是什么。命令行和站读的是同一份。
+ * docfirst 配置：命令行和站读的是同一份。项目根是这个站目录，被钉的源码在仓根的 `plugins/windows-backup/` 下，
+ * 引用写 `../plugins/windows-backup/…`，按项目根拼路径，页面在哪个子目录都一样。
  *
- * 项目根是这个站目录，引用的代码在 `plugins/windows-backup/`——引用里写 `../plugins/windows-backup/…`，
- * 按项目根拼路径，页面在哪个子目录都一样。
- * 分区按约定：`content/` 下 `trajectory/` 与 `future/` 两个名字固定，其余目录都是现状区、都进 check；
- * 本站的现状区只有 `content/docs`。
+ * content 是各区的上一级目录。它下面只有两个名字是固定的：`trajectory/` 是轨迹卡目录，
+ * `future/` 是未来区（路线、别的仓投来的反馈 `future/inbox/`）。其余目录都是现状区，全部进 check；
+ * 本站的现状区是 `content/docs/`，插件包的页在它下面的 `windows-backup/`。`src/components/` 下讲解组件的源码也进 check。
  *
- * 生成文件：仓根 README.md、AGENTS.md 与 CLAUDE.md，正本都在 `content/docs/outputs/`。
- * CLAUDE.md 第一行固定是 `@AGENTS.md`，只给 Claude 的指令写在它后面。生成正本按原文渲染，里面不能用 JSX 组件。
+ * outputs 把正本映射到生成物：仓根 README.md / AGENTS.md / CLAUDE.md 由 `content/docs/outputs/` 下的
+ * 三份 mdx 生成。改正本后运行 `pnpm doc:render`，正本与生成物放进同一个提交，check 检查两者一致。
+ *
+ * components 是组件名册：fumadocsRoster 给 fumadocs 自带文件树 Files / Folder / File 与 Note 的机读规则，站里自己的组件追加在后面；
+ * React 那一半在 src/components/mdx.tsx，名单在 src/components/registry.ts，两边由 scripts/verify-roster.mjs 核对。
+ * 讲解组件的规则各在组件目录里的 .ai.mjs，读组件自己的讲解数据生成文字。
  */
-import * as fumadocs from '@godcreator/docfirst-workflow/fumadocs'
+import { fumadocsRoster } from '@godcreator/docfirst-workflow/fumadocs/roster'
+import * as glossaryList from './src/components/glossary-list/glossary-list.ai.mjs'
+import * as healthCases from './src/components/health-cases/health-cases.ai.mjs'
+import * as lockSteps from './src/components/lock-steps/lock-steps.ai.mjs'
+import * as roundCases from './src/components/round-cases/round-cases.ai.mjs'
+import * as seamMap from './src/components/seam-map/seam-map.ai.mjs'
+import * as tickTimeline from './src/components/tick-timeline/tick-timeline.ai.mjs'
 
 export default {
-  formats: [fumadocs],
+  content: 'content',
   outputs: {
     'content/docs/outputs/readme.mdx': ['../README.md'],
     'content/docs/outputs/agents.mdx': ['../AGENTS.md'],
     'content/docs/outputs/claude.mdx': ['../CLAUDE.md'],
   },
   components: {
-    ...fumadocs.defaultRoster,
-    // 首页的接缝图：图本身在机读版里看不见，正文「接缝逐条」按同一套编号把每条接缝写全了
-    BackupSeams: (node, h) =>
-      h.paragraph(
-        '[图] 接缝图：宿主层、域库、窗格三部分，注入的五个工作台插件，restic.exe 与 PowerShell 两个外部程序，数据目录里的四样文件；14 条跨边界的接缝按编号在正文里逐条讲',
-      ),
-    // 备份管线页的推演：拨条件看哪几段跑，机读版只剩一句话，判据在正文的列表里
-    PipelineRound: (node, h) => h.paragraph('[演示] 拨本地备份、今天是否 prune 过、本地 prune、OSS 开关、OSS 备份几个条件，看一轮里哪几段跑、state.json 记下什么、通知说什么'),
+    ...fumadocsRoster,
+    // 术语标注：自动标出的是构建时加的，不在源文件里；这条管作者手写的 <Term>，机读版只留原词
+    Term: 'children',
+    SeamMap: seamMap.SeamMap,
+    RoundCases: roundCases.RoundCases,
+    TickTimeline: tickTimeline.TickTimeline,
+    LockSteps: lockSteps.LockSteps,
+    HealthCases: healthCases.HealthCases,
+    GlossaryList: glossaryList.GlossaryList,
   },
 }

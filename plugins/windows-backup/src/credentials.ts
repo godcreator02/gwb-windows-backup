@@ -1,100 +1,32 @@
 import { existsSync, readFileSync } from 'node:fs'
 
+/** restic 写 `s3:` 仓库必须有的两个环境变量。 */
+export const REQUIRED_OSS_KEYS = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'] as const
+
 /**
- * 从 OSS 凭据文件文本解析出一组环境变量（`KEY=VALUE`，认 `export ` 前缀、引号、反斜杠转义、`#` 注释行）。
- * 坏行只跳过那一行、不报错：报错就要说出哪一行坏了，那句话会把凭据带进日志。
+ * 从 OSS 凭据文件文本解析出一组环境变量：每行 `KEY=VALUE`，空行与 `#` 开头的行跳过，值原样取到行尾。
+ * 格式不对就抛错；报错只说第几行、缺哪个键，**不带任何一行的内容**——那会把凭据带进日志。
  */
 export function parseOssCredentials(text: string): Record<string, string> {
   const env: Record<string, string> = {}
-  for (const rawLine of text.split(/\r?\n/)) {
+  const lines = text.split(/\r?\n/)
+  for (const [index, rawLine] of lines.entries()) {
     const line = rawLine.trim()
     if (line === '' || line.startsWith('#')) continue
-    const tokens = splitPosix(line)
-    if (tokens === null) continue
-    const assignment = tokens[0] === 'export' ? tokens[1] : tokens[0]
-    if (assignment === undefined) continue
-    const equalsAt = assignment.indexOf('=')
-    if (equalsAt <= 0) continue
-    const key = assignment.slice(0, equalsAt).trim()
-    if (key === '') continue
-    env[key] = assignment.slice(equalsAt + 1)
+    const equalsAt = line.indexOf('=')
+    const key = equalsAt > 0 ? line.slice(0, equalsAt).trim() : ''
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+      throw new Error(`OSS 凭据文件第 ${String(index + 1)} 行不是 KEY=VALUE`)
+    }
+    env[key] = line.slice(equalsAt + 1).trim()
   }
+  const missing = REQUIRED_OSS_KEYS.filter((key) => (env[key] ?? '') === '')
+  if (missing.length > 0) throw new Error(`OSS 凭据文件缺 ${missing.join('、')}`)
   return env
 }
 
-/**
- * 读 OSS 凭据文件，返回环境变量对象。文件不存在或读不动都返回 `{}`：
- * 往下走 restic 会以非零码失败，日志里留下 `OSS push FAILED with exit code N` 契约行。
- */
-export function readOssEnv(file: string): Record<string, string> {
-  if (!existsSync(file)) return {}
-  try {
-    return parseOssCredentials(readFileSync(file, 'utf8'))
-  } catch {
-    return {}
-  }
-}
-
-/**
- * POSIX 风格分词，照 Python `shlex.split(line, comments=False, posix=True)` 的语义。
- * 引号不闭合、行尾裸反斜杠返回 `null`（对应 Python 那边的 `ValueError`）。
- */
-function splitPosix(line: string): string[] | null {
-  const tokens: string[] = []
-  let currentToken = ''
-  let tokenStarted = false
-  let openQuote: '"' | "'" | null = null
-
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index] as string
-    if (openQuote === "'") {
-      // 单引号里什么都不转义，反斜杠也是字面量
-      if (char === "'") openQuote = null
-      else currentToken += char
-      continue
-    }
-    if (openQuote === '"') {
-      // 双引号里反斜杠只对 `"` 与 `\` 生效，其余原样留着反斜杠
-      if (char === '\\') {
-        const next = line[index + 1]
-        if (next === '"' || next === '\\') {
-          currentToken += next
-          index += 1
-        } else {
-          currentToken += char
-        }
-        continue
-      }
-      if (char === '"') openQuote = null
-      else currentToken += char
-      continue
-    }
-    if (char === '\\') {
-      const next = line[index + 1]
-      if (next === undefined) return null
-      currentToken += next
-      index += 1
-      tokenStarted = true
-      continue
-    }
-    if (char === '"' || char === "'") {
-      openQuote = char
-      tokenStarted = true
-      continue
-    }
-    if (/\s/.test(char)) {
-      if (tokenStarted) {
-        tokens.push(currentToken)
-        currentToken = ''
-        tokenStarted = false
-      }
-      continue
-    }
-    currentToken += char
-    tokenStarted = true
-  }
-
-  if (openQuote !== null) return null
-  if (tokenStarted) tokens.push(currentToken)
-  return tokens
+/** 读 OSS 凭据文件。文件不在、格式不对都抛错，错误消息里没有凭据内容。 */
+export function readOssCredentials(file: string): Record<string, string> {
+  if (!existsSync(file)) throw new Error(`没有 OSS 凭据文件：${file}`)
+  return parseOssCredentials(readFileSync(file, 'utf8'))
 }

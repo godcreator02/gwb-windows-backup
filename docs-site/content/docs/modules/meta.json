@@ -1,5 +1,0 @@
-{
-  "title": "模块",
-  "description": "宿主层、域库各模块、窗格各一页：它管什么、怎么判、为什么这样判、怎么测",
-  "pages": ["host", "pipeline", "lock", "health", "restic", "credentials", "log", "config-state", "client"]
-}

@@ -1,0 +1,52 @@
+---
+title: 设置与状态文件
+description: 十六个设置键怎么读、值不合法时怎么办；state.json 里每个键是谁写的、给谁用；数据目录的布局
+---
+
+## 设置：一份表，每次现读
+
+`src/config.ts` 的 `SETTINGS` 是十六个设置键的正本：键名、类型、默认值、取值范围、是否必填都在这一张表里，声明给设置插件的也是它
+（表的全文见[用法](/docs/usage#设置)）。程序里用的 `BackupConfig` 一个设置键一个字段，字段名是设置键的 camelCase，没有第二种形状。
+
+设置插件没有变更通知，所以每次用到都现读：每一跳、每一轮、每次 `status`、每条透传命令。读的时候逐项核对：
+
+{/* ref file="../plugins/windows-backup/src/config.ts" lines="94-109" hash="c36588176280" blob="34b105f9335f" */}
+
+{/* ref file="../plugins/windows-backup/src/config.ts" lines="138-158" hash="3bd2dc9d6709" blob="34b105f9335f" */}
+
+**不合法就抛错，不换成默认值、不认别的写法**：`sources` 必须是字符串数组（一个分号分隔的字符串不认）、数字必须在范围里、
+必填的字符串不能是空串。报错一次列出全部不合法的键与它们现在的值——设置插件的界面按类型挑控件，正常操作写不出不合法的值，
+出现了多半是有人用 `settings.set` 手写错了，说清楚比悄悄换一个值跑下去好。列表项只做一件整理：每行去掉首尾空白、去掉空行，因为界面是逐行编辑的。
+
+值都合法、但还没配全时，`refuseReason` 回一句指明该填哪个键的话：
+
+{/* ref file="../plugins/windows-backup/src/config.ts" lines="111-126" hash="02685a6b9ad7" blob="34b105f9335f" */}
+
+两种理由都出现在 `status` 的 `refuseReason` 与 `run` 命令的回执里；定时那一跳遇到时只写一次日志。
+
+## state.json
+
+一个 JSON 对象，合并写：每次只动给的那几个键。时间一律本地时区、不带时区标记（`YYYY-MM-DDTHH:MM:SS`，日期类是 `YYYY-MM-DD`）。
+
+{/* ref file="../plugins/windows-backup/src/state.ts" lines="5-24" hash="9c9b97d51100" blob="ae9258b3f8b2" */}
+
+| 键 | 谁写 | 谁读 |
+| --- | --- | --- |
+| `lastRunAt` · `lastRunOk` · `lastRunSummary` | 一轮结束时写，成败都写；一轮中途抛错时宿主层补写失败 | 每分钟一跳判到期、健康结论「上次备份」、窗格 |
+| `lastLocalSnapshot` · `lastOssSnapshot` | 本地、OSS 那次各自成功时立刻写 | 下一轮的父快照 |
+| `lastPrune` | 本地 prune 真成功时写 | 判今天 prune 过没有、健康结论里 prune 超期 |
+| `lastUsbCopy` · `lastExcludeAudit` · `lastReview` | `windows-backup.mark` | 到期的人工维护 |
+
+读不出（文件坏了、不是对象）就当空对象：最坏提前跑一轮、多跑一次 prune、下一轮没有父快照要整份读一次，备份不会因此停下。
+
+## 数据目录
+
+{/* ref file="../plugins/windows-backup/src/paths.ts" lines="21-35" hash="e77357136298" blob="8ca602ea78b1" */}
+
+用户数据与凭据全在这里，代码树里一个字节都没有；隔离 home 有自己的数据目录，开发时碰不到真凭据。唯一不在数据目录的是
+内置的排除基线 `config/restic-exclude.txt`，它随插件版本走。`restic-exe` 设置的相对路径按数据目录解析，绝对路径原样用。
+
+## 测试
+
+`tests/config.test.ts` 查默认值读得出、列表整理、不合法时一次列全且不换默认值、整数与可以为 0 的保留份数、必填字符串、拒跑理由的四种情况、
+restic 路径的解析。`tests/state.test.ts` 查读坏文件当空对象、只收认识的字段、合并写、时间口径。

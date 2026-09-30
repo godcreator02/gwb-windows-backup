@@ -15,14 +15,12 @@ export type BackupPaths = {
   /** 内置基线 exclude，在插件包的 `config/` 里、跟着版本走；用户的追加规则走设置键 `exclude`。 */
   defaultExcludeFile: string
   binDir: string
-  logsDir: string
   logFile: string
 }
 
 /** 由数据目录摊开全部路径。只算路径，目录的创建归调用方。 */
 export function layout(dir: string): BackupPaths {
   const credentialsDir = path.join(dir, 'credentials')
-  const logsDir = path.join(dir, 'logs')
   return {
     dir,
     stateFile: path.join(dir, 'state.json'),
@@ -32,8 +30,7 @@ export function layout(dir: string): BackupPaths {
     ossCredentialsFile: path.join(credentialsDir, 'oss-credentials.txt'),
     defaultExcludeFile: defaultExcludeFile(),
     binDir: path.join(dir, 'bin'),
-    logsDir,
-    logFile: path.join(logsDir, 'restic-backup.log'),
+    logFile: path.join(dir, 'logs', 'restic-backup.log'),
   }
 }
 

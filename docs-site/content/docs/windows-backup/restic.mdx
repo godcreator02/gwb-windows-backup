@@ -1,0 +1,58 @@
+---
+title: restic 与子进程
+description: restic 的命令行怎么拼、启动子进程的四条规矩、环境变量的边界；备份日志与通知
+---
+
+`src/restic.ts` 管 restic 的参数，`src/process.ts` 管启动进程，`src/log.ts` 与 `src/toast.ts` 管日志与通知。restic 仓库里有什么这里不关心。
+
+## 参数只有一处拼法
+
+`runRestic` 在调用方给的子命令前补上 `--repo <仓库> --password-file <路径>`。OSS 仓库地址与 forget 的保留窗口参数各只有一个函数拼：
+一轮备份、读快照、透传命令都从这里取。
+
+{/* ref file="../plugins/windows-backup/src/restic.ts" lines="15-45" hash="5e4ee2a43a79" blob="16911e33ed4d" */}
+
+保留窗口默认：72 小时内全留、按日留 14 天、按周留 8 份、按月留 12 份（设置里可改）。forget 按主机分组（`--group-by host`），
+不用 restic 默认的「主机加路径」：按默认分组，白名单每改一次就多出一组，每组各自留满保留窗口，旧组永远删不掉
+（轨迹卡[prune 修复](/trajectory/2026-09-25-prune-group-by-host)）。prune 前先跑一次 `restic unlock`，只删陈旧的仓库锁：
+被打断的备份留下的锁会让要排他锁的 prune 失败。
+
+## 子进程四条规矩
+
+`runProcess` 是全插件唯一启动外部程序的地方：
+
+{/* ref file="../plugins/windows-backup/src/process.ts" lines="24-84" hash="a5ae2bdca862" blob="17cae4a6cf30" */}
+
+- **argv 数组、不经 shell**：备份的参数里有用户给的路径，经 shell 就等于把 `&` `|` `^` 交给命令解释器
+- **一定有超时**：备份与 prune 6 小时（第一次整份备份几十 GB 是常态），读快照等其余 2 分钟，通知 10 秒。卡住的 restic 不会越积越多
+- **不弹窗口**：`windowsHide: true`
+- **不抛**：启动不了、超时都收进 `{ code, stdout, stderr, timedOut }`，由调用方按业务判。被信号杀掉记 `-1`、启动不了记 `-2`，都是非零。
+  报错只取 `message` 不带栈：栈里可能带着命令行参数
+
+## 环境变量
+
+`resticEnv` 造的是**这一次子进程专用的副本**：父进程环境打底，叠上 `GOMAXPROCS`，OSS 那几次再叠 AccessKey。
+
+{/* ref file="../plugins/windows-backup/src/restic.ts" lines="47-54" hash="1de38a8e9baa" blob="16911e33ed4d" */}
+
+备份成功时，从 restic 的输出里取两样：`snapshot abc12345 saved` 里的快照 ID（下一轮的父快照）与 `processed N files, X GiB` 里的处理量（通知正文）。
+
+## 备份日志
+
+`logs/restic-backup.log`：每段开始与结束写一行 `[YYYY-MM-DD HH:MM:SS] <说明>`，restic 的原始输出原样附上。**日志只给人看，程序不读它**——
+一轮成没成记在 `state.json` 里，健康结论读的是那边。一律同步写：链路中途崩了，已经写的行都在盘上。超过 10 MB 只留最后 1000 行。
+
+{/* ref file="../plugins/windows-backup/src/log.ts" lines="5-20" hash="14fa20b8e9c9" blob="8872c1f5dec0" */}
+
+## 通知
+
+用 Windows PowerShell 5.1（任何 Windows 都有，不用 `pwsh`）借 PowerShell 的应用标识弹一条 Windows 通知。XML 要放进 PowerShell 的
+单引号字符串，所以单引号与双引号也转成实体；`&` 第一个换，否则后面换出来的 `&lt;` 会被再换一次。弹不出来只记一行 `Notification failed: <原因>`，不影响这一轮的结论。
+
+{/* ref file="../plugins/windows-backup/src/toast.ts" lines="48-61" hash="4e5d6c29718b" blob="cc518d53fd3b" */}
+
+## 测试
+
+`tests/restic-credentials.test.ts` 注入假的启动函数，查全局参数的位置、OSS 地址与保留窗口参数一字不差、环境变量副本不改父进程、
+两个解析函数对真实 restic 输出样例的识别、只认父快照不在的那两句原话。`tests/log-toast.test.ts` 查日志两种写法、超过阈值只留末尾、
+通知的转义与弹不出来只记一行。

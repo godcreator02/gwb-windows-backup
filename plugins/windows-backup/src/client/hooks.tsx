@@ -1,6 +1,6 @@
 import type { HostBridge } from '@godcreator/gwb-shell/pane'
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
-import { readStatus, toneOf, type ItemStatus, type StatusView } from './view'
+import { readStatus, type ItemStatus, type StatusView } from './view'
 
 const POLL_MS = 30_000
 
@@ -31,13 +31,13 @@ export function useStatus(host: HostBridge): { status: StatusView | undefined; r
   return { status, refresh: () => void pullStatus() }
 }
 
-/** 状态灯。`pulse` 表示「正在跑」，只加呼吸动画，颜色保持上次结论。 */
+/** 状态灯。`pulse` 表示「正在跑」，只加呼吸动画，颜色保持当前结论。 */
 export function Dot({ tone, pulse }: { tone: 'ok' | 'warn' | 'muted'; pulse: boolean }): ReactElement {
   const color = tone === 'ok' ? 'windowsbackup:bg-success' : tone === 'warn' ? 'windowsbackup:bg-warning' : 'windowsbackup:bg-muted-foreground'
   return <span className={`windowsbackup:inline-block windowsbackup:h-2.5 windowsbackup:w-2.5 windowsbackup:shrink-0 windowsbackup:rounded-full ${color} ${pulse ? 'windowsbackup:animate-breathe' : ''}`} aria-hidden />
 }
 
-/** 五项里每一项的小灯。`unknown` / `skipped` 不是失败，画灰的。 */
+/** 三项里每一项的小灯。`unknown` 不是失败，画灰的。 */
 export function ItemBadge({ status }: { status: ItemStatus }): ReactElement {
   const tone: 'ok' | 'warn' | 'muted' = status === 'ok' ? 'ok' : status === 'problem' ? 'warn' : 'muted'
   return <Dot tone={tone} pulse={false} />
@@ -49,9 +49,4 @@ export function lastRunLine(status: StatusView): { text: string; ok: boolean | n
   if (backup.lastRunAt === null) return { text: '还没备份过', ok: null }
   const verdict = backup.lastRunOk === true ? '成功' : backup.lastRunOk === false ? '失败' : '结论未知'
   return { text: `${backup.lastRunAt.replace('T', ' ')} · ${verdict}`, ok: backup.lastRunOk }
-}
-
-/** 状态灯旁边那一句话。 */
-export function headlineOf(status: StatusView): string {
-  return toneOf(status).label
 }

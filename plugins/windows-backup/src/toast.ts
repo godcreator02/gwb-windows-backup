@@ -1,6 +1,4 @@
-import { notificationFailedLine } from './messages.js'
 import type { Logger } from './log.js'
-import { nullLogger } from './log.js'
 import { runProcess, TOAST_TIMEOUT_MS } from './process.js'
 import type { RunProcess } from './process.js'
 
@@ -47,26 +45,16 @@ export function buildToastCommand(toastXml: string): string {
   )
 }
 
-export type ToastOptions = {
-  logger?: Logger | undefined
-  run?: RunProcess | undefined
-  timeoutMs?: number | undefined
-}
-
 /**
  * 弹一条 toast。失败只记一行日志、不抛——通知弹不出来不影响已经跑完的备份结论。
  * 用的是 `powershell`（Windows PowerShell 5.1，任何 Windows 都有），不是 `pwsh`。
  */
-export async function sendToast(title: string, body: string, options: ToastOptions = {}): Promise<boolean> {
-  const logger = options.logger ?? nullLogger()
-  const run = options.run ?? runProcess
+export async function sendToast(title: string, body: string, logger: Logger, run: RunProcess = runProcess): Promise<boolean> {
   const command = buildToastCommand(buildToastXml(title, body))
-  const result = await run('powershell', ['-NoProfile', '-Command', command], {
-    timeoutMs: options.timeoutMs ?? TOAST_TIMEOUT_MS,
-  })
+  const result = await run('powershell', ['-NoProfile', '-Command', command], { timeoutMs: TOAST_TIMEOUT_MS })
   if (result.code !== 0) {
-    const reason = result.timedOut ? 'PowerShell 超时' : result.stderr.trim() || `退出码 ${result.code}`
-    logger.line(notificationFailedLine(reason))
+    const reason = result.timedOut ? 'PowerShell 超时' : result.stderr.trim() || `退出码 ${String(result.code)}`
+    logger.line(`Notification failed: ${reason}`)
     return false
   }
   return true

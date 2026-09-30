@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { acquire, isStale, readLock, STALE_AFTER_MS } from '../src/lock.js'
+import { acquire, activeLock, isStale, readLock, STALE_AFTER_MS } from '../src/lock.js'
 
 const dirs: string[] = []
 const tmpFile = (): string => {
@@ -106,22 +106,33 @@ describe('readLock / isStale', () => {
     expect(readLock(file)).toBeNull()
   })
 
-  it('startedAt 认不出的也算陈旧', () => {
-    expect(isStale({ pid: 1, startedAt: '垃圾' }, { alive: () => true })).toBe(true)
+  it('缺 lease 或 beatAt 的锁当没有有效的锁', () => {
+    const file = tmpFile()
+    writeFileSync(file, JSON.stringify({ pid: 1, startedAt: '2026-09-08T19:59:00Z' }), 'utf8')
+    expect(readLock(file)).toBeNull()
+  })
+
+  it('beatAt 认不出的算陈旧', () => {
+    expect(isStale({ pid: 1, lease: 'l', startedAt: '2026-09-08T08:00:00Z', beatAt: '垃圾' }, { alive: () => true })).toBe(true)
   })
 
   it('陈旧判定看心跳不看开工时长——startedAt 早已超限、心跳刚跳过的不算死', () => {
     const now = new Date('2026-09-08T20:00:00Z')
-    expect(
-      isStale({ pid: 1, startedAt: '2026-09-08T08:00:00Z', beatAt: '2026-09-08T19:59:00Z' }, { alive: () => true, now: () => now }),
-    ).toBe(false)
-    expect(
-      isStale({ pid: 1, startedAt: '2026-09-08T08:00:00Z', beatAt: '2026-09-08T08:00:00Z' }, { alive: () => true, now: () => now }),
-    ).toBe(true)
+    const startedAt = '2026-09-08T08:00:00Z'
+    expect(isStale({ pid: 1, lease: 'l', startedAt, beatAt: '2026-09-08T19:59:00Z' }, { alive: () => true, now: () => now })).toBe(false)
+    expect(isStale({ pid: 1, lease: 'l', startedAt, beatAt: startedAt }, { alive: () => true, now: () => now })).toBe(true)
   })
+})
 
-  it('旧格式锁（没有 beatAt）退回 startedAt 判', () => {
-    const now = new Date('2026-09-08T20:00:00Z')
-    expect(isStale({ pid: 1, startedAt: '2026-09-08T19:59:00Z' }, { alive: () => true, now: () => now })).toBe(false)
+describe('activeLock', () => {
+  it('持着的锁算正在跑；释放后、或持锁进程没了都不算', () => {
+    const file = tmpFile()
+    expect(activeLock(file)).toBeNull()
+    const held = acquire(file)
+    expect(activeLock(file)?.pid).toBe(process.pid)
+    held?.release()
+    expect(activeLock(file)).toBeNull()
+    acquire(file, { pid: 999_999_999 })
+    expect(activeLock(file)).toBeNull()
   })
 })

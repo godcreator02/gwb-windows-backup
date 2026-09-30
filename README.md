@@ -1,20 +1,20 @@
 # gwb-windows-backup
 
 gwb 工作台的 Windows 备份插件：restic 打快照 + 阿里云 OSS 异地副本（restic 的 S3 后端，
-第二次独立 backup 直接写 `s3:` 仓库）+ 周期自检。
+第二次独立 backup 直接写 `s3:` 仓库）+ 随时回答「备份还在正常运行吗」。
 
 ## 现在有什么
 
 - **node 侧**（`plugins/windows-backup/src/`，零第三方依赖，只用 node 内置模块）：
-  - 定时备份（默认 30 分钟）+ 加载 30 秒后补跑 + 每日一次 forget+prune + OSS 推送
-  - 五项健康检查：上次备份 / 日志尾 / 仓库盘余量 / 快照新鲜度 / 周期维护提醒
-  - 跨进程锁（`backup.lock`，持锁方 6 小时没心跳就由新的一轮接管）、凭据永不进日志（`--password-file`）
-  - **改白名单不会整份重读**：本地与 OSS 两次备份都显式传上一条成功快照当父快照（`--parent`），
-    加路径只读新增那条；父快照在仓库里没了就不带它重跑一次，不算故障
-- **命令**（`windows-backup.*`，经 MCP 入口的 `run` 调用）：
-  `run` / `check` / `status` / `paths` / `restic`（透传，密钥不出现在参数里）/ `mark`
-- **浏览器侧**：备份窗格（`mountPane`）——状态灯、五项、按钮、30 秒轮询；复核到期显示横幅 + 一键复制复核提示词
-- **设置**：17 个键经 gwb-settings 声明（kebab-case，如 `frequency-minutes`、`local-repo`、`review-interval-days`；`sources` 与 `exclude` 是 string-list 型一行一项，exclude 追加在内置排除基线之上）
+  - 每分钟一跳：距上一轮结束满 `frequency-minutes`（默认 30）分钟就跑下一轮，改周期下一分钟生效，工作台重启后第一跳自然补上
+  - 一轮备份：本地备份 + 每日一次 forget+prune + OSS 备份；两次备份都显式传父快照，白名单加路径只读新增那条
+  - 健康结论：上次备份 / 磁盘余量 / 快照新鲜度三项，每次现算；到期的人工维护（USB 离机副本、排除规则审计、人工复核）单独提醒，不算故障
+  - 同一时间只有一轮（数据目录里的 `backup.lock`：原子占锁、租约、心跳），凭据永不进日志（`--password-file`）
+- **命令**（`windows-backup.*`，经 MCP 入口的 `run` 调用，每条标了 `effect`）：
+  `status` / `check` / `paths`（只读）、`mark`、`run` / `restic`（透传，密钥不出现在参数里）
+- **浏览器侧**：备份窗格（`mountPane`）——状态灯、三项、到期的维护、两个按钮、30 秒轮询；复核到期显示横幅 + 一键复制复核提示词
+- **设置**：十六个键经 gwb-settings 声明（kebab-case，如 `frequency-minutes`、`local-repo`、`review-interval-days`）；
+  值不合法就拒跑并说清是哪个键
 
 ## 怎么跑
 
@@ -33,14 +33,14 @@ pnpm check     # 仓根运行：typecheck ×2 + oxlint + vitest（!slow）
 ## 还没做的
 
 - 随插件发的 AI 手册（装 restic、首次配置、USB 离机副本、灾后取数据四份）
-- 不依赖工作台的灾难恢复命令行入口（`node dist/cli.js --data-root`，连带 config.json 快照）与 gwbNodeCli
-- 真 OSS 推送的实机验证（单测已覆盖；真跑要专用 repoPath / 独立凭据）
+- 不依赖工作台的灾难恢复命令行入口
+- 真 OSS 推送的实机验证（单测已覆盖；真跑要专用仓库路径与独立凭据）
 
-各在等什么前提，见文档站的[路线](/future/roadmap)。
+各在等什么前提，见文档站的「未来 → 路线」。
 
 ## 文档
 
-文档站在 `docs-site/`：`cd docs-site; pnpm dev`，看 `http://localhost:4318`。
+文档站在 `docs-site/`：`cd docs-site; pnpm build; pnpm start`，看 `http://127.0.0.1:4318`。
 
 **代码注释只写现状**——为什么这么写、判据怎么来的，都在文档站。
 

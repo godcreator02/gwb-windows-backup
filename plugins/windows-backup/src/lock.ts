@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
-/** 锁文件里的内容。`lease` / `beatAt` 在旧格式的锁里没有，读到时按可选处理。 */
-export type LockInfo = { pid: number; lease?: string; startedAt: string; beatAt?: string }
+/** 锁文件里的内容。 */
+export type LockInfo = { pid: number; lease: string; startedAt: string; beatAt: string }
 
 /** 超过这么久没有心跳就当陈旧。 */
 export const STALE_AFTER_MS = 6 * 60 * 60 * 1000
@@ -26,19 +26,10 @@ export function readLock(file: string): LockInfo | null {
   try {
     const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'))
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
-    const fields = parsed as Record<string, unknown>
-    const pid = fields.pid
-    const startedAt = fields.startedAt
+    const { pid, lease, startedAt, beatAt } = parsed as Record<string, unknown>
     if (typeof pid !== 'number' || !Number.isFinite(pid)) return null
-    if (typeof startedAt !== 'string') return null
-    const lease = fields.lease
-    const beatAt = fields.beatAt
-    return {
-      pid,
-      startedAt,
-      ...(typeof lease === 'string' ? { lease } : {}),
-      ...(typeof beatAt === 'string' ? { beatAt } : {}),
-    }
+    if (typeof lease !== 'string' || typeof startedAt !== 'string' || typeof beatAt !== 'string') return null
+    return { pid, lease, startedAt, beatAt }
   } catch {
     return null
   }
@@ -49,9 +40,15 @@ export function isStale(lock: LockInfo, options: LockOptions = {}): boolean {
   const now = (options.now ?? (() => new Date()))()
   const isAlive = options.alive ?? isProcessAlive
   if (!isAlive(lock.pid)) return true
-  const lastBeatMs = new Date(lock.beatAt ?? lock.startedAt).getTime()
+  const lastBeatMs = new Date(lock.beatAt).getTime()
   if (Number.isNaN(lastBeatMs)) return true
   return now.getTime() - lastBeatMs > STALE_AFTER_MS
+}
+
+/** 正有一轮备份持着的锁：锁文件在、形状对、不陈旧。没有就回 `null`。「正在备份」只看它。 */
+export function activeLock(file: string): LockInfo | null {
+  const lock = readLock(file)
+  return lock !== null && !isStale(lock) ? lock : null
 }
 
 /** 占到锁之后拿在手里的两样：释放（幂等、绝不抛）与心跳。 */
@@ -127,7 +124,7 @@ function renewOwnLock(file: string, lease: string): void {
   try {
     writeFileSync(file, `${JSON.stringify({ ...current, beatAt: new Date().toISOString() }, null, 2)}\n`, 'utf8')
   } catch {
-    // 写不进只少一跳：陈旧判定退回上一跳或 startedAt，STALE_AFTER_MS 兜住
+    // 写不进只少一次心跳：陈旧判定看上一次写进去的 beatAt，STALE_AFTER_MS 比心跳间隔大两个数量级
   }
 }
 

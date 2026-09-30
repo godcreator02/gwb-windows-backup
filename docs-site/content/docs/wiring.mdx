@@ -3,81 +3,55 @@ title: 插件之间怎么连
 description: 本插件提供哪些命令、设置与窗格，注入了哪几个服务、是必需还是局部注入、peer 怎么写，还碰了哪些外部程序与文件
 ---
 
-**本页回答**：本仓插件提供哪些服务、命令与事件；注入了哪些服务、是必需还是局部注入、peer 怎么写；按名字调用了别的插件的哪些命令、用了哪些约定通道。
+每张表下面钉的是命令名、`inject` 写法、peer 条目这些字面量所在的行：源码里改了，这一页就报出来。
+这些连接在系统里的位置见首页的[接缝图](/docs#接缝图)。
 
-每张表下面是按内容钉的钉码，钉在命令名、`inject` 写法、peer 条目这些字面量上：源码里的字面量改了，这一页就报出来。
-这些连接在系统里的位置与各自的契约见首页的[接缝图](/docs)。
-
-## @godcreator/gwb-windows-backup
-
-### 提供
+## 提供
 
 | 类别 | 名字 | 说明 |
 | --- | --- | --- |
-| 命令 | `windows-backup.run`、`check`、`status`、`paths`、`restic`、`mark` | 参数与回执见[用法](/docs/usage) |
-| 设置键 | `sources`、`local-repo` 等 17 个 | 经设置插件声明，见[用法](/docs/usage#设置) |
+| 命令 | `windows-backup.run`、`check`、`status`、`paths`、`restic`、`mark` | 每条都标了 `effect`，参数与回执见[用法](/docs/usage#命令) |
+| 设置键 | `sources`、`local-repo` 等十六个 | 经设置插件声明，见[用法](/docs/usage#设置) |
 | 窗格 | `main`（标题「备份」，图标 `shield-check`） | 经外壳 `registerPane` 注册，只有装了外壳才有 |
 | 显示名 | 「Windows 备份」，图标 `shield-check` | 经外壳 `describeSelf` 报 |
 | 服务、事件、说明书 | 无 | |
 
-{/* has file="../plugins/windows-backup/src/index.ts" text="name: 'windows-backup.run'," */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="268-355" hash="4f4b1fb6ffc2" blob="ecd752e21847" */}
 
-{/* has file="../plugins/windows-backup/src/index.ts" text="name: 'windows-backup.check'," */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="444-462" hash="aeae7c0d9079" blob="5dfc3c4eb6fa" */}
 
-{/* has file="../plugins/windows-backup/src/index.ts" text="name: 'windows-backup.status'," */}
-
-{/* has file="../plugins/windows-backup/src/index.ts" text="name: 'windows-backup.paths'," */}
-
-{/* has file="../plugins/windows-backup/src/index.ts" text="name: 'windows-backup.restic'," */}
-
-{/* has file="../plugins/windows-backup/src/index.ts" text="name: 'windows-backup.mark'," */}
-
-{/* has file="../plugins/windows-backup/src/index.ts" text="scoped.gwbShell.describeSelf({ title: 'Windows 备份', icon: 'shield-check' })" */}
-
-### 注入
+## 注入
 
 | 服务 | 提供方包 | 必需 / 局部注入 | peer 写法 | 用来做什么 | 缺了会怎样 |
 | --- | --- | --- | --- | --- | --- |
-| `gwbCommands` | `@godcreator/gwb-commands` | 必需（`export const inject`） | `^0.5.6` | 登记六条命令 | 插件停在等待：cordis 等到它出现才调用 `apply`，备份也不跑 |
-| `gwbSettings` | `@godcreator/gwb-settings` | 必需 | `^0.3.5` | 声明 17 个设置键，每轮现读 | 同上 |
+| `gwbCommands` | `@godcreator/gwb-commands` | 必需（`export const inject`） | `^0.6.0` | 登记六条命令（0.6 起每条命令必须写 `effect`，没写登记时抛错） | 插件停在等待：cordis 等到它出现才调用 `apply`，备份也不跑 |
+| `gwbSettings` | `@godcreator/gwb-settings` | 必需 | `^0.3.5` | 声明十六个设置键，每次现读 | 同上 |
 | `gwbData` | `@godcreator/gwb-data` | 必需 | `^0.1.9` | 数据目录 `<home>/data/<条目 id>` | 同上 |
-| `timer` | `@cordisjs/plugin-timer`（官方，公共 npm） | 必需 | `^1.1.3`（第三方 cordis 插件，和 gwb 插件一样写 peer） | `ctx.interval` / `ctx.timeout`：两个定时器、加载 30 秒后的首次自检与补跑 | 同上；插件管理不替它装，要单独 `plugin-manager.install`，没装时 `plugin-manager.list` 在本插件的 `unmetPeers` 里报出来 |
-| `gwbShell` | `@godcreator/gwb-shell` | 局部注入 | `^0.15.1`，`optional: true` | 注册窗格、报显示名 | 没有窗格，备份、自检、命令照常 |
+| `timer` | `@cordisjs/plugin-timer`（官方，公共 npm） | 必需 | `^1.1.3`（第三方 cordis 插件，和 gwb 插件一样写 peer） | `ctx.interval`：每分钟一跳 | 同上；插件管理不替它装，要单独 `plugin-manager.install`，没装时 `plugin-manager.list` 在本插件的 `unmetPeers` 里报出来 |
+| `gwbShell` | `@godcreator/gwb-shell` | 局部注入 | `^0.15.1`，`optional: true` | 注册窗格、报显示名 | 没有窗格，备份与命令照常 |
 
-内核包 `@godcreator/gwb-kernel-desktop` 的 peer 写 `^0.10.0`：node 侧只取 `GwbContext` 类型，不用 `gwbKernel` 服务；浏览器侧的 react
-由 shell 提供，经内核登记进页面的 importmap。本插件不按值 import `cordis`，peer 里没有它。
+内核包 `@godcreator/gwb-kernel-desktop` 的 peer 写 `^0.10.0`：node 侧只取 `GwbContext` 类型；浏览器侧的 react 由外壳提供，
+经内核登记进页面的 importmap。本插件不按值 import `cordis`，peer 里没有它。
 
-{/* has file="../plugins/windows-backup/src/index.ts" text="export const inject = ['gwbCommands', 'gwbSettings', 'gwbData', 'timer']" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="40-41" hash="2bcf0700b7b4" blob="5dfc3c4eb6fa" */}
 
-{/* has file="../plugins/windows-backup/src/index.ts" text="ctx.inject<{ gwbShell: Pick<GwbShellApi, 'registerPane' | 'describeSelf'> }>(['gwbShell'], (scoped) => {" */}
+{/* ref file="../plugins/windows-backup/package.json" lines="45-57" hash="028593d094bb" blob="906e543d51d3" */}
 
-{/* has file="../plugins/windows-backup/package.json" text="&quot;@godcreator/gwb-kernel-desktop&quot;: &quot;^0.10.0&quot;" */}
-
-{/* has file="../plugins/windows-backup/package.json" text="&quot;@godcreator/gwb-commands&quot;: &quot;^0.5.6&quot;" */}
-
-{/* has file="../plugins/windows-backup/package.json" text="&quot;@godcreator/gwb-settings&quot;: &quot;^0.3.5&quot;" */}
-
-{/* has file="../plugins/windows-backup/package.json" text="&quot;@godcreator/gwb-data&quot;: &quot;^0.1.9&quot;" */}
-
-{/* has file="../plugins/windows-backup/package.json" text="&quot;@godcreator/gwb-shell&quot;: &quot;^0.15.1&quot;" */}
-
-{/* has file="../plugins/windows-backup/package.json" text="&quot;@cordisjs/plugin-timer&quot;: &quot;^1.1.3&quot;" */}
-
-### 按名字调用与约定通道
+## 按名字调用与约定通道
 
 本插件不按名字调用别的插件的命令，也不收发事件。窗格调的 `windows-backup.*` 是本插件自己的命令。
 
 | 通道 | 对方 | 名字 | 用来做什么 |
 | --- | --- | --- | --- |
-| 子进程 | restic（用户放进数据目录 `bin/`，或设置键 `restic-exe` 指的位置） | `restic --repo <仓> --password-file <路径> <子命令>` | 备份、unlock、forget+prune、查最新快照、透传命令；argv 数组、不经 shell |
+| 子进程 | restic（数据目录 `bin/`，或设置键 `restic-exe` 指的位置） | `restic --repo <仓库> --password-file <路径> <子命令>` | 备份、unlock、forget+prune、读最新快照、透传命令；argv 数组、不经 shell |
 | 子进程 | Windows PowerShell 5.1 | `powershell -NoProfile -Command <WinRT 调用>` | 弹结束通知 |
-| 代码调用 | `@godcreator/gwb-shell/browser-imports` | `browserImports()` | 构建时取浏览器侧外置模块名；shell 运行时登记 importmap 也调这个函数 |
+| 代码调用 | `@godcreator/gwb-shell/browser-imports` | `browserImports()` | 构建时取浏览器侧外置模块名；外壳运行时登记 importmap 也调这个函数 |
 | 读文件 | 本插件自己的包清单 | `../package.json`（相对 `dist/index.js`） | `status` 回执里的版本号 |
 
-{/* has file="../plugins/windows-backup/src/process.ts" text="shell: false," */}
+{/* ref file="../plugins/windows-backup/src/process.ts" lines="37-42" hash="33a502becabd" blob="17cae4a6cf30" */}
 
-{/* has file="../plugins/windows-backup/src/toast.ts" text="run('powershell', ['-NoProfile', '-Command', command]" */}
+{/* ref file="../plugins/windows-backup/src/toast.ts" lines="54-54" hash="bababa33a63b" blob="cc518d53fd3b" */}
 
-{/* has file="../plugins/windows-backup/build.ts" text="Object.keys(browserImports())" */}
+{/* ref file="../plugins/windows-backup/build.ts" lines="19-19" hash="ed5fdfb3ef78" blob="8278c052f938" */}
 
-{/* has file="../plugins/windows-backup/src/index.ts" text="require('../package.json')" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="83-86" hash="d3ad91167b3b" blob="5dfc3c4eb6fa" */}

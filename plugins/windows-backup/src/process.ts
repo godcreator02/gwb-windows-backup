@@ -13,11 +13,8 @@ export type RunResult = {
 export type RunOptions = {
   /** 子进程的完整 env（不是叠加）。不传就继承父进程的。 */
   env?: NodeJS.ProcessEnv | undefined
-  /** 写进 stdin 的内容。 */
-  input?: string | undefined
   /** 超时毫秒数；不给就是 `DEFAULT_TIMEOUT_MS`，没有「不限」。 */
   timeoutMs?: number | undefined
-  cwd?: string | undefined
 }
 
 /** 注入点：真跑用 `runProcess`，测试传假的。 */
@@ -43,7 +40,6 @@ export function runProcess(exe: string, args: string[], options: RunOptions = {}
         windowsHide: true,
         shell: false,
         ...(options.env ? { env: options.env } : {}),
-        ...(options.cwd ? { cwd: options.cwd } : {}),
       })
     } catch (error) {
       resolve({ code: -2, stdout: '', stderr: messageWithoutStack(error), timedOut: false })
@@ -83,11 +79,7 @@ export function runProcess(exe: string, args: string[], options: RunOptions = {}
       finish({ code: code ?? -1, stdout, stderr, timedOut })
     })
 
-    if (options.input !== undefined) {
-      child.stdin?.end(options.input)
-    } else {
-      child.stdin?.end()
-    }
+    child.stdin?.end()
   })
 }
 

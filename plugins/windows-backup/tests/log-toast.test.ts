@@ -1,8 +1,8 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createLogger, nullLogger, timestamp } from '../src/log.js'
+import { createLogger, KEEP_LAST_LINES, ROTATE_WHEN_BYTES, timestamp } from '../src/log.js'
 import type { RunProcess } from '../src/process.js'
 import { buildToastCommand, buildToastXml, escapeXml, sendToast } from '../src/toast.js'
 
@@ -25,34 +25,28 @@ describe('logger', () => {
     expect(readFileSync(file, 'utf8')).toBe('[2026-09-08 09:05:03] Backup started\nrestic 自己的输出\n')
   })
 
-  it('rotate 超阈值只留末 N 行并落轮转标记', () => {
+  it('rotate 超阈值只留末尾那么多行并写一行轮转标记', () => {
     const file = tmpFile()
-    const logger = createLogger(file)
-    for (let i = 1; i <= 10; i += 1) logger.line(`行${i}`)
-    logger.rotate({ rotateWhenBytes: 1, keepLastLines: 3 })
-    const text = readFileSync(file, 'utf8')
-    expect(text).toContain('行8')
-    expect(text).toContain('行10')
-    expect(text).not.toContain('行7\n')
-    expect(text).toContain('Log rotated (kept last 3 lines)')
+    const longLine = 'x'.repeat(300)
+    const lineCount = Math.ceil(ROTATE_WHEN_BYTES / longLine.length) + KEEP_LAST_LINES
+    writeFileSync(file, Array.from({ length: lineCount }, (_unused, index) => `${String(index)} ${longLine}`).join('\n') + '\n', 'utf8')
+    createLogger(file).rotate()
+    const lines = readFileSync(file, 'utf8').trimEnd().split('\n')
+    expect(lines.length).toBe(KEEP_LAST_LINES + 1)
+    expect(lines.at(-1)).toContain(`Log rotated (kept last ${KEEP_LAST_LINES} lines)`)
   })
 
-  it('文件还没生出来 rotate 不炸', () => {
-    const logger = createLogger(tmpFile())
-    expect(() => logger.rotate({ rotateWhenBytes: 10, keepLastLines: 5 })).not.toThrow()
+  it('没超阈值、文件还没生出来都不动', () => {
+    const file = tmpFile()
+    const logger = createLogger(file)
+    expect(() => logger.rotate()).not.toThrow()
+    logger.line('一行')
+    logger.rotate()
+    expect(readFileSync(file, 'utf8')).not.toContain('Log rotated')
   })
 
   it('timestamp 是本地时区', () => {
     expect(timestamp(new Date(2026, 8, 8, 9, 5, 3))).toBe('2026-09-08 09:05:03')
-  })
-
-  it('nullLogger 什么都不写', () => {
-    const logger = nullLogger()
-    expect(() => {
-      logger.line('x')
-      logger.raw('y')
-      logger.rotate({ rotateWhenBytes: 1, keepLastLines: 1 })
-    }).not.toThrow()
   })
 })
 
@@ -78,7 +72,7 @@ describe('toast', () => {
     const fake: RunProcess = async () => ({ code: 1, stdout: '', stderr: '爆了', timedOut: false })
     const lines: string[] = []
     const logger = { file: '', line: (m: string) => lines.push(m), raw: () => {}, rotate: () => {} }
-    const ok = await sendToast('t', 'b', { run: fake, logger })
+    const ok = await sendToast('t', 'b', logger, fake)
     expect(ok).toBe(false)
     expect(lines).toEqual(['Notification failed: 爆了'])
   })
@@ -87,7 +81,7 @@ describe('toast', () => {
     const fake: RunProcess = async () => ({ code: -1, stdout: '', stderr: '', timedOut: true })
     const lines: string[] = []
     const logger = { file: '', line: (m: string) => lines.push(m), raw: () => {}, rotate: () => {} }
-    await sendToast('t', 'b', { run: fake, logger })
+    await sendToast('t', 'b', logger, fake)
     expect(lines).toEqual(['Notification failed: PowerShell 超时'])
   })
 })

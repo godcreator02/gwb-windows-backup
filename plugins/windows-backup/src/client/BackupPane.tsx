@@ -2,14 +2,14 @@
 import type { HostBridge } from '@godcreator/gwb-shell/pane'
 import { useState, type ReactElement } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dot, headlineOf, ItemBadge, lastRunLine, useStatus } from './hooks'
+import { Dot, ItemBadge, lastRunLine, useStatus } from './hooks'
 import { clockOf, ITEM_LABELS, toneOf } from './view'
 
 /** 「复制复核提示词」放进剪贴板的那段话：贴给能调命令的 agent，照着走一遍就是一次人工复核。 */
 const REVIEW_PROMPT = [
   '帮我复核这台机器的 Windows 备份：',
-  '1. 调 windows-backup.check 跑一次五项自检，把 problems 逐条念给我听；',
-  '2. 调 windows-backup.status 看上次备份时间、自检结论与定时器节奏；',
+  '1. 调 windows-backup.check 读一次仓库、拿全量状态，把 health.problems 与 reminders 逐条念给我听；',
+  '2. 看 backup 里的上次备份时间、成败与下次计划；',
   '3. 用 windows-backup.restic（args: ["snapshots","--latest","3"]）核对最近几个快照的时间与路径；',
   '4. 有问题先解释原因并给处理建议，别动手，报给我；',
   '5. 全绿就回我三行：上次备份时间、最新快照 ID、下次计划时间。',
@@ -46,27 +46,31 @@ export function BackupPane({ host }: { host: HostBridge }): ReactElement {
     return <p className="windowsbackup:text-muted-foreground windowsbackup:m-0 windowsbackup:text-sm">还拿不到备份状态——命令总线上没有 windows-backup.status？</p>
   }
 
-  const tone = toneOf(status).tone
-  const backupOrCheckRunning = status.backup.running || status.checking
+  const { tone, label } = toneOf(status)
   const lastRun = lastRunLine(status)
-  const report = status.report
+  const health = status.health
+  const reviewDue = status.reminders.some((reminder) => reminder.what === 'review')
 
   return (
     <div className="windowsbackup:flex windowsbackup:flex-col windowsbackup:gap-4 windowsbackup:p-4">
       <div className="windowsbackup:flex windowsbackup:items-center windowsbackup:gap-2">
-        <Dot tone={tone} pulse={backupOrCheckRunning} />
-        <span className="windowsbackup:text-foreground windowsbackup:text-base windowsbackup:font-medium">{headlineOf(status)}</span>
-        {backupOrCheckRunning && (
-          <span className="windowsbackup:text-muted-foreground windowsbackup:text-xs">{status.backup.running ? '备份中' : '检查中'}</span>
-        )}
+        <Dot tone={tone} pulse={status.backup.running} />
+        <span className="windowsbackup:text-foreground windowsbackup:text-base windowsbackup:font-medium">{label}</span>
+        {status.backup.running && <span className="windowsbackup:text-muted-foreground windowsbackup:text-xs">备份中</span>}
         <span className="windowsbackup:text-muted-foreground windowsbackup:ml-auto windowsbackup:text-xs">v{status.version}</span>
       </div>
 
-      {/* 复核到期横幅：复制提示词贴给 agent，复核完 mark review 销账 */}
-      {status.reviewDue && (
+      {status.refuseReason !== null && (
+        <p className="windowsbackup:m-0 windowsbackup:rounded-md windowsbackup:border windowsbackup:border-warning/40 windowsbackup:bg-warning/10 windowsbackup:px-3 windowsbackup:py-2 windowsbackup:text-xs windowsbackup:text-warning">
+          不跑备份：{status.refuseReason}
+        </p>
+      )}
+
+      {/* 复核到期横幅：复制提示词贴给 agent，复核完调 mark review 记下日期 */}
+      {reviewDue && (
         <div className="windowsbackup:flex windowsbackup:items-center windowsbackup:gap-2 windowsbackup:rounded-md windowsbackup:border windowsbackup:border-warning/40 windowsbackup:bg-warning/10 windowsbackup:px-3 windowsbackup:py-2">
           <span className="windowsbackup:min-w-0 windowsbackup:flex-1 windowsbackup:text-xs windowsbackup:text-warning">
-            该人工复核备份了（跑自检、看快照）——复核完调 windows-backup.mark {"{"}what: "review"{"}"} 销账
+            该人工复核备份了（读仓库、看快照）——复核完调 windows-backup.mark {"{"}what: "review"{"}"} 记下日期
           </span>
           <Button type="button" variant="outline" size="xs" disabled={copied} onClick={() => void copyPrompt()}>
             {copied ? '已复制' : '复制复核提示词'}
@@ -83,60 +87,44 @@ export function BackupPane({ host }: { host: HostBridge }): ReactElement {
         {status.backup.lastRunSummary !== null && status.backup.lastRunSummary !== '' && (
           <p className="windowsbackup:text-muted-foreground windowsbackup:m-0 windowsbackup:text-xs">{status.backup.lastRunSummary}</p>
         )}
-        <p className="windowsbackup:text-muted-foreground windowsbackup:m-0 windowsbackup:text-xs">
-          {status.backup.frequencyMinutes === null
-            ? '定时器没起'
-            : `每 ${status.backup.frequencyMinutes} 分钟一轮 · 下次 ${clockOf(status.backup.nextRunAt)}`}
-          {' · '}
-          {status.intervalHours === null
-            ? '自检没排'
-            : `每 ${status.intervalHours}h 自检 · 上次 ${clockOf(status.lastCheckedAt)} · 下次 ${clockOf(status.nextCheckAt)}`}
-        </p>
+        {status.backup.frequencyMinutes !== null && (
+          <p className="windowsbackup:text-muted-foreground windowsbackup:m-0 windowsbackup:text-xs">
+            每 {status.backup.frequencyMinutes} 分钟一轮 · 下次 {clockOf(status.backup.nextRunAt)}
+          </p>
+        )}
       </div>
 
       <div className="windowsbackup:flex windowsbackup:gap-2">
-        <Button
-          type="button"
-          size="sm"
-          disabled={busy !== null || status.backup.running}
-          onClick={() => void runCommandThenRefresh('run')}
-        >
+        <Button type="button" size="sm" disabled={busy !== null || status.backup.running} onClick={() => void runCommandThenRefresh('run')}>
           {status.backup.running ? '备份中…' : busy === 'run' ? '发起中…' : '立即备份'}
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={busy !== null || status.checking}
-          onClick={() => void runCommandThenRefresh('check')}
-        >
-          {status.checking ? '检查中…' : busy === 'check' ? '发起中…' : '立即检查'}
+        <Button type="button" variant="outline" size="sm" disabled={busy !== null} onClick={() => void runCommandThenRefresh('check')}>
+          {busy === 'check' ? '检查中…' : '立即检查'}
         </Button>
       </div>
 
-      {/* 自检本身出错，和「备份有问题」分开显示 */}
-      {status.lastError !== null && (
-        <p className="windowsbackup:m-0 windowsbackup:rounded-md windowsbackup:border windowsbackup:border-destructive/40 windowsbackup:px-3 windowsbackup:py-2 windowsbackup:text-xs windowsbackup:text-destructive">自检没跑完：{status.lastError}</p>
+      {health !== null && (
+        <ul className="windowsbackup:m-0 windowsbackup:list-none windowsbackup:space-y-1.5 windowsbackup:pl-0 windowsbackup:text-sm">
+          {ITEM_LABELS.map(({ key, label: itemLabel }) => {
+            const item = health.items[key]
+            return (
+              <li key={key} className="windowsbackup:flex windowsbackup:items-start windowsbackup:gap-2">
+                <ItemBadge status={item.status} />
+                <span className="windowsbackup:text-foreground windowsbackup:w-24 windowsbackup:shrink-0">{itemLabel}</span>
+                <span className={item.status === 'problem' ? 'windowsbackup:text-warning' : 'windowsbackup:text-muted-foreground'}>{item.message}</span>
+              </li>
+            )
+          })}
+        </ul>
       )}
 
-      {report === null ? (
-        <p className="windowsbackup:text-muted-foreground windowsbackup:m-0 windowsbackup:text-sm">还没跑过自检（插件加载 30 秒后跑第一次）。</p>
-      ) : (
-        <div className="windowsbackup:flex windowsbackup:flex-col windowsbackup:gap-2">
-          <p className="windowsbackup:text-muted-foreground windowsbackup:m-0 windowsbackup:text-xs">五项自检（{report.checkedAt.replace('T', ' ')}）</p>
-          <ul className="windowsbackup:m-0 windowsbackup:list-none windowsbackup:space-y-1.5 windowsbackup:pl-0 windowsbackup:text-sm">
-            {ITEM_LABELS.map(({ key, label }) => {
-              const item = report.items[key]
-              return (
-                <li key={key} className="windowsbackup:flex windowsbackup:items-start windowsbackup:gap-2">
-                  <ItemBadge status={item.status} />
-                  <span className="windowsbackup:text-foreground windowsbackup:w-24 windowsbackup:shrink-0">{label}</span>
-                  <span className={item.status === 'problem' ? 'windowsbackup:text-warning' : 'windowsbackup:text-muted-foreground'}>
-                    {item.message}
-                  </span>
-                </li>
-              )
-            })}
+      {status.reminders.length > 0 && (
+        <div className="windowsbackup:flex windowsbackup:flex-col windowsbackup:gap-1">
+          <p className="windowsbackup:text-muted-foreground windowsbackup:m-0 windowsbackup:text-xs">该做的人工维护（做完调 windows-backup.mark 记下）</p>
+          <ul className="windowsbackup:text-muted-foreground windowsbackup:m-0 windowsbackup:list-disc windowsbackup:pl-5 windowsbackup:text-xs">
+            {status.reminders.map((reminder) => (
+              <li key={reminder.what}>{reminder.message}</li>
+            ))}
           </ul>
         </div>
       )}

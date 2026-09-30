@@ -1,0 +1,29 @@
+---
+title: 文档站换到 docfirst 0.5 模板与讲解组件
+born-at: 2026-09-30T23:10
+type: choice
+parent: [2026-09-08-backup-line]
+label: 站换新模板
+domain: 文档
+---
+
+## 背景
+
+站还在 docfirst-workflow 0.3.1 与 docfirst-trajectory 0.1.1 上：自己写的 `source.config.ts`、`(zones)` 路由、两个手写组件，
+钉码里有 0.5 不再认的 `has` 记号。现状区是「首页逐条接缝 + `modules/` 下九个模块页」，首页一百多行、跟模块页大量重复。
+收件里 docfirst 仓投来的升级说明一直没处理。这次代码大改，模块页几乎每页都要重写，就一起换了。
+
+## 结论与边界
+
+**采纳**：
+
+- 骨架用 `docfirst.create` 在临时目录生成一份新模板（docfirst-workflow 0.5.2），把它的路由、`source.ts`、名册脚本、样式复制进来，
+  站里只留内容；星轨盘由 docfirst-workflow 带，不再单独依赖 docfirst-trajectory
+- 讲解组件用 `@godcreator/docfirst-explainer` 0.1.1：两张接缝图（首页全局、插件包内部）、一轮备份的选情况、每分钟一跳的动画、锁的分步、
+  健康结论的选情况；画面与讲解文字都在组件里，机读规则读同一份数据
+- 现状区：首页只放判据、全局接缝图、接缝总表、不做的事，不贴代码；插件包一个目录，目录首页是内部接缝图加功能、接口、依赖、不做的事四段，
+  原理与测试写进同目录的各页
+- 术语表改成数据文件 `src/glossary.data.mjs`，正文里命中的词构建时自动标注
+- `has` 记号全部换成行段
+
+**边界**：只动这个站；docfirst 仓与讲解组件包本身不改。

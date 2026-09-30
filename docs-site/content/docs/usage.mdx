@@ -1,9 +1,7 @@
 ---
 title: 用法
-description: 装进 home、配 17 个设置键、用六条命令、确认备份真的在跑
+description: 装进 home、配十六个设置键、用六条命令、确认备份真的在跑
 ---
-
-**本页回答**：这个插件怎么装进一个 home、要配哪些设置、agent 与人分别从哪儿操作它、怎么确认备份真的在跑。
 
 ## 装进 home
 
@@ -14,61 +12,57 @@ plugin-manager.install {"pkg":"@cordisjs/plugin-timer"}
 plugin-manager.install {"pkg":"@godcreator/gwb-windows-backup"}
 ```
 
-定时器用官方的 `@cordisjs/plugin-timer`（公共 npm），写在本插件的 peer 里；插件管理不替它装，要单独装，没装时 `plugin-manager.list` 在本插件的 `unmetPeers` 里报出来。home 里没有它的条目时，本插件整个停在等待：
+定时器用官方的 `@cordisjs/plugin-timer`（公共 npm），写在本插件的 peer 里；插件管理不替它装，要单独装，没装时 `plugin-manager.list`
+在本插件的 `unmetPeers` 里报出来。home 里没有它的条目时，本插件整个停在等待：
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="41-41" hash="4eb5c1a16e7e" blob="7eec32c17df0" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="40-41" hash="2bcf0700b7b4" blob="5dfc3c4eb6fa" */}
 
 数据目录由数据插件按条目 id 给出（插件管理默认的条目 id 是 `windows-backup`，即 `<home>/data/windows-backup`）。
-装完把 restic 本体放进数据目录的 `bin/restic.exe`，或用设置键 `restic-exe` 指到别处——装 restic 是一次性的手工操作，代码不代办。
+装完把 restic 本体放进数据目录的 `bin/restic.exe`，或用设置键 `restic-exe` 指到别处；仓库密码写进 `credentials/restic-password.txt`，
+开 OSS 的话把 AccessKey 写进 `credentials/oss-credentials.txt`。这几步是一次性的手工操作，代码不代办。
 
 ## 设置
 
-17 个键，kebab-case，经设置插件声明，每轮现读。类型不对或缺了的值按默认值处理，不报错。
+十六个键，kebab-case，经设置插件声明。每次用都现读，改了下一分钟就生效。表里就是全部：
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="44-68" hash="9335d4ec8d1f" blob="7eec32c17df0" */}
+{/* ref file="../plugins/windows-backup/src/config.ts" lines="43-92" hash="481b0c0cdc32" blob="d6dfe6593301" */}
 
-必填两项：`sources`（备份白名单，一行一项；分号分隔的一整串也认）与 `local-repo`（本地 restic 仓库路径）。缺任何一项，
-定时照常触发，但每轮都拒跑，拒跑理由是一句指明该填哪个键的话：
+**值不合法就拒跑，不替它换成默认值**：类型不对（`sources` 不是字符串数组、`oss-enabled` 不是布尔值）、数不在范围里（周期小于 1、
+保留份数不是整数）、必填的字符串是空的，都会让这一轮不跑，拒跑理由一次列出全部不合法的键与它们现在的值，比如
+「设置有误：`frequency-minutes` 要是不小于 1 的数，现在是 0」。设置插件自己不校验写进来的值，本插件是唯一把关的一方。
 
-{/* ref file="../plugins/windows-backup/src/backup.ts" lines="85-104" hash="509dd750dea0" blob="2a26d31281b0" */}
+值都合法、但还没配全时同样拒跑，理由指明该填哪个键：
 
-**往白名单里加路径的那一轮要读新路径的全部文件**，其余路径照旧只比对——本插件把上一轮成功的快照 ID 显式交给 restic
-当父快照，原理见[备份管线](/docs/modules/pipeline#父快照两次都显式传入)。减路径、改顺序不付这个代价。本机实测的量级：
-51 GiB、45 万个文件整份重读，`gomaxprocs: 1` 时约 90 分钟，本地与 OSS 各一遍；想快一些就把 `gomaxprocs` 调大，
-它只在这种必须整份读的一轮里帮得上大忙（第一次备份一条新路径、`state.json` 丢了）。
+{/* ref file="../plugins/windows-backup/src/config.ts" lines="111-126" hash="02685a6b9ad7" blob="34b105f9335f" */}
 
-排除规则是**两层合并**：包里自带的基线（`config/restic-exclude.txt`：node_modules、dist、构建产物、临时文件等，随版本走）
-总是生效；设置键 `exclude` 在它之上追加（一行一条 restic 模式，`#` 开头的行是注释）。
+**往白名单里加路径的那一轮要读新路径的全部文件**，其余路径照旧只比对——本插件把上一轮成功的快照 ID 显式交给 restic 当父快照，
+原理见[一轮备份](/docs/windows-backup/round#父快照)。减路径、改顺序不付这个代价。本机实测的量级：51 GiB、45 万个文件整份重读，
+`gomaxprocs: 1` 时约 90 分钟，本地与 OSS 各一遍；想快一些就把 `gomaxprocs` 调大。
 
-OSS 三项（`oss-bucket` / `oss-endpoint` / `oss-repo-path`）只在 `oss-enabled` 开着时才要求；`oss-endpoint` 写完整主机名
-（如 `oss-cn-beijing.aliyuncs.com`）。`oss-enabled` 默认关：新机器只配了本地仓库时，每一轮不会多一次注定失败的 OSS 备份。
-凭据不进设置：OSS AccessKey 写在数据目录的 `credentials/oss-credentials.txt`（`KEY=VALUE`，认 `export ` 前缀、引号、`#` 注释），
-仓库密码写在 `credentials/restic-password.txt`，内容任何时候都不读进本进程。
+排除规则是**两层合并**：包里自带的基线（`config/restic-exclude.txt`：node_modules、dist、构建产物、临时文件等，随版本走）总是生效；
+设置键 `exclude` 在它之上追加（一行一条 restic 模式，`#` 开头的行是注释）。`oss-enabled` 默认关：新机器只配了本地仓库时，
+每一轮不会多一次注定失败的 OSS 备份。
 
 ## 命令
 
 六条，agent 经 MCP 入口的 `run` 调用，参数与回执形状写在每条命令的 `usage` 里：
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="401-474" hash="e6910a162fbb" blob="7eec32c17df0" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="268-355" hash="4f4b1fb6ffc2" blob="ecd752e21847" */}
 
-| 命令 | 做什么 |
-| --- | --- |
-| `windows-backup.run` | 立刻跑一轮完整备份（和定时那轮做同样的事）；占不到锁、配置没填全、这轮失败都如实回，失败不拿上一轮的成功冒充 |
-| `windows-backup.check` | 立刻跑一次五项自检，回全量状态 |
-| `windows-backup.status` | 回全量状态（上次备份、自检结论、定时器节奏），窗格轮询的就是它 |
-| `windows-backup.paths` | 回数据目录的全部路径——要看凭据在不在、看日志，先调这条拿路径 |
-| `windows-backup.restic` | 透传一条 restic 命令（如 `{ "repo": "local", "args": ["snapshots"] }`），自动补 `--repo` 与 `--password-file`，密钥不出现在参数里。恢复也走它：`args: ["restore", <快照 id>, "--target", <目录>]` |
-| `windows-backup.mark` | 补记周期动作的日期：`{ "what": "usb-copy" \| "exclude-audit" \| "review", "at": "YYYY-MM-DD" }` |
+| 命令 | effect | 做什么 |
+| --- | --- | --- |
+| `windows-backup.status` | read | 回全量状态：上次备份、三项健康结论、到期的人工维护、拒跑理由。每次现算，窗格轮询的就是它 |
+| `windows-backup.check` | read | 先读一次本地仓库的最新快照（启动一次 restic），再回全量状态 |
+| `windows-backup.paths` | read | 回数据目录的全部路径——要看凭据在不在、看日志，先调这条拿路径 |
+| `windows-backup.run` | external | 立刻跑一轮完整备份，跑完才回执。另一轮正在跑、设置没配全或不合法、这一轮失败都如实回，失败不拿上一轮的成功当本轮结论 |
+| `windows-backup.restic` | external | 透传一条 restic 命令（如 `{ "repo": "local", "args": ["snapshots"] }`），自动补 `--repo` 与 `--password-file`，密钥不出现在参数里。恢复也走它：`args: ["restore", <快照 id>, "--target", <目录>]`。`repo` 只认 `local` / `oss`，`args` 必须是字符串数组，形状不对直接报错 |
+| `windows-backup.mark` | write | 补记人工维护的日期：`{ "what": "usb-copy" \| "exclude-audit" \| "review", "at": "YYYY-MM-DD" }`，`at` 缺省今天，格式不对直接报错 |
 
 ## 怎么确认备份在跑
 
-1. `windows-backup.status`：`backup.lastRunOk` 是 `true`、`nextRunAt` 在未来。`backup.running` 为 `true` 时看 `runningSince`——
-   第一次整份备份那种要跑几个小时的一轮，只看 `running` 分不清是在干活还是卡住了
-2. `windows-backup.check`：五项里没有 `problem`
+1. `windows-backup.status`：`refuseReason` 是 `null`，`health.ok` 是 `true`，`backup.nextRunAt` 在未来。`backup.running` 为 `true`
+   时看 `runningSince`——第一次整份备份那种要跑几个小时的一轮，只看 `running` 分不清是在干活还是卡住了
+2. 快照那一项是 `unknown` 时调一次 `windows-backup.check`，它会当场读一次仓库
 3. 还有疑问就看日志（`windows-backup.paths` 拿路径）：最后一轮末尾应有 `Backup completed successfully`
 
-加载 30 秒后是第一轮：先自检，上一轮备份离现在满一个周期就顺带补跑一轮。
-
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="538-552" hash="511e1929f689" blob="7eec32c17df0" */}
-
-**工作台没运行就不备份**：定时器在工作台里，工作台关了备份就停，下次启动 30 秒后补跑。
+**工作台没运行就不备份**：定时器在工作台里。下次启动一分钟后，第一跳看到上一轮早就过期，马上跑一轮。

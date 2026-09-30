@@ -1,0 +1,47 @@
+---
+title: 一轮备份
+description: 一轮按什么顺序跑六段、每段成败怎么影响后面、state.json 记下什么、通知说什么；父快照为什么每次都显式传
+---
+
+`src/backup.ts` 的 `runFullBackup`。定时那一跳与 `windows-backup.run` 命令走的是同一个函数。选一种开局，看六段各自跑没跑：
+
+<RoundCases />
+
+## 顺序与为什么这样排
+
+{/* ref file="../plugins/windows-backup/src/backup.ts" lines="88-119" hash="1992b3401c6f" blob="81782bcffc7f" */}
+
+- **本地先、OSS 后**：本地都没备上，prune 与 OSS 没有意义，所以本地失败时后面几段一段都不跑
+- **每天第一轮才 prune**：判据是 `state.json` 的 `lastPrune` 前 10 位是不是今天（本地时区）。prune 真成功才记时间，失败了下一轮再试；
+  OSS 仓只在本轮该 prune、并且 OSS 那次备份成功时才 prune
+- **边跑边记**：本地、OSS 各自成功就立刻把新快照 ID 写进 `state.json`，后面某段失败或整个进程崩了，下一轮照样有父快照
+- **成败都记**：最后把 `lastRunAt`、`lastRunOk`、`lastRunSummary` 一起写进去。「这一轮成没成」要求本地成，并且 OSS 关着或 OSS 也成。
+  只在成功时记的话，连着失败三天看起来会像「三天前刚备过」
+- **占不到锁一个字都不写**：另一轮正在跑不是故障，不写日志、不弹通知、不动 `state.json`
+
+一轮中途抛错（比如磁盘满了写不进 `state.json`）时，宿主层把本轮失败补记进 `state.json`，`run` 命令按本轮失败回执，不读 `state.json`
+里可能还是上一轮的 `lastRunOk` 来顶替。
+
+## 父快照
+
+restic 备份时拿「父快照」比对，没变的文件只比元数据、不读内容。restic 自己挑父快照的规则是「同一台主机、**同一组路径**的最新一个」，
+白名单一加路径，路径组就变了，它找不到父快照，**整份重读**。所以两次备份都显式传 `--parent`：本地那次用 `lastLocalSnapshot`，
+OSS 那次用 `lastOssSnapshot`——两个仓各有一条快照链，ID 不通用。
+
+{/* ref file="../plugins/windows-backup/src/backup.ts" lines="151-181" hash="552632c3b7c4" blob="b4fad161c2fc" */}
+
+记着的父快照在仓库里已经不在时（被 prune 掉、换了仓库），restic 报 `no matching ID found for prefix`，丢开它不带父快照重跑一次，
+那一次会重读全部文件；这不算故障，日志里写的是一行说明，不是失败行。只认 restic 的那两句原话，别的失败照旧一次就收，
+不会因为重试把真正的故障藏起来。实测数据与选型见轨迹卡[父快照接续](/trajectory/2026-09-20-parent-snapshot)。
+
+## 通知
+
+每轮结束弹一条 Windows 通知（设置 `toast` 关掉就不弹），正文就是 `lastRunSummary`，窗格里「上次备份」下面那一行也是它：
+
+{/* ref file="../plugins/windows-backup/src/backup.ts" lines="220-236" hash="6c4283a4103b" blob="b4fad161c2fc" */}
+
+## 测试
+
+`tests/backup.test.ts` 用按子命令分发的假 restic 跑整条链路：全成的一轮（日志行、prune 每天一次、`state.json` 三格、锁释放）、
+今天已 prune 过、本地失败后面不跑、OSS 半成、OSS 凭据文件不在时不启动 restic、两个仓各自的父快照、父快照没了重跑一次且不写失败行、
+别的失败不重试、占不到锁一个字不写。真 restic 没有自动化测试，改完在隔离 home 里配一个临时仓库实际跑一轮。

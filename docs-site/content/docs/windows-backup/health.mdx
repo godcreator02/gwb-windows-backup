@@ -1,0 +1,48 @@
+---
+title: 健康结论
+description: 「备份还在正常运行吗」——三项每次现算，只有读仓库的结果留一份；到期的人工维护单独提醒，不算故障
+---
+
+`src/health.ts`。`windows-backup.status` 每被调一次就现算一次，窗格每 30 秒调一次，所以一轮失败写进 `state.json` 之后，
+下一次看到的就是黄灯。选一刻的情形，看算出来是什么：
+
+<HealthCases />
+
+## 三项判据
+
+| 项 | 读什么 | 什么时候是问题 | 什么时候是 unknown（不算失败） |
+| --- | --- | --- | --- |
+| 上次备份 | `state.json` 的 `lastRun*`、`lastPrune` | 从没跑过；上一轮失败；距上次超过两个周期；备份没问题但 prune 从没成功过或已经两个日历日没成功 | — |
+| 磁盘余量 | `local-repo` 所在那块盘（`fs.statfs`） | 剩不到 20%（该清一清）、不到 10%（快满了） | 没配本地仓库、读不到余量 |
+| 快照新鲜度 | 最近一次读本地仓库得到的最新快照时间 | 距现在超过两个周期 | 还没读过、restic 不在、仓库锁着或盘不在、仓库里还没有快照 |
+
+时间类判据一律容忍两个周期（默认 60 分钟）：一轮本身要跑几分钟，工作台也可能刚打开，容忍一个周期会天天误报。
+
+{/* ref file="../plugins/windows-backup/src/health.ts" lines="95-111" hash="31f683015b8d" blob="09a6654f1c4c" */}
+
+## 快照读数
+
+三项里只有「快照新鲜度」要启动 restic（`restic snapshots --latest 1 --json`），不适合每 30 秒跑一次。所以读仓库只在三个时候：
+每轮备份结束后、`windows-backup.check` 命令、加载后第一跳没到期时。读到的结果留在宿主层，年龄每次按**现在**算——两小时前读到的快照，
+当时新鲜，现在可能已经超期。
+
+{/* ref file="../plugins/windows-backup/src/health.ts" lines="113-128" hash="56791607f0db" blob="09a6654f1c4c" */}
+
+## 人工维护
+
+USB 离机副本满 7 天、exclude 误伤扫描满 30 天、人工复核满 `review-interval-days` 天，就列进 `status` 的 `reminders`；从没做过也算到期。
+做完调 `windows-backup.mark` 补记日期，提醒就消失。它们是要人去做的事，**不是故障**：不进 `health.problems`，不让状态灯变黄——
+不然只要没做 USB 副本，灯就一直是黄的，真出故障的那次反而没人看。窗格把它们列在三项下面，复核到期时另外在顶上显示一条横幅。
+
+{/* ref file="../plugins/windows-backup/src/health.ts" lines="130-144" hash="472e485af5b9" blob="09a6654f1c4c" */}
+
+## 设置读不出时
+
+连周期都读不出，容忍上限没法算，`status` 的 `health` 是 `null`、`reminders` 是空的，`refuseReason` 说出是哪个设置不对。
+`health: null` 是「判不了」，不是「没问题」，窗格画黄灯。
+
+## 测试
+
+`tests/health.test.ts` 给定 `state`、磁盘余量与快照读数直接调 `assessHealth`，逐条查三项的边界：从没跑过、上次失败、超过两个周期、
+prune 两天没成功、prune 从没成功过、磁盘两档、没配仓库与读不到余量、还没读过仓库、读不出、两小时前读到的快照按现在算超期；
+`readLatestSnapshot` 用假的启动函数查 restic 不在时不启动、读不到仓库、读出时间；`dueReminders` 查三个阈值与「从没做过也算」。

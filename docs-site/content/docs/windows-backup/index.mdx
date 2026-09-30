@@ -1,0 +1,46 @@
+---
+title: 插件包
+description: '@godcreator/gwb-windows-backup 内部由哪些文件组成、文件之间靠什么接口接；功能、接口、依赖、不做的事'
+full: true
+---
+
+插件包 `@godcreator/gwb-windows-backup`，源码在 `plugins/windows-backup/src/`，入口 `src/index.ts`（宿主层）。
+宿主层是唯一认识工作台的文件；其余 `.ts` 只用 node 内置模块，测试时把「跑一轮」与「启动子进程」换成替身，就能不启动任何进程地测完整个宿主层。
+
+<SeamMap module="windows-backup" />
+
+## 功能
+
+- **每分钟一跳**：唯一的定时器。正在跑就不管，设置读不出就拒跑，距上一轮结束满一个周期就跑下一轮。改周期下一分钟生效，工作台重启后第一跳自然补上。见[定时](/docs/windows-backup/schedule)
+- **一轮备份**：占锁 → 本地备份 →（每天第一轮）本地 prune →（开着 OSS）OSS 备份与 OSS prune → 把结论写进 state.json 并通知。两次备份都显式传父快照。见[一轮备份](/docs/windows-backup/round)
+- **健康结论**：上次备份、磁盘余量、快照新鲜度三项每次现算；到期的人工维护单独列，不算故障。见[健康结论](/docs/windows-backup/health)
+- **同一时间只有一轮**：数据目录里一把原子锁，带租约与心跳，崩溃留下的锁会被接管。见[锁](/docs/windows-backup/lock)
+- **窗格**：状态灯、三项、到期的维护、立即备份与立即检查两个按钮。见[窗格](/docs/windows-backup/pane)
+
+## 接口
+
+对 agent 是六条命令，对人是一个窗格，对设置插件是十六个键。命令名、参数、回执形状见[用法](/docs/usage#命令)；设置键见[用法](/docs/usage#设置)。
+`status` 的回执（窗格与 agent 读的都是它）：
+
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="219-240" hash="5f2b34c76b1f" blob="5dfc3c4eb6fa" */}
+
+数据目录里四样文件的格式也是接口：锁文件见[锁](/docs/windows-backup/lock)，`state.json` 与凭据文件见[设置与状态文件](/docs/windows-backup/config)
+与[凭据纪律](/docs/windows-backup/credentials)。
+
+## 依赖
+
+| 依赖 | 用来做什么 | 缺了会怎样 |
+| --- | --- | --- |
+| 命令总线、设置插件、数据插件、官方定时器 | 登记命令、声明设置、给数据目录、每分钟一跳 | 顶层注入，缺一个整个插件停在等待，备份也不跑 |
+| 外壳 | 注册窗格、报显示名 | 局部注入，缺了只是没有窗格 |
+| restic.exe | 真正做备份 | 每轮本地备份失败；快照新鲜度判不了（灰） |
+| PowerShell 5.1 | 弹通知 | 只少通知 |
+
+每一项的 peer 写法与注入方式见[插件之间怎么连](/docs/wiring)。
+
+## 不做的事
+
+- 不解析 restic 仓库、不读备份日志判成败：一轮的结论在 `state.json` 里，日志只给人看
+- 不缓存健康结论：每次问都现算，只有读仓库的结果留一份
+- 不替不合法的设置换成默认值、不认别名写法：说清是哪个键、现在是什么，拒跑
+- 恢复、整机镜像、按快照浏览、凭据保险箱都不做，见[首页](/docs#刻意不做的事)

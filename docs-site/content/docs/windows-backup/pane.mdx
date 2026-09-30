@@ -1,0 +1,50 @@
+---
+title: 窗格
+description: 本插件唯一的界面——状态灯、三项、到期的人工维护、两个按钮、30 秒轮询；界面不在，备份照跑
+---
+
+`src/client/`，浏览器侧代码，esbuild 打包成 `dist/client.js`。窗格只调 `windows-backup.status` / `run` / `check` 三条命令，
+不知道备份在 node 侧怎么跑；定时器在 node 侧，**界面不在，备份照跑**。
+
+注册时不写 `kind`，外壳按工具窗格处理：整页至多一份，别的桌面上已经开着就切过去激活它。本插件自己不打开窗格。
+
+## 挂载
+
+外壳调 `mountPane` 时给 `host`（调命令的接口）与 `pane`（窗格身份），必须**同步**返回 `{ dispose }`。认不出的窗格 id 显示一行说明，不留白屏。
+
+{/* ref file="../plugins/windows-backup/src/client/index.tsx" lines="16-32" hash="1012cd8b05a9" blob="931744f56428" */}
+
+## 轮询跟着挂载走
+
+`useStatus` 挂载时取一次、之后每 30 秒取一次，卸载时停。`status` 每次现算，所以一轮失败写进 `state.json` 之后，最多 30 秒窗格就变黄。
+点「立即备份」「立即检查」之后立刻再取一次。调命令失败时窗格不清空，留着上一次的结论。
+
+{/* ref file="../plugins/windows-backup/src/client/hooks.tsx" lines="7-32" hash="f83a28f5ddbe" blob="13f97da35a00" */}
+
+## 状态灯只看故障
+
+{/* ref file="../plugins/windows-backup/src/client/view.ts" lines="97-103" hash="9a34303255f4" blob="32162b755c2a" */}
+
+- **拒跑与健康问题是黄灯**；三项里 `unknown`（还没读过仓库、判不了）画灰，不让灯变黄
+- **到期的人工维护不影响状态灯**：列在三项下面，提示做完调 `windows-backup.mark` 记下
+- 「正在备份」只加呼吸动画，不改颜色；它读的是 `status` 的 `backup.running`，也就是锁文件
+- 拒跑时顶上一条横幅，原样显示拒跑理由
+
+`view.ts` 把 `status` 的回执收窄成界面要用的形状：形状的正本在 node 侧的 `snapshot()`，这边只收用得上的字段，认不出的给默认值——
+node 侧改了字段名，窗格不报错，只会显示成「—」，所以改回执形状时两边一起改。
+
+## 复核横幅
+
+人工复核到期时，窗格顶上显示一条横幅，按钮把一段复核提示词复制进剪贴板：贴给任何能调命令的 agent，照着走一遍——
+调 `check` 读一次仓库、看状态、用透传命令核对最近的快照——就是一次人工复核；复核完调 `windows-backup.mark {"what":"review"}` 记下日期，横幅消失。
+
+## 样式
+
+类名一律带 `windowsbackup:` 前缀，样式只作用于本插件画出来的元素；颜色只用外壳的主题令牌，加一个本插件的成功色（`tokens.css`，亮暗各一套）。
+这些由 `devkit.dev` / `devkit.release` 的样式检查查。两个按钮与横幅里的按钮都是 shadcn 官方的 `Button`：`src/client/components/ui/`
+下的组件文件由 `pnpm dlx shadcn@latest add` 在插件包目录生成，不手改样式，使用处只选 `variant` 与 `size`。
+
+## 测试
+
+浏览器侧没有单元测试，类型检查用单独一份 `src/client/tsconfig.json`。`tests/artifact.test.ts` 查构建出的 `client.js` 里有 `mountPane`
+与它轮询的命令名。改了窗格就在隔离 home 里用 `devkit.cdp` 真实点击两个按钮、截图看过。

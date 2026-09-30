@@ -2,14 +2,8 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import {
-  daysSince,
-  localTimestamp,
-  minutesSince,
-  readState,
-  shouldRunPrune,
-  writeState,
-} from '../src/state.js'
+import { daysSince, localTimestamp, minutesSince } from '../src/clock.js'
+import { backupIsDue, nextRunAt, readState, shouldRunPrune, writeState } from '../src/state.js'
 
 const dirs: string[] = []
 const tmp = (): string => {
@@ -91,5 +85,21 @@ describe('shouldRunPrune', () => {
   it('今天记过 → 不跑（判跨日只看前 10 位）', () => {
     const now = new Date(2026, 8, 8, 12, 0, 0)
     expect(shouldRunPrune({ lastPrune: '2026-09-08T01:00:00' }, now)).toBe(false)
+  })
+})
+
+describe('backupIsDue / nextRunAt', () => {
+  const now = new Date(2026, 8, 8, 10, 0, 0)
+
+  it('从没跑过 / 上一轮结束满一个周期 → 该跑；刚跑过 → 不跑', () => {
+    expect(backupIsDue(undefined, 30, now)).toBe(true)
+    expect(backupIsDue('2026-09-08T09:30:00', 30, now)).toBe(true)
+    expect(backupIsDue('2026-09-08T09:45:00', 30, now)).toBe(false)
+  })
+
+  it('下一轮 = 上一轮结束加一个周期；已经到期就是现在', () => {
+    expect(nextRunAt('2026-09-08T09:45:00', 30, now)).toBe('2026-09-08T10:15:00')
+    expect(nextRunAt('2026-09-08T09:00:00', 30, now)).toBe('2026-09-08T10:00:00')
+    expect(nextRunAt(undefined, 30, now)).toBe('2026-09-08T10:00:00')
   })
 })

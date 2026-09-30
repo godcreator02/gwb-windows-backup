@@ -1,20 +1,14 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import {
-  buildNotification,
-  excludeArgv,
-  formatDuration,
-  refuseReason,
-  runFullBackup,
-} from '../src/backup.js'
-import { DEFAULT_FLAT, flatToConfig } from '../src/config.js'
-import { createLogger, nullLogger } from '../src/log.js'
-import { BACKUP_OK, BACKUP_STARTED } from '../src/messages.js'
+import { buildNotification, excludeArgv, formatDuration, runFullBackup } from '../src/backup.js'
+import type { BackupConfig } from '../src/config.js'
+import { createLogger } from '../src/log.js'
 import { layout } from '../src/paths.js'
 import type { RunProcess, RunResult } from '../src/process.js'
 import { readState, writeState } from '../src/state.js'
+import { configOf, nullLogger } from './helpers.js'
 
 const dirs: string[] = []
 const tmpPaths = (): ReturnType<typeof layout> => {
@@ -41,31 +35,19 @@ function fakeRestic(cases: { when: string[]; result: Partial<RunResult> }[]): { 
   return { run, calls }
 }
 
-const configured = (over: Record<string, unknown> = {}) =>
+const configured = (over: Partial<BackupConfig> = {}): BackupConfig =>
   // toast 默认关：默认开着的话每轮多一次 powershell 调用，跟 restic 的调用混在一个表里
-  flatToConfig({ ...DEFAULT_FLAT, sources: 'D:/Notes', localRepo: 'D:/Backup/restic-repo', toast: false, ...over })
+  configOf({ sources: ['D:/Notes'], localRepo: 'D:/Backup/restic-repo', toast: false, ...over })
 
-describe('refuseReason', () => {
-  it('sources 空 → 拒跑并指路', () => {
-    expect(refuseReason(flatToConfig({ localRepo: 'D:/r' }))).toContain('sources')
-  })
-
-  it('localRepo 空 → 拒跑', () => {
-    expect(refuseReason(flatToConfig({ sources: 'D:/A' }))).toContain('local-repo')
-  })
-
-  it('OSS 开着缺 bucket / endpoint → 拒跑', () => {
-    expect(refuseReason(configured({ ossEnabled: true }))).toContain('oss-bucket')
-  })
-
-  it('配齐了 → null', () => {
-    expect(refuseReason(configured())).toBeNull()
-    expect(refuseReason(configured({ ossEnabled: true, ossBucket: 'b', ossEndpoint: 'e' }))).toBeNull()
-  })
-})
+/** 开着 OSS 的配置，并在数据目录里放一份格式正确的凭据文件。 */
+const withOss = (paths: ReturnType<typeof layout>): BackupConfig => {
+  mkdirSync(paths.credentialsDir, { recursive: true })
+  writeFileSync(paths.ossCredentialsFile, 'AWS_ACCESS_KEY_ID=k\nAWS_SECRET_ACCESS_KEY=s\n', 'utf8')
+  return configured({ ossEnabled: true, ossBucket: 'b', ossEndpoint: 'e' })
+}
 
 describe('runFullBackup', () => {
-  it('全成的一轮：契约句、prune 每日一次、状态三格、锁释放', async () => {
+  it('全成的一轮：日志行、prune 每日一次、状态三格、锁释放', async () => {
     const paths = tmpPaths()
     const { run, calls } = fakeRestic([
       { when: ['backup'], result: { stdout: OK_STDOUT } },
@@ -81,8 +63,8 @@ describe('runFullBackup', () => {
     expect(result.local.size).toBe('4.9 KiB')
 
     const text = readFileSync(paths.logFile, 'utf8')
-    expect(text).toContain(BACKUP_STARTED)
-    expect(text).toContain(BACKUP_OK)
+    expect(text).toContain('Backup started')
+    expect(text).toContain('Backup completed successfully')
     expect(text).toContain('Prune started')
     expect(text).toContain('Prune completed successfully')
 
@@ -132,7 +114,7 @@ describe('runFullBackup', () => {
     const { run, calls } = fakeRestic([{ when: ['backup'], result: { code: 1, stderr: 'Fatal: 打不开仓库' } }])
     const result = await runFullBackup({
       paths,
-      config: configured({ ossEnabled: true, ossBucket: 'b', ossEndpoint: 'e' }),
+      config: withOss(paths),
       logger: nullLogger(),
       run,
       now: () => new Date(2026, 8, 8, 10, 0, 0),
@@ -164,7 +146,7 @@ describe('runFullBackup', () => {
     }
     const result = await runFullBackup({
       paths,
-      config: configured({ ossEnabled: true, ossBucket: 'b', ossEndpoint: 'e' }),
+      config: withOss(paths),
       logger: nullLogger(),
       run: run2,
       now: () => new Date(2026, 8, 8, 10, 0, 0),
@@ -187,7 +169,7 @@ describe('runFullBackup', () => {
     writeState(paths.stateFile, { lastLocalSnapshot: 'oldlocal', lastOssSnapshot: 'oldoss' })
     await runFullBackup({
       paths,
-      config: configured({ ossEnabled: true, ossBucket: 'b', ossEndpoint: 'e' }),
+      config: withOss(paths),
       logger: nullLogger(),
       run,
       now: () => new Date(2026, 8, 8, 10, 0, 0),
@@ -215,7 +197,7 @@ describe('runFullBackup', () => {
     expect(readState(paths.stateFile).lastLocalSnapshot).toBe('abc12345')
   })
 
-  it('父本在仓库里没了 → 丢开它重跑一次，且不落失败契约行', async () => {
+  it('父本在仓库里没了 → 丢开它重跑一次，且不写失败行', async () => {
     const paths = tmpPaths()
     let backups = 0
     const run: RunProcess = async (_exe, args) => {
@@ -249,7 +231,7 @@ describe('runFullBackup', () => {
     expect(readState(paths.stateFile).lastLocalSnapshot).toBe('abc12345')
   })
 
-  it('别的失败不重试：照旧一次就收，落失败契约行', async () => {
+  it('别的失败不重试：照旧一次就收，写失败行', async () => {
     const paths = tmpPaths()
     let backups = 0
     const run: RunProcess = async (_exe, args) => {
@@ -273,6 +255,26 @@ describe('runFullBackup', () => {
       acquireLock: () => null,
     })
     expect(result).toMatchObject({ ok: false, skipped: 'locked' })
+  })
+
+  it('OSS 凭据文件不在 → OSS 那次记失败、不启动 restic，本地照常', async () => {
+    const paths = tmpPaths()
+    const { run, calls } = fakeRestic([{ when: ['backup'], result: { stdout: OK_STDOUT } }])
+    writeState(paths.stateFile, { lastPrune: '2026-09-08T08:00:00' })
+    const logger = createLogger(paths.logFile, () => new Date(2026, 8, 8, 10, 0, 0))
+    const result = await runFullBackup({
+      paths,
+      config: configured({ ossEnabled: true, ossBucket: 'b', ossEndpoint: 'e' }),
+      logger,
+      run,
+      now: () => new Date(2026, 8, 8, 10, 0, 0),
+    })
+    if (result.skipped !== null) throw new Error('这轮不该被跳过')
+    expect(result.local.ok).toBe(true)
+    expect(result.oss?.ok).toBe(false)
+    expect(calls.length).toBe(1)
+    expect(readFileSync(paths.logFile, 'utf8')).toContain('OSS push FAILED: 没有 OSS 凭据文件')
+    expect(readState(paths.stateFile).lastRunOk).toBe(false)
   })
 })
 
@@ -314,13 +316,13 @@ describe('buildNotification / formatDuration', () => {
   })
 
   it('本地失败念日志路径', () => {
-    const n = buildNotification({ ok: false, snapshotId: null, size: null, durationSeconds: 1 }, null, false, 'L:/log')
+    const n = buildNotification({ ok: false, snapshotId: null, size: null, durationSeconds: 1 }, null, 'L:/log')
     expect(n.title).toBe('Restic Backup FAILED')
     expect(n.body).toContain('L:/log')
   })
 
   it('本地成 + OSS 关 → OK', () => {
-    const n = buildNotification({ ok: true, snapshotId: 'a', size: '4.9 KiB', durationSeconds: 61 }, null, false, 'L')
+    const n = buildNotification({ ok: true, snapshotId: 'a', size: '4.9 KiB', durationSeconds: 61 }, null, 'L')
     expect(n.title).toBe('Restic Backup OK')
     expect(n.body).toBe('4.9 KiB | local 1:01')
   })
@@ -328,8 +330,7 @@ describe('buildNotification / formatDuration', () => {
   it('本地成 + OSS 成 → OK 带 OSS 段', () => {
     const n = buildNotification(
       { ok: true, snapshotId: 'a', size: null, durationSeconds: 1 },
-      { ok: true, repo: 's3:e/b/p', durationSeconds: 2, snapshotId: 'b' },
-      true,
+      { ok: true, snapshotId: 'b', size: null, durationSeconds: 2 },
       'L',
     )
     expect(n.title).toBe('Restic Backup OK')

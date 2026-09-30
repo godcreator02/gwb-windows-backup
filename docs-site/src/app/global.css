@@ -1,9 +1,24 @@
 @import 'tailwindcss';
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
-/* 状态点的样式随格式包发,一行引进来 */
-@import '@godcreator/docfirst-workflow/fumadocs/light.css';
+/* 术语自动标注：悬停显示定义 */
+@import '@godcreator/docfirst-workflow/fumadocs/term.css';
+/* 讲解组件（分步、动画、选情况三种外壳与零件，接缝图）的样式，所有讲解组件共用 */
+@import '@godcreator/docfirst-explainer/styles.css';
+/* 本站讲解组件自己的画面 */
+@import '../components/backup.css';
 
 html {
   scrollbar-gutter: stable;
+}
+
+html > body[data-scroll-locked] {
+  margin-right: 0px !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}
+
+@theme {
+  --font-sans: 'Sarasa Mono SC', 'Sarasa Gothic SC', ui-sans-serif, system-ui, 'Segoe UI', 'PingFang SC',
+    'Microsoft YaHei UI', 'Noto Sans SC', sans-serif;
+  --font-mono: 'Sarasa Mono SC', ui-monospace, 'Cascadia Mono', Consolas, monospace;
 }
