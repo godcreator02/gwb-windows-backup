@@ -16,9 +16,9 @@ description: 本插件提供哪些命令、设置与窗格，注入了哪几个�
 | 显示名 | 「Windows 备份」，图标 `shield-check` | 经外壳 `describeSelf` 报 |
 | 服务、事件、说明书 | 无 | |
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="268-355" hash="4f4b1fb6ffc2" blob="ecd752e21847" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="280-367" hash="419d3a92eb8e" blob="251db8f30ac7" */}
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="444-462" hash="aeae7c0d9079" blob="5dfc3c4eb6fa" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="458-476" hash="aeae7c0d9079" blob="251db8f30ac7" */}
 
 ## 注入
 
@@ -35,7 +35,7 @@ description: 本插件提供哪些命令、设置与窗格，注入了哪几个�
 
 {/* ref file="../plugins/windows-backup/src/index.ts" lines="40-41" hash="2bcf0700b7b4" blob="5dfc3c4eb6fa" */}
 
-{/* ref file="../plugins/windows-backup/package.json" lines="45-57" hash="028593d094bb" blob="906e543d51d3" */}
+{/* ref file="../plugins/windows-backup/package.json" lines="45-57" hash="01ba5d4b7ab8" blob="20fddde4bbcb" */}
 
 ## 按名字调用与约定通道
 
@@ -43,7 +43,7 @@ description: 本插件提供哪些命令、设置与窗格，注入了哪几个�
 
 | 通道 | 对方 | 名字 | 用来做什么 |
 | --- | --- | --- | --- |
-| 子进程 | restic（数据目录 `bin/`，或设置键 `restic-exe` 指的位置） | `restic --repo <仓库> --password-file <路径> <子命令>` | 备份、unlock、forget+prune、读最新快照、透传命令；argv 数组、不经 shell |
+| 子进程 | restic（数据目录 `bin/`，或设置键 `restic-exe` 指的位置） | `restic --repo <仓库> <子命令>`，凭据经本次 env 注入 | 备份、unlock、forget+prune、读最新快照、透传命令；argv 数组、不经 shell |
 | 子进程 | Windows PowerShell 5.1 | `powershell -NoProfile -Command <WinRT 调用>` | 弹结束通知 |
 | 代码调用 | `@godcreator/gwb-shell/browser-imports` | `browserImports()` | 构建时取浏览器侧外置模块名；外壳运行时登记 importmap 也调这个函数 |
 | 读文件 | 本插件自己的包清单 | `../package.json`（相对 `dist/index.js`） | `status` 回执里的版本号 |

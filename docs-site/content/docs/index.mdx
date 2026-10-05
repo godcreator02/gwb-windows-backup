@@ -17,7 +17,7 @@ full: true
 一句话：**代码只做没人盯着也要一直做的事**——定时备份、给人和 agent 看状态；一次性操作（装 restic、首次配置、USB 离机副本、灾后恢复）是人在现场的事，归手册。由它推出三条：
 
 - **状态和备份本体一样重要**：备份断了三个月没人发现，等于没有备份。所以状态每次现算，一轮失败，下一次问就是黄灯
-- **凭据纪律比便利重要**：仓库密码只把文件路径交给 restic，OSS 的密钥只进子进程的环境变量，永不进设置、日志、报错消息
+- **凭据纪律比便利重要**：仓库密码与 OSS 密钥由当前 home 的 secret 槽保管，只注入本次子进程；日志与回执遮掉已知凭据
 - **误报比漏报更伤**：告警天天响，人就不看了。时间类判据一律容忍两个周期；判不了的项画灰、不算失败；要人去做的维护单独提醒，不让状态灯变黄
 
 ## 接缝图
@@ -34,7 +34,7 @@ full: true
 | 4 | 定时器 → 每分钟一跳 | 官方定时器 ↔ 插件 | `ctx.interval(tick, 60_000)` | 工作台没运行就没有定时器，也就不备份 | [定时](/docs/windows-backup/schedule) |
 | 5 | 数据服务 → 数据目录 | 数据插件 ↔ 插件 | `ctx.gwbData.dir` | 目录归哪个条目是数据插件的事 | [设置与状态文件](/docs/windows-backup/config) |
 | 6 | 数据目录里的四样文件 | 插件 ↔ 磁盘 | `backup.lock`、`state.json`、`credentials/`、`logs/restic-backup.log` | 日志只给人看，程序不读 | [锁](/docs/windows-backup/lock)、[设置与状态文件](/docs/windows-backup/config) |
-| 7 | restic 子进程 | 插件 ↔ restic.exe | `restic --repo <仓库> --password-file <路径> <子命令>`，argv、不经 shell、一定有超时 | 仓库格式与加密归 restic | [restic 与子进程](/docs/windows-backup/restic) |
+| 7 | restic 子进程 | 插件 ↔ restic.exe | `restic --repo <仓库> <子命令>`，凭据走子进程 env，argv、不经 shell、一定有超时 | 仓库格式与加密归 restic | [restic 与子进程](/docs/windows-backup/restic) |
 | 8 | PowerShell 通知 | 插件 ↔ PowerShell 5.1 | `powershell -NoProfile -Command <WinRT 调用>` | 弹不出来不影响一轮的结论 | [restic 与子进程](/docs/windows-backup/restic) |
 | 9 | 磁盘余量 | 健康结论 ↔ 本地仓库那块盘 | `fs.statfsSync` | 不清理磁盘，只报剩多少 | [健康结论](/docs/windows-backup/health) |
 | 10 | restic 写仓库 | restic.exe ↔ 两个仓库 | restic 的仓库格式、S3 接口 | 本插件不读仓库里的任何文件 | [一轮备份](/docs/windows-backup/round) |
@@ -46,7 +46,7 @@ full: true
 - 不做整机镜像：本插件只管 restic 文件级快照
 - 不做恢复向导：恢复用 `windows-backup.restic` 透传 `restore`，步骤归手册
 - 不做按快照浏览文件：那是 `restic restore` / `restic mount` 的事
-- 不做凭据保险箱：密钥根本不进本进程，两份凭据文件由文件权限保护
+- 不自建凭据保险箱：保管与导入交给 gwb-settings，备份插件只负责迁移和使用
 
 另外两条此刻的边界：**工作台没运行就不备份**，这是有意接受的代价；`run` 与 `restic` 两条命令一直等到子进程结束才回执，
 **没有作业 id、取消与断线后恢复**——要不要做成作业接口在[收件](/future/inbox/2026-09-20-console-review-stale-result-lock-and-long-jobs)里等决定。

@@ -9,7 +9,7 @@ description: 一轮按什么顺序跑六段、每段成败怎么影响后面、s
 
 ## 顺序与为什么这样排
 
-{/* ref file="../plugins/windows-backup/src/backup.ts" lines="88-119" hash="1992b3401c6f" blob="81782bcffc7f" */}
+{/* ref file="../plugins/windows-backup/src/backup.ts" lines="91-122" hash="1992b3401c6f" blob="5d9d0b9ab136" */}
 
 - **本地先、OSS 后**：本地都没备上，prune 与 OSS 没有意义，所以本地失败时后面几段一段都不跑
 - **每天第一轮才 prune**：判据是 `state.json` 的 `lastPrune` 前 10 位是不是今天（本地时区）。prune 真成功才记时间，失败了下一轮再试；
@@ -28,7 +28,7 @@ restic 备份时拿「父快照」比对，没变的文件只比元数据、不�
 白名单一加路径，路径组就变了，它找不到父快照，**整份重读**。所以两次备份都显式传 `--parent`：本地那次用 `lastLocalSnapshot`，
 OSS 那次用 `lastOssSnapshot`——两个仓各有一条快照链，ID 不通用。
 
-{/* ref file="../plugins/windows-backup/src/backup.ts" lines="151-181" hash="552632c3b7c4" blob="b4fad161c2fc" */}
+{/* ref file="../plugins/windows-backup/src/backup.ts" lines="152-182" hash="760e499363cb" blob="ad7370bd8482" */}
 
 记着的父快照在仓库里已经不在时（被 prune 掉、换了仓库），restic 报 `no matching ID found for prefix`，丢开它不带父快照重跑一次，
 那一次会重读全部文件；这不算故障，日志里写的是一行说明，不是失败行。只认 restic 的那两句原话，别的失败照旧一次就收，
@@ -38,10 +38,10 @@ OSS 那次用 `lastOssSnapshot`——两个仓各有一条快照链，ID 不通�
 
 每轮结束弹一条 Windows 通知（设置 `toast` 关掉就不弹），正文就是 `lastRunSummary`，窗格里「上次备份」下面那一行也是它：
 
-{/* ref file="../plugins/windows-backup/src/backup.ts" lines="220-236" hash="6c4283a4103b" blob="b4fad161c2fc" */}
+{/* ref file="../plugins/windows-backup/src/backup.ts" lines="227-243" hash="6c4283a4103b" blob="ad7370bd8482" */}
 
 ## 测试
 
 `tests/backup.test.ts` 用按子命令分发的假 restic 跑整条链路：全成的一轮（日志行、prune 每天一次、`state.json` 三格、锁释放）、
-今天已 prune 过、本地失败后面不跑、OSS 半成、OSS 凭据文件不在时不启动 restic、两个仓各自的父快照、父快照没了重跑一次且不写失败行、
+今天已 prune 过、本地失败后面不跑、OSS 半成、本 home 的 OSS 凭据未配置时不启动 OSS restic、两个仓各自的父快照、父快照没了重跑一次且不写失败行、
 别的失败不重试、占不到锁一个字不写。真 restic 没有自动化测试，改完在隔离 home 里配一个临时仓库实际跑一轮。

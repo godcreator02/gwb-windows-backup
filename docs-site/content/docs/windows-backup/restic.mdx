@@ -7,10 +7,10 @@ description: restic 的命令行怎么拼、启动子进程的四条规矩、环
 
 ## 参数只有一处拼法
 
-`runRestic` 在调用方给的子命令前补上 `--repo <仓库> --password-file <路径>`。OSS 仓库地址与 forget 的保留窗口参数各只有一个函数拼：
+`runRestic` 在调用方给的子命令前补上 `--repo <仓库>`，把当前 home 密码注入 `RESTIC_PASSWORD`。OSS 仓库地址与 forget 的保留窗口参数各只有一个函数拼：
 一轮备份、读快照、透传命令都从这里取。
 
-{/* ref file="../plugins/windows-backup/src/restic.ts" lines="15-45" hash="5e4ee2a43a79" blob="16911e33ed4d" */}
+{/* ref file="../plugins/windows-backup/src/restic.ts" lines="15-53" hash="cf77bb6671fc" blob="b346f670ecc5" */}
 
 保留窗口默认：72 小时内全留、按日留 14 天、按周留 8 份、按月留 12 份（设置里可改）。forget 按主机分组（`--group-by host`），
 不用 restic 默认的「主机加路径」：按默认分组，白名单每改一次就多出一组，每组各自留满保留窗口，旧组永远删不掉
@@ -31,15 +31,16 @@ description: restic 的命令行怎么拼、启动子进程的四条规矩、环
 
 ## 环境变量
 
-`resticEnv` 造的是**这一次子进程专用的副本**：父进程环境打底，叠上 `GOMAXPROCS`，OSS 那几次再叠 AccessKey。
+`resticEnv` 造的是**这一次子进程专用的副本**：父进程环境先清除 AWS、RESTIC、MINIO 的继承值，禁用默认 AWS 文件与实例元数据，叠上 `GOMAXPROCS`，OSS 那几次再叠本 home 的 AccessKey。
 
-{/* ref file="../plugins/windows-backup/src/restic.ts" lines="47-54" hash="1de38a8e9baa" blob="16911e33ed4d" */}
+{/* ref file="../plugins/windows-backup/src/restic.ts" lines="62-71" hash="65fac23710b4" blob="b346f670ecc5" */}
 
 备份成功时，从 restic 的输出里取两样：`snapshot abc12345 saved` 里的快照 ID（下一轮的父快照）与 `processed N files, X GiB` 里的处理量（通知正文）。
+插件内部先从原输出提取这些结构化事实，再遮挡日志和回执；数字或短密码不会破坏快照 ID、体量或日期的解析。
 
 ## 备份日志
 
-`logs/restic-backup.log`：每段开始与结束写一行 `[YYYY-MM-DD HH:MM:SS] <说明>`，restic 的原始输出原样附上。**日志只给人看，程序不读它**——
+`logs/restic-backup.log`：每段开始与结束写一行 `[YYYY-MM-DD HH:MM:SS] <说明>`，restic 的输出先遮掉本次注入的凭据再附上。**日志只给人看，程序不读它**——
 一轮成没成记在 `state.json` 里，健康结论读的是那边。一律同步写：链路中途崩了，已经写的行都在盘上。超过 10 MB 只留最后 1000 行。
 
 {/* ref file="../plugins/windows-backup/src/log.ts" lines="5-20" hash="14fa20b8e9c9" blob="8872c1f5dec0" */}

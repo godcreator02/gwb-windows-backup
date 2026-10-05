@@ -28,7 +28,7 @@ function fakeRestic(cases: { when: string[]; result: Partial<RunResult> }[]): { 
   const calls: string[][] = []
   const run: RunProcess = async (_exe, args) => {
     calls.push(args)
-    const hit = cases.find((one) => one.when.every((token, index) => args[index + 4] === token))
+    const hit = cases.find((one) => one.when.every((token, index) => args[index + 2] === token))
     if (hit === undefined) return { code: 0, stdout: '', stderr: '', timedOut: false }
     return { code: 0, stdout: '', stderr: '', timedOut: false, ...hit.result }
   }
@@ -47,6 +47,17 @@ const withOss = (paths: ReturnType<typeof layout>): BackupConfig => {
 }
 
 describe('runFullBackup', () => {
+  it.each(['1', '4.9', 'snapshot'])('短密码 %s 不破坏快照和体量解析', async (password) => {
+    const paths = tmpPaths()
+    const { run } = fakeRestic([{ when: ['backup'], result: { stdout: OK_STDOUT } }])
+    const result = await runFullBackup({ credentials: { password, ossEnv: {} }, paths, config: configured(), logger: nullLogger(), run })
+    expect(result.skipped).toBeNull()
+    if (result.skipped !== null) throw new Error('这轮不该被跳过')
+    expect(result.local.snapshotId).toBe('abc12345')
+    expect(result.local.size).toBe('4.9 KiB')
+    expect(readState(paths.stateFile).lastLocalSnapshot).toBe('abc12345')
+  })
+
   it('全成的一轮：日志行、prune 每日一次、状态三格、锁释放', async () => {
     const paths = tmpPaths()
     const { run, calls } = fakeRestic([
@@ -54,7 +65,7 @@ describe('runFullBackup', () => {
       { when: ['forget'], result: { stdout: 'ok' } },
     ])
     const logger = createLogger(paths.logFile, () => new Date(2026, 8, 8, 10, 0, 0))
-    const result = await runFullBackup({ paths, config: configured(), logger, run, now: () => new Date(2026, 8, 8, 10, 0, 0) })
+    const result = await runFullBackup({ credentials: { password: "fixture-restic-password", ossEnv: { AWS_ACCESS_KEY_ID: "fixture-access-id", AWS_SECRET_ACCESS_KEY: "fixture-access-secret" } }, paths, config: configured(), logger, run, now: () => new Date(2026, 8, 8, 10, 0, 0) })
 
     expect(result.skipped).toBeNull()
     if (result.skipped !== null) throw new Error('这轮不该被跳过')
@@ -77,7 +88,7 @@ describe('runFullBackup', () => {
     // 锁跑完即删
     expect(existsSync(paths.lockFile)).toBe(false)
     // 本地一轮 = backup + unlock + forget，各一次；unlock 先于 forget
-    expect(calls.map((args) => args[4])).toEqual(['backup', 'unlock', 'forget'])
+    expect(calls.map((args) => args[2])).toEqual(['backup', 'unlock', 'forget'])
   })
 
   it('unlock 清不掉锁也照跑 forget：prune 的成败只看 forget', async () => {
@@ -88,9 +99,9 @@ describe('runFullBackup', () => {
       { when: ['forget'], result: { code: 11, stderr: 'unable to create lock in backend' } },
     ])
     const logger = createLogger(paths.logFile, () => new Date(2026, 8, 8, 10, 0, 0))
-    await runFullBackup({ paths, config: configured(), logger, run, now: () => new Date(2026, 8, 8, 10, 0, 0) })
+    await runFullBackup({ credentials: { password: "fixture-restic-password", ossEnv: { AWS_ACCESS_KEY_ID: "fixture-access-id", AWS_SECRET_ACCESS_KEY: "fixture-access-secret" } }, paths, config: configured(), logger, run, now: () => new Date(2026, 8, 8, 10, 0, 0) })
 
-    expect(calls.map((args) => args[4])).toEqual(['backup', 'unlock', 'forget'])
+    expect(calls.map((args) => args[2])).toEqual(['backup', 'unlock', 'forget'])
     const text = readFileSync(paths.logFile, 'utf8')
     expect(text).toContain('unable to open config file')
     expect(text).toContain('Prune FAILED with exit code 11')
@@ -103,7 +114,7 @@ describe('runFullBackup', () => {
     const now = new Date(2026, 8, 8, 11, 0, 0)
     // 早上 8 点已经 prune 成功过
     writeState(paths.stateFile, { lastPrune: '2026-09-08T08:00:00' })
-    await runFullBackup({ paths, config: configured(), logger: nullLogger(), run, now: () => now })
+    await runFullBackup({ credentials: { password: "fixture-restic-password", ossEnv: { AWS_ACCESS_KEY_ID: "fixture-access-id", AWS_SECRET_ACCESS_KEY: "fixture-access-secret" } }, paths, config: configured(), logger: nullLogger(), run, now: () => now })
     expect(calls.length).toBe(1) // 只有 backup
     const state = readState(paths.stateFile)
     expect(state.lastPrune).toBe('2026-09-08T08:00:00') // 没被覆盖
@@ -112,7 +123,7 @@ describe('runFullBackup', () => {
   it('本地失败 → 不 prune、不推 OSS、状态记失败', async () => {
     const paths = tmpPaths()
     const { run, calls } = fakeRestic([{ when: ['backup'], result: { code: 1, stderr: 'Fatal: 打不开仓库' } }])
-    const result = await runFullBackup({
+    const result = await runFullBackup({ credentials: { password: "fixture-restic-password", ossEnv: { AWS_ACCESS_KEY_ID: "fixture-access-id", AWS_SECRET_ACCESS_KEY: "fixture-access-secret" } },
       paths,
       config: withOss(paths),
       logger: nullLogger(),
@@ -137,14 +148,14 @@ describe('runFullBackup', () => {
     const allCalls: string[][] = []
     const run2: RunProcess = async (exe, args, options) => {
       allCalls.push(args)
-      const first = args[4]
+      const first = args[2]
       if (first === 'backup') {
         backupCount += 1
         if (backupCount === 2) return { code: 1, stdout: '', stderr: 'oss 挂了', timedOut: false }
       }
       return run(exe, args, options)
     }
-    const result = await runFullBackup({
+    const result = await runFullBackup({ credentials: { password: "fixture-restic-password", ossEnv: { AWS_ACCESS_KEY_ID: "fixture-access-id", AWS_SECRET_ACCESS_KEY: "fixture-access-secret" } },
       paths,
       config: withOss(paths),
       logger: nullLogger(),
@@ -167,7 +178,7 @@ describe('runFullBackup', () => {
       { when: ['forget'], result: {} },
     ])
     writeState(paths.stateFile, { lastLocalSnapshot: 'oldlocal', lastOssSnapshot: 'oldoss' })
-    await runFullBackup({
+    await runFullBackup({ credentials: { password: "fixture-restic-password", ossEnv: { AWS_ACCESS_KEY_ID: "fixture-access-id", AWS_SECRET_ACCESS_KEY: "fixture-access-secret" } },
       paths,
       config: withOss(paths),
       logger: nullLogger(),
@@ -175,7 +186,7 @@ describe('runFullBackup', () => {
       now: () => new Date(2026, 8, 8, 10, 0, 0),
     })
 
-    const backups = calls.filter((args) => args[4] === 'backup')
+    const backups = calls.filter((args) => args[2] === 'backup')
     expect(backups.length).toBe(2)
     // 两个仓各自一条快照链，ID 不通用——本地那趟吃本地父本，OSS 那趟吃 OSS 父本
     const parentOf = (args: string[] | undefined): string | undefined =>
@@ -192,7 +203,7 @@ describe('runFullBackup', () => {
     const paths = tmpPaths()
     const { run, calls } = fakeRestic([{ when: ['backup'], result: { stdout: OK_STDOUT } }])
     writeState(paths.stateFile, { lastPrune: '2026-09-08T08:00:00' })
-    await runFullBackup({ paths, config: configured(), logger: nullLogger(), run, now: () => new Date(2026, 8, 8, 10, 0, 0) })
+    await runFullBackup({ credentials: { password: "fixture-restic-password", ossEnv: { AWS_ACCESS_KEY_ID: "fixture-access-id", AWS_SECRET_ACCESS_KEY: "fixture-access-secret" } }, paths, config: configured(), logger: nullLogger(), run, now: () => new Date(2026, 8, 8, 10, 0, 0) })
     expect(calls[0]).not.toContain('--parent')
     expect(readState(paths.stateFile).lastLocalSnapshot).toBe('abc12345')
   })
@@ -201,7 +212,7 @@ describe('runFullBackup', () => {
     const paths = tmpPaths()
     let backups = 0
     const run: RunProcess = async (_exe, args) => {
-      if (args[4] !== 'backup') return { code: 0, stdout: '', stderr: '', timedOut: false }
+      if (args[2] !== 'backup') return { code: 0, stdout: '', stderr: '', timedOut: false }
       backups += 1
       // 第一次：restic 说找不到这份父快照（实测 0.18.1 的原话）
       if (backups === 1) {
@@ -211,7 +222,7 @@ describe('runFullBackup', () => {
     }
     writeState(paths.stateFile, { lastLocalSnapshot: 'oldlocal', lastPrune: '2026-09-08T08:00:00' })
     const logger = createLogger(paths.logFile, () => new Date(2026, 8, 8, 10, 0, 0))
-    const result = await runFullBackup({
+    const result = await runFullBackup({ credentials: { password: "fixture-restic-password", ossEnv: { AWS_ACCESS_KEY_ID: "fixture-access-id", AWS_SECRET_ACCESS_KEY: "fixture-access-secret" } },
       paths,
       config: configured(),
       logger,
@@ -235,20 +246,20 @@ describe('runFullBackup', () => {
     const paths = tmpPaths()
     let backups = 0
     const run: RunProcess = async (_exe, args) => {
-      if (args[4] !== 'backup') return { code: 0, stdout: '', stderr: '', timedOut: false }
+      if (args[2] !== 'backup') return { code: 0, stdout: '', stderr: '', timedOut: false }
       backups += 1
       return { code: 1, stdout: '', stderr: 'Fatal: unable to open repository', timedOut: false }
     }
     writeState(paths.stateFile, { lastLocalSnapshot: 'oldlocal', lastPrune: '2026-09-08T08:00:00' })
     const logger = createLogger(paths.logFile, () => new Date(2026, 8, 8, 10, 0, 0))
-    await runFullBackup({ paths, config: configured(), logger, run, now: () => new Date(2026, 8, 8, 10, 0, 0) })
+    await runFullBackup({ credentials: { password: "fixture-restic-password", ossEnv: { AWS_ACCESS_KEY_ID: "fixture-access-id", AWS_SECRET_ACCESS_KEY: "fixture-access-secret" } }, paths, config: configured(), logger, run, now: () => new Date(2026, 8, 8, 10, 0, 0) })
     expect(backups).toBe(1)
     expect(readFileSync(paths.logFile, 'utf8')).toContain('Backup FAILED')
   })
 
   it('占不到锁 → skipped locked，一个字不写', async () => {
     const paths = tmpPaths()
-    const result = await runFullBackup({
+    const result = await runFullBackup({ credentials: { password: "fixture-restic-password", ossEnv: { AWS_ACCESS_KEY_ID: "fixture-access-id", AWS_SECRET_ACCESS_KEY: "fixture-access-secret" } },
       paths,
       config: configured(),
       logger: nullLogger(),
@@ -257,12 +268,12 @@ describe('runFullBackup', () => {
     expect(result).toMatchObject({ ok: false, skipped: 'locked' })
   })
 
-  it('OSS 凭据文件不在 → OSS 那次记失败、不启动 restic，本地照常', async () => {
+  it('本 home OSS 凭据未配置 → OSS 那次记失败、不启动 restic，本地照常', async () => {
     const paths = tmpPaths()
     const { run, calls } = fakeRestic([{ when: ['backup'], result: { stdout: OK_STDOUT } }])
     writeState(paths.stateFile, { lastPrune: '2026-09-08T08:00:00' })
     const logger = createLogger(paths.logFile, () => new Date(2026, 8, 8, 10, 0, 0))
-    const result = await runFullBackup({
+    const result = await runFullBackup({ credentials: { password: "fixture-restic-password", ossEnv: {} },
       paths,
       config: configured({ ossEnabled: true, ossBucket: 'b', ossEndpoint: 'e' }),
       logger,
@@ -273,7 +284,7 @@ describe('runFullBackup', () => {
     expect(result.local.ok).toBe(true)
     expect(result.oss?.ok).toBe(false)
     expect(calls.length).toBe(1)
-    expect(readFileSync(paths.logFile, 'utf8')).toContain('OSS push FAILED: 没有 OSS 凭据文件')
+    expect(readFileSync(paths.logFile, 'utf8')).toContain('OSS push FAILED: 本 home 的 OSS 凭据未配置')
     expect(readState(paths.stateFile).lastRunOk).toBe(false)
   })
 })
@@ -292,7 +303,7 @@ describe('excludeArgv', () => {
   it('跑真的一轮时：基线走 --exclude-file，追加规则逐条 --exclude', async () => {
     const paths = tmpPaths()
     const { run, calls } = fakeRestic([{ when: ['backup'], result: { stdout: OK_STDOUT } }])
-    await runFullBackup({
+    await runFullBackup({ credentials: { password: "fixture-restic-password", ossEnv: { AWS_ACCESS_KEY_ID: "fixture-access-id", AWS_SECRET_ACCESS_KEY: "fixture-access-secret" } },
       paths,
       config: configured({ exclude: ['# 注释', '*.gwbprobe'] }),
       logger: nullLogger(),

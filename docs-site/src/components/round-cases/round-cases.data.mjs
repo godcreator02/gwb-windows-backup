@@ -19,8 +19,8 @@ export const stages = [
   { id: 'record', name: '写结果与通知', ident: 'state.json · 日志轮转 · toast' },
 ];
 
-/* ref file="../plugins/windows-backup/src/backup.ts" lines="88-119" hash="1992b3401c6f" blob="81782bcffc7f" */
-/* ref file="../plugins/windows-backup/src/backup.ts" lines="220-236" hash="6c4283a4103b" blob="b4fad161c2fc" */
+/* ref file="../plugins/windows-backup/src/backup.ts" lines="91-122" hash="1992b3401c6f" blob="5d9d0b9ab136" */
+/* ref file="../plugins/windows-backup/src/backup.ts" lines="221-237" hash="6c4283a4103b" blob="5d9d0b9ab136" */
 /** @type {RoundCase[]} */
 export const cases = [
   {

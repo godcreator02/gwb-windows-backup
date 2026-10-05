@@ -43,7 +43,7 @@ description: 十六个设置键怎么读、值不合法时怎么办；state.json
 
 {/* ref file="../plugins/windows-backup/src/paths.ts" lines="21-35" hash="e77357136298" blob="8ca602ea78b1" */}
 
-用户数据与凭据全在这里，代码树里一个字节都没有；隔离 home 有自己的数据目录，开发时碰不到真凭据。唯一不在数据目录的是
+状态、日志与旧凭据恢复材料在这里；运行时凭据在 home 根的 `credentials.json`，由 gwb-settings 管理。各 home 独立。另有
 内置的排除基线 `config/restic-exclude.txt`，它随插件版本走。`restic-exe` 设置的相对路径按数据目录解析，绝对路径原样用。
 
 ## 测试

@@ -1,0 +1,116 @@
+{
+  "home": "stores-cred-2610052010",
+  "checks": 27,
+  "passed": true,
+  "credentials": "synthetic only; no credential content recorded",
+  "receipts": [
+    {
+      "command": "credentials.list",
+      "ok": true
+    },
+    {
+      "command": "credentials.import",
+      "ok": true
+    },
+    {
+      "command": "settings.all",
+      "ok": true
+    },
+    {
+      "command": "settings.get",
+      "ok": false
+    },
+    {
+      "command": "windows-backup.paths",
+      "ok": true
+    },
+    {
+      "command": "settings.set",
+      "ok": true
+    },
+    {
+      "command": "settings.set",
+      "ok": true
+    },
+    {
+      "command": "settings.set",
+      "ok": true
+    },
+    {
+      "command": "settings.set",
+      "ok": true
+    },
+    {
+      "command": "windows-backup.run",
+      "ok": true
+    },
+    {
+      "command": "windows-backup.restic",
+      "ok": true
+    },
+    {
+      "command": "legacy restic --password-file snapshots",
+      "ok": true
+    },
+    {
+      "command": "windows-backup.check",
+      "ok": true
+    },
+    {
+      "command": "windows-backup.restic",
+      "ok": true
+    },
+    {
+      "command": "sources.configure",
+      "ok": true
+    },
+    {
+      "command": "credentials.import",
+      "ok": true
+    },
+    {
+      "command": "sources.connect",
+      "ok": true
+    },
+    {
+      "command": "sources.status",
+      "ok": true
+    },
+    {
+      "command": "sources.configure",
+      "ok": false
+    },
+    {
+      "command": "sources.disconnect",
+      "ok": true
+    },
+    {
+      "command": "sources.status",
+      "ok": true
+    },
+    {
+      "command": "credentials.delete",
+      "ok": true
+    },
+    {
+      "command": "credentials.status",
+      "ok": true
+    },
+    {
+      "command": "plugin-manager.disable",
+      "ok": true
+    },
+    {
+      "command": "plugin-manager.enable",
+      "ok": true
+    },
+    {
+      "command": "credentials.status",
+      "ok": true
+    },
+    {
+      "command": "windows-backup.restic",
+      "ok": false
+    }
+  ]
+}

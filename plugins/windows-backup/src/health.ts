@@ -2,6 +2,7 @@ import { existsSync, statfsSync } from 'node:fs'
 import path from 'node:path'
 import { daysSince, localTimestamp, minutesSince } from './clock.js'
 import type { BackupConfig } from './config.js'
+import type { BackupSecrets } from './credentials.js'
 import { resolveResticExe } from './config.js'
 import type { BackupPaths } from './paths.js'
 import type { RunProcess } from './process.js'
@@ -111,18 +112,19 @@ export function assessHealth(input: {
 }
 
 /** 读本地仓库最新快照的时间。restic 不在、仓库锁着、输出认不出都记进 `unreadable`，不抛。 */
-export async function readLatestSnapshot(paths: BackupPaths, config: BackupConfig, run: RunProcess | undefined, now: Date): Promise<SnapshotReading> {
+export async function readLatestSnapshot(paths: BackupPaths, config: BackupConfig, run: RunProcess | undefined, now: Date, credentials: BackupSecrets): Promise<SnapshotReading> {
   const readAt = localTimestamp(now)
   const exe = resolveResticExe(config.resticExe, paths.dir)
   if (!existsSync(exe)) return { readAt, latestAt: null, unreadable: `restic 还没装到位（${exe}）` }
   if (config.localRepo.trim() === '') return { readAt, latestAt: null, unreadable: '还没配本地仓库路径' }
+  let latestAt: string | null = null
   const result = await runRestic(exe, config.localRepo, ['snapshots', '--latest', '1', '--json'], {
-    passwordFile: paths.passwordFile,
+    password: credentials.password,
     env: resticEnv(config.gomaxprocs),
     run,
+    inspectOutput: (stdout) => { latestAt = parseLatestSnapshotTime(stdout) },
   })
   if (result.code !== 0) return { readAt, latestAt: null, unreadable: 'restic 读不到仓库（锁着或盘不在）' }
-  const latestAt = parseLatestSnapshotTime(result.stdout)
   if (latestAt === null) return { readAt, latestAt: null, unreadable: '仓库里还没有快照，或输出格式认不出' }
   return { readAt, latestAt, unreadable: null }
 }

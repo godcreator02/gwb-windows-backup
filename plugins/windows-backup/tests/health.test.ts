@@ -130,7 +130,7 @@ describe('③ 快照新鲜度', () => {
 describe('readLatestSnapshot', () => {
   it('restic 读不到仓库 → unreadable，不抛', async () => {
     const failing: RunProcess = async () => ({ code: 1, stdout: '', stderr: 'locked', timedOut: false })
-    const reading = await readLatestSnapshot(tmpPaths(), config, failing, new Date())
+    const reading = await readLatestSnapshot(tmpPaths(), config, failing, new Date(), { password: "fixture-password", ossEnv: {} })
     expect(reading.latestAt).toBeNull()
     expect(reading.unreadable).toContain('读不到仓库')
   })
@@ -141,21 +141,21 @@ describe('readLatestSnapshot', () => {
       started = true
       return { code: 0, stdout: '[]', stderr: '', timedOut: false }
     }
-    const reading = await readLatestSnapshot(tmpPaths(), configOf({ localRepo: 'D:/r' }), run, new Date())
+    const reading = await readLatestSnapshot(tmpPaths(), configOf({ localRepo: 'D:/r' }), run, new Date(), { password: "fixture-password", ossEnv: {} })
     expect(started).toBe(false)
     expect(reading.unreadable).toContain('restic 还没装到位')
   })
 
-  it('读出最新快照的时间，补上 --repo 与 --password-file', async () => {
+  it('短密码不会误伤最新快照日期，仓库通过 --repo 指定', async () => {
     const seen: string[][] = []
     const run: RunProcess = async (_exe, args) => {
       seen.push(args)
       return { code: 0, stdout: JSON.stringify([{ time: '2026-09-08T10:00:00Z' }]), stderr: '', timedOut: false }
     }
-    const reading = await readLatestSnapshot(tmpPaths(), config, run, new Date())
+    const reading = await readLatestSnapshot(tmpPaths(), config, run, new Date(), { password: "1", ossEnv: {} })
     expect(reading.latestAt).toBe('2026-09-08T10:00:00Z')
     expect(seen[0]?.slice(0, 2)).toEqual(['--repo', 'D:/Backup/restic-repo'])
-    expect(seen[0]?.slice(4)).toEqual(['snapshots', '--latest', '1', '--json'])
+    expect(seen[0]?.slice(2)).toEqual(['snapshots', '--latest', '1', '--json'])
   })
 
   it('parseLatestSnapshotTime 认不出回 null', () => {

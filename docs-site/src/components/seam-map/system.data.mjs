@@ -7,7 +7,7 @@ import { defineSeamGraph } from '@godcreator/docfirst-explainer/seam-graph';
 
 /* ref file="../plugins/windows-backup/src/index.ts" lines="41-44" hash="6bfba87b849d" blob="5dfc3c4eb6fa" */
 /* ref file="../plugins/windows-backup/src/paths.ts" lines="22-35" hash="494fe4acf3cf" blob="8ca602ea78b1" */
-/* ref file="../plugins/windows-backup/src/restic.ts" lines="16-27" hash="bfe44798812e" blob="16911e33ed4d" */
+/* ref file="../plugins/windows-backup/src/restic.ts" lines="15-35" hash="91d5b2edc974" blob="b346f670ecc5" */
 /* ref file="../plugins/windows-backup/src/toast.ts" lines="52-61" hash="41b39ce0a431" blob="cc518d53fd3b" */
 export const systemGraph = defineSeamGraph({
   id: 'system',
@@ -54,7 +54,7 @@ export const systemGraph = defineSeamGraph({
       pkg: '<home>/data/windows-backup/',
       role: null,
       outside: true,
-      blurb: '数据服务给本插件的目录。用户数据与凭据全在这里，代码树里一个字节都没有；隔离 home 有自己的一份，开发时碰不到真凭据。',
+      blurb: '数据服务给本插件的目录。状态、日志与旧恢复文件由数据目录承载；运行时凭据交给当前 home 的 gwb-settings。',
       caps: [
         { id: 'f-lock', name: '锁', ident: 'backup.lock' },
         { id: 'f-state', name: '状态', ident: 'state.json' },
@@ -123,7 +123,7 @@ export const systemGraph = defineSeamGraph({
       name: '设置 → 设置表',
       a: ['settings-svc'],
       b: ['settings'],
-      iface: 'define({ key, title, type, description, default }) × 16 · get(key) 每次现读',
+      iface: '16 个普通配置 + 2 个 secret + 2 个迁移标记；define/get/set 按当前 home 工作',
       convention: false,
       via: 'code',
       text: '设置插件不校验写进来的值，本插件是唯一把关的一方：每次用都现读，值不合法就拒跑并说出是哪个键、现在是什么，不替它换成默认值。',
@@ -156,17 +156,17 @@ export const systemGraph = defineSeamGraph({
       iface: 'backup.lock { pid, lease, startedAt, beatAt } · state.json { lastRun*, lastLocalSnapshot, lastOssSnapshot, lastPrune, lastUsbCopy, lastExcludeAudit, lastReview } · credentials/restic-password.txt、oss-credentials.txt · logs/restic-backup.log',
       convention: false,
       via: 'disk',
-      text: '锁保证同一时间只有一轮；state.json 是一轮的结论与下一轮要用的父快照 ID，健康结论与到期判断都读它；仓库密码只把路径交给 restic；日志只给人看，程序不读它。',
+      text: '锁保证同一时间只有一轮；state.json 是一轮的结论与下一轮要用的父快照 ID，健康结论与到期判断都读它；旧凭据文件只用于首次迁移和独立恢复，运行时凭据由本 home secret 槽提供；日志只给人看，程序不读它。',
     },
     {
       n: 7,
       name: 'restic 子进程',
       a: ['round', 'health', 'cmds'],
       b: ['restic-exe'],
-      iface: 'restic --repo <仓库> --password-file <路径> <子命令> …：argv 数组、不经 shell、备份与 prune 6 小时超时、其余 2 分钟',
+      iface: 'restic --repo <仓库> <子命令>；凭据仅进本次 env …：argv 数组、不经 shell、备份与 prune 6 小时超时、其余 2 分钟',
       convention: false,
       via: 'code',
-      text: '一轮备份跑 backup、unlock、forget --prune；读快照新鲜度跑 snapshots --latest 1 --json；windows-backup.restic 透传任意子命令。成败只看退出码，输出原样进日志。',
+      text: '一轮备份跑 backup、unlock、forget --prune；读快照新鲜度跑 snapshots --latest 1 --json；windows-backup.restic 透传任意子命令。成败只看退出码，输出遮挡本次凭据后进日志。',
     },
     {
       n: 8,

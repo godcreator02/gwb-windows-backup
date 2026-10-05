@@ -66,6 +66,7 @@ function fakeHost(services: { gwbShell?: unknown } = {}) {
         registered.settingsDefs.set(def.key, def)
         return () => registered.settingsDefs.delete(def.key)
       },
+      async set(key: string, value: unknown) { registered.settingsValues.set(key, value) },
       get(key: string) {
         return registered.settingsValues.has(key) ? registered.settingsValues.get(key) : registered.settingsDefs.get(key)?.default
       },
@@ -97,6 +98,7 @@ function fakeDeps(over: Partial<MountDeps> = {}): MountDeps {
 
 /** 设置里配齐一份能跑的配置；restic 位置指向一个真存在的文件，读快照那一步才会调 `run`。 */
 function configure(host: FakeHost): void {
+  host.registered.settingsValues.set('restic-password', 'fixture-restic-password')
   host.registered.settingsValues.set('sources', ['D:/Notes'])
   host.registered.settingsValues.set('local-repo', 'D:/Backup/test-repo')
   host.registered.settingsValues.set('restic-exe', process.execPath)
@@ -116,7 +118,7 @@ describe('设置声明', () => {
   it('SETTINGS 里的每一项都声明了，默认值与类型照表', () => {
     const host = fakeHost()
     mount(host.ctx, fakeDeps())
-    expect([...host.registered.settingsDefs.keys()]).toEqual(SETTINGS.map((spec) => spec.key))
+    expect([...host.registered.settingsDefs.keys()]).toEqual(['restic-password', 'restic-password-migrated', 'oss-credentials', 'oss-credentials-migrated', ...SETTINGS.map((spec) => spec.key)])
     expect(host.registered.settingsDefs.get('frequency-minutes')?.default).toBe(30)
     expect(host.registered.settingsDefs.get('sources')?.type).toBe('string-list')
     expect(host.registered.settingsDefs.has('health-check-interval-hours')).toBe(false)
@@ -267,7 +269,7 @@ describe('命令面', () => {
     )
     expect((await host.call('windows-backup.restic', { args: ['snapshots'] })).ok).toBe(true)
     expect(seen[0]?.args.slice(0, 2)).toEqual(['--repo', 'D:/Backup/test-repo'])
-    expect(seen[0]?.args.slice(4)).toEqual(['snapshots'])
+    expect(seen[0]?.args.slice(2)).toEqual(['snapshots'])
 
     expect((await host.call('windows-backup.restic', { repo: 'oss', args: ['snapshots'] })).ok).toBe(true)
     expect(seen[1]?.args[1]).toBe('s3:oss-cn-beijing.aliyuncs.com/bkt/restic-prod')
@@ -310,9 +312,9 @@ describe('每分钟一跳', () => {
   function recordingDeps(calls: string[]): MountDeps {
     const base = fakeDeps()
     return fakeDeps({
-      runBackup: async (paths, config) => {
+      runBackup: async (paths, config, credentials) => {
         calls.push('backup')
-        return base.runBackup(paths, config)
+        return base.runBackup(paths, config, credentials)
       },
       run: (async (exe: string, args: string[]) => {
         calls.push(args.includes('snapshots') ? 'snapshots' : 'other')

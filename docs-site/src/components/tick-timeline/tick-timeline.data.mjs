@@ -31,7 +31,7 @@ function frequencyAt(minute) {
   return current;
 }
 
-/* ref file="../plugins/windows-backup/src/index.ts" lines="178-195" hash="f45031e6aa58" blob="5dfc3c4eb6fa" */
+/* ref file="../plugins/windows-backup/src/index.ts" lines="190-207" hash="f45031e6aa58" blob="251db8f30ac7" */
 /* ref file="../plugins/windows-backup/src/state.ts" lines="46-50" hash="d33e5146d12a" blob="ae9258b3f8b2" */
 /** 按规则逐跳算一遍：正在跑就不管；设置读不出就拒跑（同一句理由只写一次日志）；距上一轮结束满一个周期就跑。 */
 export function simulate() {

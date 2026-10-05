@@ -14,11 +14,11 @@ description: 「备份还在正常运行吗」——三项每次现算，只有�
 | --- | --- | --- | --- |
 | 上次备份 | `state.json` 的 `lastRun*`、`lastPrune` | 从没跑过；上一轮失败；距上次超过两个周期；备份没问题但 prune 从没成功过或已经两个日历日没成功 | — |
 | 磁盘余量 | `local-repo` 所在那块盘（`fs.statfs`） | 剩不到 20%（该清一清）、不到 10%（快满了） | 没配本地仓库、读不到余量 |
-| 快照新鲜度 | 最近一次读本地仓库得到的最新快照时间 | 距现在超过两个周期 | 还没读过、restic 不在、仓库锁着或盘不在、仓库里还没有快照 |
+| 快照新鲜度 | 最近一次读本地仓库得到的最新快照时间 | 距现在超过两个周期 | 还没读过、凭据未配置或迁移失败、restic 不在、仓库锁着或盘不在、仓库里还没有快照 |
 
 时间类判据一律容忍两个周期（默认 60 分钟）：一轮本身要跑几分钟，工作台也可能刚打开，容忍一个周期会天天误报。
 
-{/* ref file="../plugins/windows-backup/src/health.ts" lines="95-111" hash="31f683015b8d" blob="09a6654f1c4c" */}
+{/* ref file="../plugins/windows-backup/src/health.ts" lines="96-112" hash="31f683015b8d" blob="03b256dc962b" */}
 
 ## 快照读数
 
@@ -26,7 +26,7 @@ description: 「备份还在正常运行吗」——三项每次现算，只有�
 每轮备份结束后、`windows-backup.check` 命令、加载后第一跳没到期时。读到的结果留在宿主层，年龄每次按**现在**算——两小时前读到的快照，
 当时新鲜，现在可能已经超期。
 
-{/* ref file="../plugins/windows-backup/src/health.ts" lines="113-128" hash="56791607f0db" blob="09a6654f1c4c" */}
+{/* ref file="../plugins/windows-backup/src/health.ts" lines="114-129" hash="6c4cd8d2b92e" blob="5fcdbde1354d" */}
 
 ## 人工维护
 
@@ -34,7 +34,7 @@ USB 离机副本满 7 天、exclude 误伤扫描满 30 天、人工复核满 `re
 做完调 `windows-backup.mark` 补记日期，提醒就消失。它们是要人去做的事，**不是故障**：不进 `health.problems`，不让状态灯变黄——
 不然只要没做 USB 副本，灯就一直是黄的，真出故障的那次反而没人看。窗格把它们列在三项下面，复核到期时另外在顶上显示一条横幅。
 
-{/* ref file="../plugins/windows-backup/src/health.ts" lines="130-144" hash="472e485af5b9" blob="09a6654f1c4c" */}
+{/* ref file="../plugins/windows-backup/src/health.ts" lines="132-146" hash="472e485af5b9" blob="5fcdbde1354d" */}
 
 ## 设置读不出时
 

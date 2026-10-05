@@ -9,7 +9,7 @@ export type BackupPaths = {
   /** 进行中的备份那把锁，跑完即删。见 `lock.ts`。 */
   lockFile: string
   credentialsDir: string
-  /** restic `--password-file` 指的那份，内容任何时候都不读进本进程。 */
+  /** 旧密码文件：只在首次迁移时读，保留作为独立恢复材料。 */
   passwordFile: string
   ossCredentialsFile: string
   /** 内置基线 exclude，在插件包的 `config/` 里、跟着版本走；用户的追加规则走设置键 `exclude`。 */
@@ -32,6 +32,12 @@ export function layout(dir: string): BackupPaths {
     binDir: path.join(dir, 'bin'),
     logFile: path.join(dir, 'logs', 'restic-backup.log'),
   }
+}
+
+/** Home 恢复需要一同覆盖的配置文件；列表是白名单配置指引，不自动扩大用户的备份范围。 */
+export function homeRecoveryFiles(dataDir: string): string[] {
+  const home = path.resolve(dataDir, '..', '..')
+  return ['settings.json', 'credentials.json', 'cordis.yml', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', '.npmrc'].map((file) => path.join(home, file))
 }
 
 /** 插件自带那份默认 exclude 的绝对路径——从本文件位置算，不依赖 cwd。 */

@@ -18,8 +18,8 @@ plugin-manager.install {"pkg":"@godcreator/gwb-windows-backup"}
 {/* ref file="../plugins/windows-backup/src/index.ts" lines="40-41" hash="2bcf0700b7b4" blob="5dfc3c4eb6fa" */}
 
 数据目录由数据插件按条目 id 给出（插件管理默认的条目 id 是 `windows-backup`，即 `<home>/data/windows-backup`）。
-装完把 restic 本体放进数据目录的 `bin/restic.exe`，或用设置键 `restic-exe` 指到别处；仓库密码写进 `credentials/restic-password.txt`，
-开 OSS 的话把 AccessKey 写进 `credentials/oss-credentials.txt`。这几步是一次性的手工操作，代码不代办。
+装完把 restic 本体放进数据目录的 `bin/restic.exe`，或用设置键 `restic-exe` 指到别处；仓库密码用 `credentials.import/copy` 或设置界面写入 `restic-password`，
+开 OSS 时将 KEY=VALUE 凭据文本写入 `oss-credentials`。接入步骤由 skill 编排，命令回执只报状态。旧文件首次加载自动迁移，详见[凭据与恢复材料](/docs/windows-backup/credentials)。
 
 ## 设置
 
@@ -47,15 +47,15 @@ plugin-manager.install {"pkg":"@godcreator/gwb-windows-backup"}
 
 六条，agent 经 MCP 入口的 `run` 调用，参数与回执形状写在每条命令的 `usage` 里：
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="268-355" hash="4f4b1fb6ffc2" blob="ecd752e21847" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="280-367" hash="419d3a92eb8e" blob="251db8f30ac7" */}
 
 | 命令 | effect | 做什么 |
 | --- | --- | --- |
 | `windows-backup.status` | read | 回全量状态：上次备份、三项健康结论、到期的人工维护、拒跑理由。每次现算，窗格轮询的就是它 |
 | `windows-backup.check` | read | 先读一次本地仓库的最新快照（启动一次 restic），再回全量状态 |
-| `windows-backup.paths` | read | 回数据目录的全部路径——要看凭据在不在、看日志，先调这条拿路径 |
+| `windows-backup.paths` | read | 回数据目录、旧恢复材料路径与 home 恢复文件清单；凭据是否配置用 credentials.status |
 | `windows-backup.run` | external | 立刻跑一轮完整备份，跑完才回执。另一轮正在跑、设置没配全或不合法、这一轮失败都如实回，失败不拿上一轮的成功当本轮结论 |
-| `windows-backup.restic` | external | 透传一条 restic 命令（如 `{ "repo": "local", "args": ["snapshots"] }`），自动补 `--repo` 与 `--password-file`，密钥不出现在参数里。恢复也走它：`args: ["restore", <快照 id>, "--target", <目录>]`。`repo` 只认 `local` / `oss`，`args` 必须是字符串数组，形状不对直接报错 |
+| `windows-backup.restic` | external | 透传一条 restic 命令（如 `{ "repo": "local", "args": ["snapshots"] }`），自动补 `--repo` 并从当前 home 注入凭据，密钥不出现在参数里。恢复也走它：`args: ["restore", <快照 id>, "--target", <目录>]`。`repo` 只认 `local` / `oss`，`args` 必须是字符串数组，形状不对直接报错 |
 | `windows-backup.mark` | write | 补记人工维护的日期：`{ "what": "usb-copy" \| "exclude-audit" \| "review", "at": "YYYY-MM-DD" }`，`at` 缺省今天，格式不对直接报错 |
 
 ## 怎么确认备份在跑

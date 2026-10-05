@@ -25,8 +25,8 @@ pnpm check      # 仓根运行：typecheck ×2 + oxlint --deny-warnings + vitest
   不 import 内核运行时。浏览器侧 `src/client/` 用的 react 由页面提供，其余（shadcn 组件与它依赖的 `radix-ui` 等）写在 dev 依赖里、打包进 `client.js`
 - **按钮等可点控件用 shadcn 官方组件**：`src/client/components/ui/` 下的文件在插件包目录运行 `pnpm dlx shadcn@latest add <组件>` 生成，
   不手改样式；使用处 `className` 只写布局，颜色与尺寸从组件已有的 `variant` / `size` 里选
-- **凭据纪律**：密码只交路径（`--password-file`）、OSS key 只进子进程 env；永不进设置、
-  永不进日志、永不进报错消息（凭据文件格式不对时报错只带行号与键名）
+- **凭据纪律**：仓库密码与 OSS key 由当前 home 的 gwb-settings secret 保管；运行时只注入子进程 env。
+  旧文件保留作独立恢复材料，迁移完成后不回退读取。日志与回执先遮掉已知凭据，格式错误只带行号与键名
 - **一轮的结论只看 `state.json`**：日志只给人看，程序不读它来判成败
 - **状态每次现算**：`status` 不缓存健康结论，只有读仓库的快照读数留在宿主层
 - **只有一个定时器**：每分钟触发一次，现读设置、看 `lastRunAt` 判到期；同一时间只有一轮只靠 `backup.lock`，不在宿主层另加标志

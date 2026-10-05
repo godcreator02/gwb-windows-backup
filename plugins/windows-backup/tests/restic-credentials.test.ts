@@ -33,9 +33,9 @@ describe('runRestic', () => {
       seen = { exe, args }
       return { code: 0, stdout: '', stderr: '', timedOut: false }
     }
-    await runRestic('restic.exe', 'D:/repo', ['snapshots', '--json'], { passwordFile: 'p.txt', run: fake })
+    await runRestic('restic.exe', 'D:/repo', ['snapshots', '--json'], { password: 'fixture-password', run: fake })
     expect(seen?.exe).toBe('restic.exe')
-    expect(seen?.args).toEqual(['--repo', 'D:/repo', '--password-file', 'p.txt', 'snapshots', '--json'])
+    expect(seen?.args).toEqual(['--repo', 'D:/repo', 'snapshots', '--json'])
   })
 })
 
@@ -57,7 +57,7 @@ describe('resticEnv', () => {
   it('父 env 打底，只叠 GOMAXPROCS 与 OSS 键；绝不改 base', () => {
     const base = { PATH: 'x' } as NodeJS.ProcessEnv
     const env = resticEnv(2, { AWS_ACCESS_KEY_ID: 'k' }, base)
-    expect(env).toEqual({ PATH: 'x', GOMAXPROCS: '2', AWS_ACCESS_KEY_ID: 'k' })
+    expect(env).toMatchObject({ PATH: 'x', GOMAXPROCS: '2', AWS_ACCESS_KEY_ID: 'k', AWS_EC2_METADATA_DISABLED: 'true' })
     expect(base).toEqual({ PATH: 'x' })
   })
 })

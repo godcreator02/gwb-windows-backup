@@ -10,7 +10,7 @@ description: 只有一个每分钟一跳的定时器——每一跳先看锁、�
 
 ## 每一跳做什么
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="178-195" hash="f45031e6aa58" blob="5dfc3c4eb6fa" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="190-207" hash="f45031e6aa58" blob="251db8f30ac7" */}
 
 1. **先看锁**：数据目录的 `backup.lock` 被一轮还活着的备份持着，这一跳什么都不做。不会叠一轮上去，也不写日志
 2. **现读设置**：读不出（某个值不合法）就拒跑，理由写进日志——同一句理由只写一次，不会每分钟刷一行
@@ -31,7 +31,7 @@ description: 只有一个每分钟一跳的定时器——每一跳先看锁、�
 
 ## 拒跑理由只写一次
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="128-135" hash="70bdc691dc42" blob="5dfc3c4eb6fa" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="132-139" hash="70bdc691dc42" blob="251db8f30ac7" */}
 
 白名单没填、本地仓库没填、OSS 开着没配全、某个值不合法——这些情况下每一跳都会拒跑。记住上一次写进日志的那句理由，
 一样就不再写；真的跑起一轮时清掉，以后再出同样的问题还会再写一次。`windows-backup.status` 的 `refuseReason` 任何时候都给出当下的理由。
@@ -41,7 +41,7 @@ description: 只有一个每分钟一跳的定时器——每一跳先看锁、�
 `windows-backup.run` 命令与定时那一跳调的是同一个 `runBackup`。两条路同时触发时由 `backup.lock` 挡住后来的那个：
 后来的回 `locked`，`run` 命令回执里说「另一轮正在跑」。「正在跑」也只从锁文件读，插件被重新加载之后照样对。锁的细节见[锁](/docs/windows-backup/lock)。
 
-{/* ref file="../plugins/windows-backup/src/index.ts" lines="145-176" hash="e7be5a07fa13" blob="ecd752e21847" */}
+{/* ref file="../plugins/windows-backup/src/index.ts" lines="153-188" hash="a40fd315e741" blob="251db8f30ac7" */}
 
 ## 测试
 

@@ -12,12 +12,12 @@ import { runFullBackup } from './backup.js'
 import { localDate } from './clock.js'
 import type { BackupConfig } from './config.js'
 import { ossConfigured, readConfig, refuseReason, resolveResticExe, SETTINGS } from './config.js'
-import { readOssCredentials } from './credentials.js'
+import { BackupCredentials, type BackupSecrets } from './credentials.js'
 import type { DiskFree, SnapshotReading } from './health.js'
 import { assessHealth, dueReminders, readLatestSnapshot } from './health.js'
 import { activeLock } from './lock.js'
 import { createLogger } from './log.js'
-import { layout } from './paths.js'
+import { homeRecoveryFiles, layout } from './paths.js'
 import type { BackupPaths } from './paths.js'
 import { BACKUP_TIMEOUT_MS } from './process.js'
 import type { RunProcess } from './process.js'
@@ -55,12 +55,12 @@ export interface HostContext {
     warn(...args: unknown[]): void
   }
   gwbCommands: Pick<GwbCommands, 'register'>
-  gwbSettings: Pick<GwbSettingsApi, 'define' | 'get'>
+  gwbSettings: Pick<GwbSettingsApi, 'define' | 'get' | 'set'>
   gwbData: Pick<GwbDataApi, 'dir'>
 }
 
 /** 跑一轮备份的函数。生产实现是 `runFullBackup`（会启动好几个 restic 子进程），测试传入替身。 */
-export type BackupRunner = (paths: BackupPaths, config: BackupConfig) => Promise<{ ok: boolean; skipped: 'locked' | null }>
+export type BackupRunner = (paths: BackupPaths, config: BackupConfig, credentials: BackupSecrets) => Promise<{ ok: boolean; skipped: 'locked' | null }>
 
 /** 加载时可换掉的两样：跑一轮备份、启动子进程（读快照与透传命令用）。测试用它把真 restic 换成替身。 */
 export type MountDeps = {
@@ -71,8 +71,8 @@ export type MountDeps = {
 }
 
 /** 生产实现：整条备份链路，结论收成两个字段。 */
-const realBackup: BackupRunner = async (paths, config) => {
-  const result = await runFullBackup({ paths, config, logger: createLogger(paths.logFile) })
+const realBackup: BackupRunner = async (paths, config, credentials) => {
+  const result = await runFullBackup({ paths, config, credentials, logger: createLogger(paths.logFile) })
   return { ok: result.ok, skipped: result.skipped }
 }
 
@@ -95,6 +95,7 @@ type RoundOutcome = { kind: 'done' } | { kind: 'failed' } | { kind: 'locked' } |
 
 /** `mount` 里各部分共用的运行时：跑备份、读快照、给命令回的状态。 */
 interface BackupRuntime {
+  credentials: BackupCredentials
   paths: BackupPaths
   /** 现读设置；值不合法就抛错。 */
   currentConfig(): BackupConfig
@@ -120,6 +121,9 @@ export function mount(ctx: HostContext, deps: MountDeps): void {
 }
 
 function createBackupRuntime(ctx: HostContext, deps: MountDeps, paths: BackupPaths, version: string): BackupRuntime {
+  const credentials = new BackupCredentials(ctx.gwbSettings, paths)
+  ctx.effect(() => () => credentials.dispose())
+  void credentials.initialize().catch(() => ctx.logger.warn('备份凭据迁移未完成；旧文件保留，运行命令会返回原因'))
   const log = ctx.logger
   const currentConfig = (): BackupConfig => readConfig((key) => ctx.gwbSettings.get(key))
 
@@ -135,7 +139,11 @@ function createBackupRuntime(ctx: HostContext, deps: MountDeps, paths: BackupPat
   }
 
   const refreshSnapshotReading = async (config: BackupConfig): Promise<void> => {
-    snapshotReading = await readLatestSnapshot(paths, config, deps.run, new Date())
+    try {
+      snapshotReading = await readLatestSnapshot(paths, config, deps.run, new Date(), await credentials.read(false))
+    } catch {
+      snapshotReading = { readAt: new Date().toISOString(), latestAt: null, unreadable: '本 home 凭据未配置或迁移未完成' }
+    }
   }
 
   const refreshSnapshotReadingInBackground = (config: BackupConfig): void => {
@@ -156,7 +164,11 @@ function createBackupRuntime(ctx: HostContext, deps: MountDeps, paths: BackupPat
     lastLoggedRefusal = null
     log.info(`${reason}备份开始`)
     try {
-      const result = await deps.runBackup(paths, config)
+      let secrets = await credentials.read(false)
+      if (config.ossEnabled) {
+        try { secrets = await credentials.read(true) } catch { log.warn('本 home 的 OSS 凭据不可用；本地备份继续，OSS 阶段会记为失败') }
+      }
+      const result = await deps.runBackup(paths, config, secrets)
       if (result.skipped === 'locked') {
         log.info(`${reason}备份跳过：另一轮正在跑（数据目录的 backup.lock 被占着）`)
         return { kind: 'locked' }
@@ -239,7 +251,7 @@ function createBackupRuntime(ctx: HostContext, deps: MountDeps, paths: BackupPat
     }
   }
 
-  return { paths, currentConfig, runBackup, refreshSnapshotReading, tick, backupInfo, snapshot }
+  return { paths, credentials, currentConfig, runBackup, refreshSnapshotReading, tick, backupInfo, snapshot }
 }
 
 /**
@@ -318,8 +330,8 @@ function registerCommands(ctx: HostContext, deps: MountDeps, runtime: BackupRunt
   ctx.effect(() => ctx.gwbCommands.register(
     {
       name: 'windows-backup.paths',
-      description: '回数据目录的全部路径：state.json / backup.lock / credentials 目录 / 日志 / bin。凡是要看凭据在不在、tail 日志的，先调这条拿路径，别猜',
-      usage: '无参数。回 { ok: true, data: { dataDir, stateFile, lockFile, credentialsDir, passwordFile, ossCredentialsFile, defaultExcludeFile, binDir, logFile } }',
+      description: '回数据目录、日志和旧恢复材料的路径；当前凭据状态用 credentials.status 查询',
+      usage: '无参数。回 { ok: true, data: { dataDir, stateFile, lockFile, legacyRecoveryDir, legacyPasswordFile, legacyOssCredentialsFile, credentialKeys, homeRecoveryFiles, defaultExcludeFile, binDir, logFile } }；旧文件仅供独立恢复，运行时不回退读取；homeRecoveryFiles 是白名单配置指引（仅添加实际存在的文件）。',
       effect: 'read',
       plugin: PKG,
     },
@@ -329,7 +341,7 @@ function registerCommands(ctx: HostContext, deps: MountDeps, runtime: BackupRunt
   ctx.effect(() => ctx.gwbCommands.register(
     {
       name: 'windows-backup.restic',
-      description: '透传一条 restic 命令，自动补 --repo 与 --password-file。密钥永不出现在参数里',
+      description: '透传一条 restic 命令，自动补 --repo 并注入当前 home 的凭据。密钥不出现在参数里',
       usage:
         '{ repo?: "local" | "oss"（缺省 local）, args?: string[]（原样传给 restic），如 { "repo": "local", "args": ["snapshots"] } }。' +
         '回 { ok: <退出码为 0>, data: { code, timedOut, stdout, stderr }, error?（退出码非 0 时为 stderr，stderr 为空则「退出码 N」）}；' +
@@ -369,14 +381,16 @@ async function runCommandReply(runtime: BackupRuntime): Promise<Record<string, u
   }
 }
 
-function pathsReply(paths: BackupPaths): Record<string, string> {
+function pathsReply(paths: BackupPaths): Record<string, unknown> {
   return {
     dataDir: paths.dir,
     stateFile: paths.stateFile,
     lockFile: paths.lockFile,
-    credentialsDir: paths.credentialsDir,
-    passwordFile: paths.passwordFile,
-    ossCredentialsFile: paths.ossCredentialsFile,
+    legacyRecoveryDir: paths.credentialsDir,
+    legacyPasswordFile: paths.passwordFile,
+    legacyOssCredentialsFile: paths.ossCredentialsFile,
+    credentialKeys: ['restic-password', 'oss-credentials'],
+    homeRecoveryFiles: homeRecoveryFiles(paths.dir),
     defaultExcludeFile: paths.defaultExcludeFile,
     binDir: paths.binDir,
     logFile: paths.logFile,
@@ -395,20 +409,20 @@ async function resticPassThroughReply(args: unknown, runtime: BackupRuntime, run
   }
 
   let config: BackupConfig
-  let ossEnv: Record<string, string> = {}
+  let credentials: BackupSecrets
   try {
     config = runtime.currentConfig()
     if (repo === 'oss') {
       if (!ossConfigured(config)) return { ok: false, error: 'OSS 还没配全：设置里的 `oss-bucket` 与 `oss-endpoint` 要先填上' }
-      ossEnv = readOssCredentials(runtime.paths.ossCredentialsFile)
     }
+    credentials = await runtime.credentials.read(repo === 'oss')
   } catch (error) {
     return { ok: false, error: messageOf(error) }
   }
   const paths = runtime.paths
   const result = await runRestic(resolveResticExe(config.resticExe, paths.dir), repo === 'oss' ? ossRepoUrl(config) : config.localRepo, resticArgs as string[], {
-    passwordFile: paths.passwordFile,
-    env: resticEnv(config.gomaxprocs, ossEnv),
+    password: credentials.password,
+    env: resticEnv(config.gomaxprocs, credentials.ossEnv),
     timeoutMs: BACKUP_TIMEOUT_MS,
     run,
   })

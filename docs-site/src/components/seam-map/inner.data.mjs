@@ -4,10 +4,10 @@
  */
 import { defineSeamGraph } from '@godcreator/docfirst-explainer/seam-graph';
 
-/* ref file="../plugins/windows-backup/src/index.ts" lines="62-71" hash="84190f689a3b" blob="5dfc3c4eb6fa" */
-/* ref file="../plugins/windows-backup/src/index.ts" lines="108-120" hash="debeb10b9982" blob="5dfc3c4eb6fa" */
-/* ref file="../plugins/windows-backup/src/backup.ts" lines="64-119" hash="3f815e277598" blob="81782bcffc7f" */
-/* ref file="../plugins/windows-backup/src/health.ts" lines="95-144" hash="bafb92e5619c" blob="09a6654f1c4c" */
+/* ref file="../plugins/windows-backup/src/index.ts" lines="62-71" hash="d22ddf67377a" blob="251db8f30ac7" */
+/* ref file="../plugins/windows-backup/src/index.ts" lines="109-121" hash="debeb10b9982" blob="251db8f30ac7" */
+/* ref file="../plugins/windows-backup/src/backup.ts" lines="66-122" hash="43fbd0e2eed0" blob="5d9d0b9ab136" */
+/* ref file="../plugins/windows-backup/src/health.ts" lines="96-145" hash="91f7cc96efa5" blob="5fcdbde1354d" */
 /* ref file="../plugins/windows-backup/src/config.ts" lines="94-126" hash="e33db97507e3" blob="34b105f9335f" */
 /* ref file="../plugins/windows-backup/src/lock.ts" lines="48-52" hash="0d2802736399" blob="31525a2f0aec" */
 export const innerGraph = defineSeamGraph({
@@ -50,7 +50,7 @@ export const innerGraph = defineSeamGraph({
       role: 'blue',
       outside: false,
       blurb:
-        '把一切接到工作台上：声明设置、登记六条命令、每分钟一跳、注册窗格。可变的东西只有两样：最近一次读仓库的快照读数、上一句写进日志的拒跑理由；重新加载就清零，要跨进程保留的都在 state.json。',
+        '把一切接到工作台上：声明设置、登记六条命令、每分钟一跳、注册窗格。可变的东西包含凭据迁移状态、最近一次读仓库的快照读数、上一句写进日志的拒跑理由；重新加载就清零，要跨进程保留的由 state.json 与 gwb-settings 保存。',
       caps: [
         { id: 'tick', name: '每分钟一跳', ident: 'tick' },
         { id: 'run', name: '跑一轮', ident: 'runBackup(reason)' },
@@ -115,8 +115,8 @@ export const innerGraph = defineSeamGraph({
       pkg: 'src/credentials.ts',
       role: 'slate',
       outside: false,
-      blurb: '只解析 OSS 凭据文件：每行 KEY=VALUE，缺两个必需键或格式不对就抛错，报错里只有行号与键名。',
-      caps: [{ id: 'cred-fn', name: '读 OSS 凭据', ident: 'readOssCredentials' }],
+      blurb: '迁移旧文件到本 home 的 secret 槽；逐次读取凭据，OSS 文本只接受规定的 AWS 键。',
+      caps: [{ id: 'cred-fn', name: '本 home 凭据', ident: 'BackupCredentials' }],
     },
     {
       id: 'log',
@@ -247,9 +247,9 @@ export const innerGraph = defineSeamGraph({
     {
       n: 8,
       name: 'OSS 凭据',
-      a: ['full'],
+      a: ['run', 'cmds'],
       b: ['cred-fn'],
-      iface: 'readOssCredentials(file) → { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, … }，文件不在或格式不对抛 Error',
+      iface: 'BackupCredentials.read(includeOss) → { password, ossEnv }；未配置或迁移失败时抛固定错误',
       convention: false,
       via: 'code',
       text: '读不出就把这一轮的 OSS 那次记成失败、写一行说明，不启动 restic；本地那次照常算。',
@@ -259,10 +259,10 @@ export const innerGraph = defineSeamGraph({
       name: '跑 restic',
       a: ['stages', 'readsnap', 'cmds'],
       b: ['run-fn'],
-      iface: 'runRestic(exe, repo, args, { passwordFile, env, timeoutMs, run }) → { code, stdout, stderr, timedOut }',
+      iface: 'runRestic(exe, repo, args, { password, env, timeoutMs, run }) → { code, stdout, stderr, timedOut }',
       convention: false,
       via: 'code',
-      text: '补上 --repo 与 --password-file；env 是 resticEnv 造的副本，父进程的环境不改。不抛：启动不了、超时都收进返回值。',
+      text: '补上 --repo 并注入当前 home 密码；env 清除继承认证，父进程环境不改。启动失败和超时收进结果，回执先遮挡凭据。',
     },
     {
       n: 10,
@@ -272,7 +272,7 @@ export const innerGraph = defineSeamGraph({
       iface: 'logger.line(message) · logger.raw(stdout) · logger.rotate() · sendToast(title, body, logger, run)',
       convention: false,
       via: 'code',
-      text: '每段结束写一行 `<段名> completed successfully` 或 `<段名> FAILED with exit code N`，restic 的输出原样附上。日志只给人看，程序不读它。',
+      text: '每段结束写一行 `<段名> completed successfully` 或 `<段名> FAILED with exit code N`，restic 的输出遮挡凭据后附上。日志只给人看，程序不读它。',
     },
     {
       n: 11,
@@ -319,17 +319,17 @@ export const innerGraph = defineSeamGraph({
       name: 'credentials/',
       a: ['cred-fn'],
       b: ['f-cred'],
-      iface: 'oss-credentials.txt：每行 KEY=VALUE · restic-password.txt 只交路径',
+      iface: '旧 oss-credentials.txt 与 restic-password.txt：仅首次迁移读取，作为独立恢复材料保留',
       convention: false,
       via: 'disk',
-      text: '仓库密码的内容任何时候都不读进本进程。',
+      text: '迁移完成后只读本 home 的 secret 槽，清除后不从旧文件恢复。',
     },
     {
       n: 16,
       name: '备份日志',
       a: ['log-fn'],
       b: ['f-log'],
-      iface: '[YYYY-MM-DD HH:MM:SS] <一行说明> + restic 原始输出',
+      iface: '[YYYY-MM-DD HH:MM:SS] <一行说明> + 遮挡凭据后的 restic 输出',
       convention: false,
       via: 'disk',
       text: '超过 10 MB 只留最后 1000 行，再追加一行轮转标记。',

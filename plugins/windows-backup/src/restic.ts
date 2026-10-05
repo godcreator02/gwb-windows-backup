@@ -3,22 +3,37 @@ import { DEFAULT_TIMEOUT_MS, runProcess } from './process.js'
 import type { RunProcess, RunResult } from './process.js'
 
 export type ResticOptions = {
-  /** restic 的 `--password-file` 指向哪；内容不读，只传路径。 */
-  passwordFile: string
+  /** 当前 home 的仓库密码，仅注入子进程环境。 */
+  password: string
   /** 子进程完整 env（含 GOMAXPROCS 与 OSS 那几键）。 */
   env?: NodeJS.ProcessEnv | undefined
   timeoutMs?: number | undefined
   /** 默认真的启动进程，测试传假的。 */
   run?: RunProcess | undefined
+  /** 仅供插件内部提取结构化事实；先解析再遮挡，避免短密码误伤快照 ID 或日期。不得记录原文。 */
+  inspectOutput?: ((stdout: string, stderr: string) => void) | undefined
 }
 
-/** 跑一条 restic 命令，自动补 `--repo` / `--password-file`。 */
-export function runRestic(exe: string, repo: string, args: string[], options: ResticOptions): Promise<RunResult> {
+/** 跑一条 restic 命令；回执在离开这一层前遮掉本次注入的凭据。 */
+export async function runRestic(exe: string, repo: string, args: string[], options: ResticOptions): Promise<RunResult> {
+  if (!options.password || options.password.includes('\0')) throw new Error('restic-password 未配置或无效')
+  if (args.some((arg) => /^-[rp]/.test(arg) || /^(?:--repo|--repository-file|--password-file|--password-command|--insecure-no-password)(?:=|$)/.test(arg)))
+    throw new Error('restic 参数不能覆盖当前 home 的仓库或凭据')
   const run = options.run ?? runProcess
-  return run(exe, ['--repo', repo, '--password-file', options.passwordFile, ...args], {
-    env: options.env,
-    timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-  })
+  const env = { ...options.env, RESTIC_PASSWORD: options.password }
+  const secrets = [options.password, ...Object.entries(env).filter(([key]) => /^AWS_(?:ACCESS_KEY_ID|SECRET_ACCESS_KEY|SESSION_TOKEN)$/.test(key)).map(([, value]) => value ?? '')].filter(Boolean)
+  const scrub = (text: string): string => secrets.reduce((out, value) => out.split(value).join('[credential]'), text)
+  let result: RunResult
+  try {
+    result = await run(exe, ['--repo', repo, ...args], {
+      env,
+      timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    })
+    options.inspectOutput?.(result.stdout, result.stderr)
+  } catch {
+    throw new Error('restic 子进程调用失败；未输出认证信息')
+  }
+  return { ...result, stdout: scrub(result.stdout), stderr: scrub(result.stderr) }
 }
 
 /** OSS 仓库 URL 的唯一拼法，透传命令与 OSS 推送共用。 */
@@ -44,13 +59,15 @@ export function pruneArgs(retention: Pick<BackupConfig, 'keepWithin' | 'keepWith
   ]
 }
 
-/** 这一次 restic 子进程的 env：父进程 env 的副本上叠 GOMAXPROCS 与 OSS 那几键，父进程的 env 不改。 */
+/** 保留进程运行所需环境，清除继承的认证来源，再注入本 home 的 OSS 键。 */
 export function resticEnv(
   gomaxprocs: number,
   ossEnv: Record<string, string> = {},
   base: NodeJS.ProcessEnv = process.env,
 ): NodeJS.ProcessEnv {
-  return { ...base, GOMAXPROCS: String(gomaxprocs), ...ossEnv }
+  const env = Object.fromEntries(Object.entries(base).filter(([key]) => !/^(?:AWS_|RESTIC_|MINIO_)/i.test(key)))
+  const emptyFile = process.platform === 'win32' ? 'NUL' : '/dev/null'
+  return { ...env, GOMAXPROCS: String(gomaxprocs), AWS_EC2_METADATA_DISABLED: 'true', AWS_SHARED_CREDENTIALS_FILE: emptyFile, AWS_CONFIG_FILE: emptyFile, ...ossEnv }
 }
 
 /** restic 备份成功时 stdout 里那句 `snapshot abc12345 saved`。 */

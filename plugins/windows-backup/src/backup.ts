@@ -1,7 +1,7 @@
 import { localTimestamp } from './clock.js'
 import type { BackupConfig } from './config.js'
 import { resolveResticExe } from './config.js'
-import { readOssCredentials } from './credentials.js'
+import type { BackupSecrets } from './credentials.js'
 import { acquire, HEARTBEAT_MS, type HeldLock } from './lock.js'
 import type { Logger } from './log.js'
 import type { BackupPaths } from './paths.js'
@@ -40,6 +40,7 @@ export type SkippedBackupResult = { ok: false; skipped: 'locked' }
 export type FullBackupResult = CompletedBackupResult | SkippedBackupResult
 
 export type BackupContext = {
+  credentials: BackupSecrets
   paths: BackupPaths
   config: BackupConfig
   logger: Logger
@@ -53,6 +54,7 @@ export type BackupContext = {
 
 /** 一轮里各段都要的那几样。 */
 type Round = {
+  credentials: BackupSecrets
   paths: BackupPaths
   config: BackupConfig
   logger: Logger
@@ -72,6 +74,7 @@ export async function runFullBackup(ctx: BackupContext): Promise<FullBackupResul
   const heartbeat = setInterval(() => held.renew(), HEARTBEAT_MS)
   try {
     return await runLocked({
+      credentials: ctx.credentials,
       paths: ctx.paths,
       config: ctx.config,
       logger: ctx.logger,
@@ -122,11 +125,9 @@ async function runLocked(round: Round): Promise<CompletedBackupResult> {
 async function backUpToOss(round: Round, parentId: string | undefined, pruneDue: boolean): Promise<StageOutcome> {
   const { paths, config, logger } = round
   const repo = ossRepoUrl(config)
-  let credentials: Record<string, string>
-  try {
-    credentials = readOssCredentials(paths.ossCredentialsFile)
-  } catch (error) {
-    logger.line(`OSS push FAILED: ${error instanceof Error ? error.message : String(error)}`)
+  const credentials = round.credentials.ossEnv
+  if (!credentials.AWS_ACCESS_KEY_ID || !credentials.AWS_SECRET_ACCESS_KEY) {
+    logger.line('OSS push FAILED: 本 home 的 OSS 凭据未配置')
     return { ok: false, snapshotId: null, size: null, durationSeconds: 0 }
   }
   logger.line(`OSS push started (${repo})`)
@@ -161,12 +162,12 @@ export function backupArgv(round: Pick<Round, 'paths' | 'config'>, parentId: str
 
 /**
  * 对一个仓库跑一次 `restic backup`，结束写一行 `<label> completed successfully` 或 `<label> FAILED with exit code N`。
- * restic 说父快照用不了（只认 `parentUnusable` 那两句原话）就丢开它重跑一次，两次的原始输出都进日志。
+ * restic 说父快照用不了（只认 `parentUnusable` 那两句原话）就丢开它重跑一次，两次输出都在凭据遮挡后进日志。
  */
 async function backUp(round: Round, repo: string, env: NodeJS.ProcessEnv, parentId: string | undefined, label: string): Promise<StageOutcome> {
   const startedAtMs = round.now().getTime()
   let result = await backUpOnce(round, repo, env, parentId)
-  if (result.code !== 0 && parentId !== undefined && parentUnusable(result.stdout, result.stderr)) {
+  if (result.code !== 0 && parentId !== undefined && result.parentUnusable) {
     round.logger.line(`parent snapshot ${parentId} 不可用，丢开父本重跑一轮（本轮没有基准，会重读全部文件）`)
     result = await backUpOnce(round, repo, env, undefined)
   }
@@ -174,31 +175,37 @@ async function backUp(round: Round, repo: string, env: NodeJS.ProcessEnv, parent
   round.logger.line(ok ? `${label} completed successfully` : `${label} FAILED with exit code ${String(result.code)}`)
   return {
     ok,
-    snapshotId: ok ? parseSnapshotId(result.stdout) : null,
-    size: ok ? parseProcessedSize(result.stdout) : null,
+    snapshotId: ok ? result.snapshotId : null,
+    size: ok ? result.size : null,
     durationSeconds: (round.now().getTime() - startedAtMs) / 1000,
   }
 }
 
-async function backUpOnce(round: Round, repo: string, env: NodeJS.ProcessEnv, parentId: string | undefined): Promise<RunResult> {
+async function backUpOnce(round: Round, repo: string, env: NodeJS.ProcessEnv, parentId: string | undefined): Promise<RunResult & { snapshotId: string | null; size: string | null; parentUnusable: boolean }> {
+  const facts = { snapshotId: null as string | null, size: null as string | null, parentUnusable: false }
   const result = await runRestic(round.exe, repo, backupArgv(round, parentId), {
-    passwordFile: round.paths.passwordFile,
+    password: round.credentials.password,
     env,
     timeoutMs: BACKUP_TIMEOUT_MS,
     run: round.run,
+    inspectOutput: (stdout, stderr) => {
+      facts.snapshotId = parseSnapshotId(stdout)
+      facts.size = parseProcessedSize(stdout)
+      facts.parentUnusable = parentUnusable(stdout, stderr)
+    },
   })
   round.logger.raw(result.stdout)
   round.logger.raw(result.stderr)
-  return result
+  return { ...result, ...facts }
 }
 
 /**
  * 对某个仓库跑 forget+prune，回成没成。先 `restic unlock`（只删陈旧锁）：被打断的 backup 留下的锁会让要排他锁的 prune 失败。
- * unlock 的输出原样进日志，成败交给紧接着的 prune 判。
+ * unlock 的输出在凭据遮挡后进日志，成败交给紧接着的 prune 判。
  */
 async function prune(round: Round, repo: string, env: NodeJS.ProcessEnv, label: string): Promise<boolean> {
   const { logger } = round
-  const options = { passwordFile: round.paths.passwordFile, env, run: round.run }
+  const options = { password: round.credentials.password, env, run: round.run }
   logger.line(`${label} started`)
   const unlock = await runRestic(round.exe, repo, ['unlock'], options)
   logger.raw(unlock.stdout)
