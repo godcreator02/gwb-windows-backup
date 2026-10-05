@@ -15,3 +15,5 @@
 恢复 fixture 使用 `latest:/<快照内子目录>`，只还原测试源目录。Windows 整路径恢复会尝试恢复 C:/Users 祖先属性并可能被 ACL 拒绝，与凭据无关；本验收选择实际需要的子树并开启 `--verify`。
 
 结果在 `result.json`。初次安装开发版：settings `0.3.11-dev.20261005200943`，MCP `0.11.8-dev.20261005200943`，Sources `0.1.1-dev.20261005201337`，Backup `0.3.1-dev.20261005201352`；正式版本由集成会话统一发布。
+
+正式包复验：经 devkit.release 发布 Sources `0.2.0`、Backup `0.4.0` 后，在同一隔离 home 安装 settings `0.4.0`、MCP `0.12.0` 与这两个正式包，全部 ACTIVE；Sources/Backup unmetPeers 为空。重跑 verify.mjs 后 27 项全部通过。Backup 的短密码解析回归另由 125 项单元测试覆盖，文档站构建 52 页通过。仓库与旧恢复文件仍保留；最后状态故意删除 restic-password 并断开 fixture 来源，用于证明重载不复活旧凭据。
