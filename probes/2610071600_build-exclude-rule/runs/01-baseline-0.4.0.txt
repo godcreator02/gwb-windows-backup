@@ -1,0 +1,19 @@
+# 0.4.0 的基线（**/build*/**）  restic 0.18.1 compiled with go1.25.1 on windows/amd64
+# 与期望不一致：6 个
+
+✗   期望 keep  实际 drop  build.ts
+✗   期望 keep  实际 drop  build-plugin.ts
+✗   期望 keep  实际 drop  src/build-katex-css.mjs
+✗   期望 keep  实际 drop  memory/build-only-what-was-asked.md
+✗   期望 keep  实际 drop  builder/x.ts
+✗   期望 keep  实际 drop  build-logs/l.txt
+    期望 keep  实际 keep  Build.md
+    期望 keep  实际 keep  keep.txt
+    期望 drop  实际 drop  build/out.o
+    期望 drop  实际 drop  sub/build/y.o
+    期望 drop  实际 drop  app/entry/build/z.o
+    期望 drop  实际 drop  build-mysnake-Desktop_Qt_5_8_0_MinGW_32bit-Debug/a.o
+    期望 drop  实际 drop  build-OvenTimer-Desktop_Qt_5_12_10_MinGW_64_bit-Release/r.o
+    期望 drop  实际 drop  build-app-Android_Qt_6_5_0_Clang_arm64_v8a-Profile/p.o
+    期望 drop  实际 drop  cmake-build-debug/c.o
+    期望 drop  实际 drop  sub2/build

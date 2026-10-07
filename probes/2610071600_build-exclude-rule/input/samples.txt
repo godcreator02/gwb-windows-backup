@@ -1,0 +1,20 @@
+# 每行：期望<TAB>样例文件相对路径。keep = 应该进备份，drop = 应该被排除
+# build 开头的源文件与源码目录（2026-10-07 在 default 的备份源里实际找到的几类）
+keep	build.ts
+keep	build-plugin.ts
+keep	src/build-katex-css.mjs
+keep	memory/build-only-what-was-asked.md
+keep	builder/x.ts
+keep	build-logs/l.txt
+keep	Build.md
+keep	keep.txt
+# 构建输出目录
+drop	build/out.o
+drop	sub/build/y.o
+drop	app/entry/build/z.o
+drop	build-mysnake-Desktop_Qt_5_8_0_MinGW_32bit-Debug/a.o
+drop	build-OvenTimer-Desktop_Qt_5_12_10_MinGW_64_bit-Release/r.o
+drop	build-app-Android_Qt_6_5_0_Clang_arm64_v8a-Profile/p.o
+drop	cmake-build-debug/c.o
+# 名字恰好是 build、没有扩展名的文件：新规则的已知代价，会被排除
+drop	sub2/build

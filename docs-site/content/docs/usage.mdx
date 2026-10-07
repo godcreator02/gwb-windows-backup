@@ -13,7 +13,7 @@ plugin-manager.install {"pkg":"@godcreator/gwb-windows-backup"}
 ```
 
 定时器用官方的 `@cordisjs/plugin-timer`（公共 npm），写在本插件的 peer 里；插件管理不替它装，要单独装，没装时 `plugin-manager.list`
-在本插件的 `unmetPeers` 里报出来。home 里没有它的条目时，本插件整个停在等待：
+在本插件的 `unmetPeers` 里报出来。home 里没有它的条目时，本插件一直处于等待状态，不会开始备份：
 
 {/* ref file="../plugins/windows-backup/src/index.ts" lines="40-41" hash="2bcf0700b7b4" blob="5dfc3c4eb6fa" */}
 
@@ -40,7 +40,9 @@ plugin-manager.install {"pkg":"@godcreator/gwb-windows-backup"}
 `gomaxprocs: 1` 时约 90 分钟，本地与 OSS 各一遍；想快一些就把 `gomaxprocs` 调大。
 
 排除规则是**两层合并**：包里自带的基线（`config/restic-exclude.txt`：node_modules、dist、构建产物、临时文件等，随版本走）总是生效；
-设置键 `exclude` 在它之上追加（一行一条 restic 模式，`#` 开头的行是注释）。`oss-enabled` 默认关：新机器只配了本地仓库时，
+设置键 `exclude` 在它之上追加（一行一条 restic 模式，`#` 开头的行是注释）。追加规则要排除某一类目录时写目录的确切名字，
+不写 `xxx*` 或 `**/xxx*/**`：restic 的 `/**` 能匹配零层，这两种写法会把名字以 `xxx` 开头的文件一起排除，
+基线里的 `build` 一类规则就是因此写成确切名字的。`oss-enabled` 默认关：新机器只配了本地仓库时，
 每一轮不会多一次注定失败的 OSS 备份。
 
 ## 命令
@@ -51,10 +53,10 @@ plugin-manager.install {"pkg":"@godcreator/gwb-windows-backup"}
 
 | 命令 | effect | 做什么 |
 | --- | --- | --- |
-| `windows-backup.status` | read | 回全量状态：上次备份、三项健康结论、到期的人工维护、拒跑理由。每次现算，窗格轮询的就是它 |
-| `windows-backup.check` | read | 先读一次本地仓库的最新快照（启动一次 restic），再回全量状态 |
-| `windows-backup.paths` | read | 回数据目录、旧恢复材料路径与 home 恢复文件清单；凭据是否配置用 credentials.status |
-| `windows-backup.run` | external | 立刻跑一轮完整备份，跑完才回执。另一轮正在跑、设置没配全或不合法、这一轮失败都如实回，失败不拿上一轮的成功当本轮结论 |
+| `windows-backup.status` | read | 返回全量状态：上次备份、三项健康结论、到期的人工维护、拒跑理由。每次现算，窗格轮询的就是它 |
+| `windows-backup.check` | read | 先读一次本地仓库的最新快照（启动一次 restic），再返回全量状态 |
+| `windows-backup.paths` | read | 返回数据目录、旧恢复材料路径与 home 恢复文件清单；凭据是否配置用 credentials.status |
+| `windows-backup.run` | external | 立刻执行一轮完整备份，执行完才返回回执。另一轮正在执行、设置没配全或不合法、这一轮失败都如实返回，失败不拿上一轮的成功当本轮结论 |
 | `windows-backup.restic` | external | 透传一条 restic 命令（如 `{ "repo": "local", "args": ["snapshots"] }`），自动补 `--repo` 并从当前 home 注入凭据，密钥不出现在参数里。恢复也走它：`args: ["restore", <快照 id>, "--target", <目录>]`。`repo` 只认 `local` / `oss`，`args` 必须是字符串数组，形状不对直接报错 |
 | `windows-backup.mark` | write | 补记人工维护的日期：`{ "what": "usb-copy" \| "exclude-audit" \| "review", "at": "YYYY-MM-DD" }`，`at` 缺省今天，格式不对直接报错 |
 
@@ -65,4 +67,4 @@ plugin-manager.install {"pkg":"@godcreator/gwb-windows-backup"}
 2. 快照那一项是 `unknown` 时调一次 `windows-backup.check`，它会当场读一次仓库
 3. 还有疑问就看日志（`windows-backup.paths` 拿路径）：最后一轮末尾应有 `Backup completed successfully`
 
-**工作台没运行就不备份**：定时器在工作台里。下次启动一分钟后，第一跳看到上一轮早就过期，马上跑一轮。
+**工作台没运行就不备份**：定时器在工作台里。下次启动一分钟后定时器第一次触发，看到上一轮早就到期，马上执行一轮。

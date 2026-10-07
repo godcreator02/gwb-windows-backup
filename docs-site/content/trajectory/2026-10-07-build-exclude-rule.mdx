@@ -1,0 +1,33 @@
+---
+title: 基线排除规则的 build 一条改成确切目录名
+born-at: 2026-10-07T16:20
+type: choice
+parent: [2026-09-08-backup-line]
+label: build 规则
+domain: 备份
+---
+
+## 背景
+
+2026-10-07 给 default 加备份源后做恢复抽查，`.claude` 记忆目录里 9-30 建的 `build-only-what-was-asked.md` 不在快照里。
+顺着查下去，是基线里的 `**/build*/**`：本意排除 `build` 开头的构建目录，但 restic 的 `/**` 能匹配零层，
+这条规则实际排除的是**名字以小写 `build` 开头的任何文件与目录**，对所有备份源都生效。default 的 `exclude` 设置里也抄了一份同样的规则。
+
+按当时 default 的备份源统计，被它漏掉的有：不在构建目录里、以 `build` 开头的文件 237 个（2.4 MB，`.mjs` 99、`.ts` 58、`.py` 32……，
+各插件的 `build.ts`、`tools/build-plugin.ts`、论文库每篇的 `translate/build.mjs`），以及整个被排除的源码目录
+（god-plecs-reader 的两个 `builder/`）和鸿蒙工程 `.hvigor/outputs/build-logs`。最新快照里 `collab-site/plugins/collab/` 下
+`package.json`、`tsconfig.json` 都在，偏偏没有 `build.ts`。健康检查看不出这类问题：一轮照常成功，只是少收了文件。
+
+## 结论与边界
+
+基线的 `**/build*/**` 换成四条确切目录名：`build`（CMake、鸿蒙等工程的构建目录）与 `build-*-Debug`、`build-*-Release`、`build-*-Profile`
+（Qt Creator 的影子构建目录 `build-<项目>-<套件>-<配置>`）。Qt 那几条按配置后缀写、不按 `Desktop_` 这类套件名写，换一个编译套件也排除得到。
+`build_c28x_*`、`cmake-build**` 原有的规则不动。default 设置里抄的那份 `**/build*/**` 删掉，构建目录由基线负责。随 0.4.1 发布（修 bug，升 y）。
+
+已有快照不用改写：它们只是少了这些文件，下一轮备份就会收进来；被漏掉的那段时间里这些文件的旧版本，备份里找不回来。
+
+代价：名字恰好叫 `build`、没有扩展名的文件也会被排除（restic 的模式不分文件与目录），这种文件很少见。
+用户在 `exclude` 里自己写 `xxx*` 或 `**/xxx*/**` 一样会踩到同一个问题，用法页写明了要写确切名字。
+
+依据：`probes/2610071600_build-exclude-rule/`，16 个样例文件在临时仓库里做 `backup --dry-run`，0.4.0 的基线与期望不一致 6 个
+（`runs/01-baseline-0.4.0.txt`），新基线 0 个（`runs/02-baseline-current.txt`）。
