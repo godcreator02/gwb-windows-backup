@@ -20,7 +20,7 @@ export const stages = [
 ];
 
 /* ref file="../plugins/windows-backup/src/backup.ts" lines="91-122" hash="1992b3401c6f" blob="5d9d0b9ab136" */
-/* ref file="../plugins/windows-backup/src/backup.ts" lines="221-237" hash="6c4283a4103b" blob="5d9d0b9ab136" */
+/* ref file="../plugins/windows-backup/src/backup.ts" lines="227-243" hash="6c4283a4103b" blob="ad7370bd8482" */
 /** @type {RoundCase[]} */
 export const cases = [
   {

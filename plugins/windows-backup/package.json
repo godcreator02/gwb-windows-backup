@@ -1,6 +1,7 @@
 {
   "name": "@godcreator/gwb-windows-backup",
-  "version": "0.4.1",
+  "version": "0.4.2",
+  "license": "MIT",
   "author": {
     "name": "godcreator"
   },
@@ -16,7 +17,8 @@
   "files": [
     "dist",
     "src",
-    "config"
+    "config",
+    "LICENSE"
   ],
   "gwb": {
     "title": "Windows 备份"
@@ -26,10 +28,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://git.tianshen02.online:28377/godcreator/gwb-windows-backup.git"
+    "url": "https://github.com/godcreator02/gwb-windows-backup.git"
   },
   "publishConfig": {
-    "registry": "https://git.tianshen02.online:28377/api/packages/godcreator/npm/"
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
   },
   "scripts": {
     "build": "node build.ts && tsc -p tsconfig.build.json && tailwindcss -i src/client/styles.css -o dist/style.css",

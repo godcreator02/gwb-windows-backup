@@ -16,7 +16,7 @@ export const ITEM_LABELS = [
   { key: 'snapshots', label: '快照新鲜度' },
 ];
 
-/* ref file="../plugins/windows-backup/src/health.ts" lines="132-220" hash="f427be05da76" blob="03b256dc962b" */
+/* ref file="../plugins/windows-backup/src/health.ts" lines="133-221" hash="f427be05da76" blob="5fcdbde1354d" */
 /** @type {HealthCase[]} */
 export const cases = [
   {
