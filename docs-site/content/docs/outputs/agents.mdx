@@ -8,7 +8,7 @@ description: 仓根 AGENTS.md 由这一页生成——每次会话都得知道�
 gwb 工作台的 Windows 备份插件（restic 快照 + OSS 异地副本 + 健康结论 + 备份窗格）。workspace 布局：
 插件包 `@godcreator/gwb-windows-backup` 在 `plugins/windows-backup/`，发到 npmjs 的 `@godcreator` 组织（`publishConfig.registry`）；
 装进 home 用 `plugin-manager.install`，另要装官方定时器 `@cordisjs/plugin-timer`（见文档站用法页）。
-文档站 `docs-site/`，端口 4318，看页面先 `pnpm build` 再 `pnpm start`。
+文档站 `docs-site/` 不进仓根的 pnpm 工作区，在站目录里自己 install；开发服务由工作台托管（`docsite.site.add {"dir":"<站目录>"}`，地址看 `docsite.site.list`）。
 
 写插件、在隔离 home 里验证读 skill「gwb-devkit」，升版本号、发版读 skill「gwb-release」，
 写文档内容读 skill「docs-writing」，对文档站执行命令（核对、确认、生成）读 skill「docs-site」。

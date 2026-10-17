@@ -1,5 +1,6 @@
 {
   "title": "未来",
   "description": "还没发生的事：在等什么前提的活、别的仓投来的反馈",
+  "root": true,
   "pages": ["roadmap", "..."]
 }

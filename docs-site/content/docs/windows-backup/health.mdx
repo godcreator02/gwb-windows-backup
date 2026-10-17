@@ -3,6 +3,8 @@ title: 健康结论
 description: 「备份还在正常运行吗」——三项每次现算，只有读仓库的结果留一份；到期的人工维护单独提醒，不算故障
 ---
 
+import { HealthCases } from './health/health-cases'
+
 `src/health.ts`。`windows-backup.status` 每被调一次就现算一次，窗格每 30 秒调一次，所以一轮失败写进 `state.json` 之后，
 下一次看到的就是黄灯。选一刻的情形，看算出来是什么：
 

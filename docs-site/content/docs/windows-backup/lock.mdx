@@ -3,6 +3,8 @@ title: 锁
 description: 数据目录里的 backup.lock——同一时间只有一轮；原子占锁，心跳判陈旧，只删自己那一份
 ---
 
+import { LockSteps } from './lock/lock-steps'
+
 `src/lock.ts`，只用 node 内置模块。同一时间只能有一轮备份：两轮叠在一起，restic 的 prune 会因为拿不到排他锁失败，`state.json`
 也会被两边交替改写。这把锁落在磁盘上，所以同一个进程里的两次触发（定时那一跳与 `run` 命令）、插件被重新加载前后的两轮、
 两个进程，挡的都是它。

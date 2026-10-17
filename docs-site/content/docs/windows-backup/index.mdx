@@ -4,6 +4,8 @@ description: '@godcreator/gwb-windows-backup 内部由哪些文件组成、文�
 full: true
 ---
 
+import { SeamMap } from '../_shared/seam-map/seam-map'
+
 插件包 `@godcreator/gwb-windows-backup`，源码在 `plugins/windows-backup/src/`，入口 `src/index.ts`（宿主层）。
 宿主层是唯一认识工作台的文件；其余 `.ts` 只用 node 内置模块，测试时把「跑一轮」与「启动子进程」换成替身，就能不启动任何进程地测完整个宿主层。
 

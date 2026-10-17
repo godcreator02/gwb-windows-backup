@@ -8,7 +8,7 @@ gwb 工作台的 Windows 备份插件：restic 打快照 + 阿里云 OSS 异地�
 - **node 侧**（`plugins/windows-backup/src/`，零第三方依赖，只用 node 内置模块）：
   - 每分钟一跳：距上一轮结束满 `frequency-minutes`（默认 30）分钟就跑下一轮，改周期下一分钟生效，工作台重启后第一跳自然补上
   - 一轮备份：本地备份 + 每日一次 forget+prune + OSS 备份；两次备份都显式传父快照，白名单加路径只读新增那条
-  - 健康结论：上次备份 / 磁盘余量 / 快照新鲜度三项，每次现算；到期的人工维护（USB 离机副本、排除规则审计、人工复核）单独提醒，不算故障
+  - 健康结论：上次备份 / 磁盘余量 / 快照新鲜度三项，每次重新计算；到期的人工维护（USB 离机副本、排除规则审计、人工复核）单独提醒，不算故障
   - 同一时间只有一轮（数据目录里的 `backup.lock`：原子占锁、租约、心跳），凭据按 home 保管、子进程 env 注入、日志与回执遮挡
 - **命令**（`windows-backup.*`，经 MCP 入口的 `run` 调用，每条标了 `effect`）：
   `status` / `check` / `paths`（只读）、`mark`、`run` / `restic`（透传，密钥不出现在参数里）
@@ -40,7 +40,7 @@ pnpm check     # 仓根运行：typecheck ×2 + oxlint + vitest（!slow）
 
 ## 文档
 
-文档站在 `docs-site/`：`cd docs-site; pnpm build; pnpm start`，看 `http://127.0.0.1:4318`。
+文档站在 `docs-site/`，开发服务由 gwb 工作台托管：`docsite.site.add {"dir":"<站目录>"}`，地址看 `docsite.site.list`。
 
 **代码注释只写现状**——为什么这么写、判据怎么来的，都在文档站。
 

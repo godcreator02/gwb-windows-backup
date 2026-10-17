@@ -1,0 +1,44 @@
+---
+title: 文档站迁到 god-docsite 与新讲解组件包
+born-at: 2026-10-17T16:30
+type: choice
+parent: [2026-09-08-backup-line]
+label: 文档站迁到 god-docsite
+domain: 文档
+---
+
+## 背景
+
+docs-site 原来是 Next 16 + `@godcreator/docfirst-workflow` 0.5.2 + `@godcreator/docfirst-explainer` 0.1.1：页面路由、搜索、llms 文本、星轨盘都是站里手写的 Next 文件（`src/app/`），
+六个讲解组件在 `src/components/` 下、由全局组件表 `mdx.tsx` 交给页面，术语表是 `src/glossary.data.mjs`，看页面要先 `pnpm build` 再 `pnpm start`（端口 4318）。
+站还是仓根 pnpm 工作区的成员，和插件包共用仓根的锁文件。
+平台换成了 `@godcreator/god-docsite`（fumadocs + React Router + Vite）加功能包 code-pin、trajectory、explainer，命令行换成 `@godcreator/docfirst` 0.1.0，开发服务由工作台的 `docsite.site.*` 托管。
+迁移步骤照 god-docsite 文档站的维护页「Next docfirst 站迁到平台」，这个站是第一个用到讲解组件包的。
+
+## 结论与边界
+
+- 骨架用 `docfirst.create` 在 `D:\gwb-docfirst-migrate\gwb-windows-backup\docs-site` 生成，`app/`、根配置、身份文件、`people.json`、`comments/` 整份换进来；`package.json` 依赖与脚本照骨架，名字、版本、描述保留
+- 站移出仓根工作区：仓根 `pnpm-workspace.yaml` 去掉 `docs-site`，站在自己目录里 install，仓根锁文件里站的那一份依赖跟着删掉；仓根 `.gitignore` 里旧站的三条产物规则删掉
+- 轨迹卡挪到站点根 `trajectory/`，旧的 `meta.json` 删掉
+- 讲解组件按用到它的页放：健康结论、锁、一轮备份、定时四个组件放进各页的同名文件夹，术语表组件放进 `docs/glossary/`；
+  接缝图 `SeamMap` 首页与插件包首页两页共用，和两张图共用的图标 `icons.tsx`、几个组件共用的样式 `backup.css` 一起放进 docs 组的 `_shared/`。各页开头 import 自己的组件，各组件 import `backup.css`
+- 讲解组件包换成 `@godcreator/explainer` 0.1.1：组件、`cap`、`SeamLayout` 从 `@godcreator/explainer/site` 取；`stepsText` / `casesText` / `chaptersText` 与 `defineSeamGraph` / `seamGraphText` 从 `@godcreator/explainer` 取。
+  对比两个包的构建产物，组件与机读规则的实现一字未改，差别只有入口、`'use client'` 和样式里多的一条 `font-variant-ligatures: none`；包的样式由站点的 explainer 功能接进全站，页面不再引
+- 六个数据文件保持 `.mjs`，旁边补 `.d.mts`；类型由 tsc 按数据文件里的 JSDoc 生成后整理
+- 术语表转成站点根 `glossary.json`，术语页的表与它的机读规则都读这份；原来写在数据文件头注释里的收词判据挪进术语页正文
+- 首页写上一句插件介绍；README / AGENTS 正本里 build + start 看页面的说法改成工作台托管开发服务
+- 迁完 `pnpm doc`、`pnpm typecheck`、`pnpm build` 退出码都是 0；`docsite.site.start` 后首页、`/docs`、未来区第一页、各组件页、卡页、`/llms.txt` 都是 200；
+  六个讲解组件浅色、深色、375 宽都画得出来，页面不横向滚动
+
+## 否掉的候选
+
+- 把接缝图拆成两个组件、各放进两页的同名文件夹：机读规则与 mdx 里的 `module` 属性都要改，两张图又共用图标与样式，放 `_shared/` 改动最小
+- 把 `backup.css` 按组件拆开：几个组件共用两栏、小标签、键值表这些类，拆开就得复制
+- 给不进生成物的组件删掉机读规则：新平台的名册只管生成正本，这六个组件没有一个在生成正本里，规则现在用不上；迁移只换写法，删不删以后再定
+
+## 代价与遗留
+
+- 首页与插件包首页写的 `full: true` 不再生效：平台的页面组件不把这个 frontmatter 交给 fumadocs 的 `DocsPage`，两张接缝图在正文宽度里横向滚动
+- 一轮备份图里「成 / 失败 / 不跑」的小标签在格子里被拉满整行：`backup.css` 的 `.wb-tag` 没写 `justify-self: start`，样式跟旧站一样，没在这次改
+- 旧站 `global.css` 里给正文设的更纱黑体没带过来，用的是平台默认字体
+- 六个组件的 `.ai.mjs` 照旧留着，名册里也照旧登记

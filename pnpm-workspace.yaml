@@ -2,12 +2,11 @@
 #
 # 仓是 workspace 布局：仓根是不发布的 private 包，插件放在 plugins/<短名>/。
 # 实验材料 probes/ 不进 workspace：每个实验目录自带依赖、能单独运行。
+# 文档站 docs-site/ 也不进：它自带 pnpm-workspace.yaml 与锁文件、在站目录里自己 install，收进来就是 workspace 里嵌套 workspace。
 
 packages:
   # 插件：Windows 备份 windows-backup
   - plugins/*
-  # 文档站：自己的依赖，不进仓根 build；仓根 check 对它不做事（它没有 check 脚本）
-  - docs-site
 
 allowBuilds:
   # @tailwindcss/node 间接依赖的包，它的安装脚本不需要运行

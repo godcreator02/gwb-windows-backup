@@ -2,7 +2,7 @@
   "name": "gwb-windows-backup-workspace",
   "private": true,
   "type": "module",
-  "description": "Windows 备份插件的 pnpm workspace：插件放在 plugins/（装进 home、由 cordis 加载的包）；文档站 docs-site/ 也是成员，不进仓根的 build。",
+  "description": "Windows 备份插件的 pnpm workspace：插件放在 plugins/（装进 home、由 cordis 加载的包）；文档站 docs-site/ 不是成员，在站目录里自己 install。",
   "scripts": {
     "build": "pnpm -r --filter \"./plugins/*\" build",
     "check": "pnpm -r --no-bail check"

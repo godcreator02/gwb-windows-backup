@@ -4,6 +4,8 @@ description: 定时把白名单目录做成 restic 快照、再独立备份一�
 full: true
 ---
 
+import { SeamMap } from './_shared/seam-map/seam-map'
+
 插件包 `@godcreator/gwb-windows-backup` 在仓里的 `plugins/windows-backup/`。它只做三件事：
 
 - **每分钟一跳**：定时器每 60 秒醒一次，距上一轮结束满 `frequency-minutes`（默认 30）分钟就跑下一轮

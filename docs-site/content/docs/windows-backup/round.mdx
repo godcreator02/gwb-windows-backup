@@ -3,6 +3,8 @@ title: 一轮备份
 description: 一轮按什么顺序跑六段、每段成败怎么影响后面、state.json 记下什么、通知说什么；父快照为什么每次都显式传
 ---
 
+import { RoundCases } from './round/round-cases'
+
 `src/backup.ts` 的 `runFullBackup`。定时那一跳与 `windows-backup.run` 命令走的是同一个函数。选一种开局，看六段各自跑没跑：
 
 <RoundCases />
